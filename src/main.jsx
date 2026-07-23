@@ -1500,6 +1500,18 @@ function discountLabel(min, max = min) {
   return second && second !== first ? `${first}-${second}%` : `${first}%`;
 }
 
+function taxIdentifierPlaceholder(type) {
+  if (type === "cif") {
+    return "B12345678 / ESB12345678";
+  }
+
+  if (type === "sujeto_pasivo") {
+    return "ESB12345678 / ES12345678Z";
+  }
+
+  return "12345678Z / ES12345678Z";
+}
+
 function emptyAdditionalAddress(country = "ES") {
   return { label: "", address: "", postalCode: "", city: "", province: "", country };
 }
@@ -2105,7 +2117,14 @@ function LeadMainFields({ form, setForm, onValidateVies, viesChecking = false, v
         </label>
         <input placeholder="Nombre" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
         <input placeholder="Apellidos" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
-        <input placeholder="País" value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value.toUpperCase(), viesValid: false })} />
+        <label className="field-with-label">
+          <span>País</span>
+          <input
+            placeholder="ES, IT, FR, PT..."
+            value={form.country}
+            onChange={(event) => setForm({ ...form, country: event.target.value.toUpperCase(), viesValid: false })}
+          />
+        </label>
         {form.customerType !== "particular" ? (
           <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : null}
@@ -2127,7 +2146,7 @@ function LeadMainFields({ form, setForm, onValidateVies, viesChecking = false, v
         </select>
         <div className="tax-id-field">
           <input
-            placeholder="Número fiscal"
+            placeholder={taxIdentifierPlaceholder(form.taxIdentifierType)}
             value={form.taxId}
             onChange={(event) => setForm({ ...form, taxId: event.target.value.toUpperCase(), viesValid: false })}
           />
@@ -2430,7 +2449,14 @@ function LeadFormFields({
       </label>
       <input placeholder="Nombre" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
       <input placeholder="Apellidos" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
-      <input placeholder="País" value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value.toUpperCase(), viesValid: false })} />
+      <label className="field-with-label">
+        <span>País</span>
+        <input
+          placeholder="ES, IT, FR, PT..."
+          value={form.country}
+          onChange={(event) => setForm({ ...form, country: event.target.value.toUpperCase(), viesValid: false })}
+        />
+      </label>
       {form.customerType !== "particular" ? (
         <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
       ) : null}
@@ -2452,7 +2478,7 @@ function LeadFormFields({
       </select>
       <div className="tax-id-field">
         <input
-          placeholder="Número fiscal"
+          placeholder={taxIdentifierPlaceholder(form.taxIdentifierType)}
           value={form.taxId}
           onChange={(event) => setForm({ ...form, taxId: event.target.value.toUpperCase(), viesValid: false })}
         />

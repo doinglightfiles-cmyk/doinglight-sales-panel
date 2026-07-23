@@ -1390,6 +1390,17 @@ th {
   gap: 12px;
 }
 
+.field-with-label {
+  display: grid;
+  gap: 6px;
+}
+
+.field-with-label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .crm-row {
   display: grid;
   gap: 10px;
