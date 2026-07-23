@@ -2070,6 +2070,7 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
             onValidateVies={validateDetailVies}
             viesChecking={viesChecking}
             viesMessage={viesMessage}
+            onViesInputChange={() => setViesMessage("")}
             onCheckWhatsapp={checkDetailWhatsapp}
             whatsappMessage={whatsappMessage}
           />
@@ -2112,9 +2113,17 @@ function LeadMainFields({
   onValidateVies,
   viesChecking = false,
   viesMessage = "",
+  onViesInputChange,
   onCheckWhatsapp,
   whatsappMessage = ""
 }) {
+  const viesInvalid = Boolean(viesMessage && !form.viesValid && !viesChecking);
+  const viesButtonClass = [
+    "secondary-button",
+    form.viesValid ? "vies-validated-button" : "",
+    viesInvalid ? "vies-invalid-button" : ""
+  ].filter(Boolean).join(" ");
+
   return (
     <section className="crm-section lead-main-edit">
       <header>
@@ -2174,6 +2183,7 @@ function LeadMainFields({
               value={form.taxIdentifierType}
               onChange={(event) => {
                 const type = event.target.value;
+                onViesInputChange?.();
                 setForm({
                   ...form,
                   taxIdentifierType: type,
@@ -2190,18 +2200,21 @@ function LeadMainFields({
               <input
                 placeholder={taxIdentifierPlaceholder(form.taxIdentifierType)}
                 value={form.taxId}
-                onChange={(event) => setForm({ ...form, taxId: event.target.value.toUpperCase(), viesValid: false })}
+                onChange={(event) => {
+                  onViesInputChange?.();
+                  setForm({ ...form, taxId: event.target.value.toUpperCase(), viesValid: false });
+                }}
               />
               {form.viesValid ? <CheckCircle2 size={18} /> : null}
             </div>
             <button
-              className={form.viesValid ? "secondary-button vies-validated-button" : "secondary-button"}
+              className={viesButtonClass}
               type="button"
               onClick={onValidateVies}
               disabled={!form.country || !form.taxId || viesChecking || !onValidateVies}
             >
               {form.viesValid ? <CheckCircle2 size={16} /> : null}
-              {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : "Validar VIES"}
+              {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : viesInvalid ? "VIES no válido" : "Validar VIES"}
             </button>
           </div>
         </label>
@@ -2210,7 +2223,7 @@ function LeadMainFields({
         {form.customerType !== "particular" ? (
           <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : <span className="hidden-grid-cell" aria-hidden="true" />}
-        {viesMessage ? <p className={form.viesValid ? "form-help success" : "form-help"}>{viesMessage}</p> : null}
+        {viesMessage && form.viesValid ? <p className="form-help success">{viesMessage}</p> : null}
         <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
         <input placeholder="C.P." value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
         <input placeholder="Población" value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
@@ -2238,7 +2251,10 @@ function LeadMainFields({
         <label className="field-with-label compact-field-label">
           <select
             value={form.country}
-            onChange={(event) => setForm({ ...form, country: event.target.value, viesValid: false })}
+            onChange={(event) => {
+              onViesInputChange?.();
+              setForm({ ...form, country: event.target.value, viesValid: false });
+            }}
           >
             {EUROPEAN_COUNTRIES.map((country) => (
               <option key={country.code} value={country.code}>{country.label}</option>
@@ -2506,6 +2522,7 @@ function LeadFormFields({
         onValidateVies={validateVies}
         viesChecking={viesChecking}
         viesMessage={viesMessage}
+        onViesInputChange={() => setViesMessage("")}
         onCheckWhatsapp={checkWhatsapp}
         whatsappMessage={whatsappMessage}
       />
