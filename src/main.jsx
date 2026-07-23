@@ -2223,7 +2223,6 @@ function LeadMainFields({
         {form.customerType !== "particular" ? (
           <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : <span className="hidden-grid-cell" aria-hidden="true" />}
-        {viesMessage && form.viesValid ? <p className="form-help success">{viesMessage}</p> : null}
         <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
         <input placeholder="C.P." value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
         <input placeholder="Población" value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
