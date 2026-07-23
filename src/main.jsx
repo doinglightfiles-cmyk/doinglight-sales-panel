@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CreditCard,
   Download,
+  FileText,
   Fingerprint,
   Gift,
   ImageIcon,
@@ -18,6 +19,8 @@ import {
   Menu,
   MessageCircle,
   Paintbrush,
+  Paperclip,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -26,6 +29,7 @@ import {
   SlidersHorizontal,
   Truck,
   Type,
+  History,
   UsersRound,
   X,
   UserRound
@@ -53,6 +57,22 @@ function shortDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function dateOnly(value) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
+function addDays(value, days) {
+  if (!value) return null;
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date;
 }
 
 async function apiRequest(path, { token, method = "GET", body } = {}) {
@@ -1961,25 +1981,17 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
   const [viesMessage, setViesMessage] = useState("");
   const [viesChecking, setViesChecking] = useState(false);
   const [whatsappMessage, setWhatsappMessage] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState("documents");
   const paymentNotificationsAllowed = !["level_1", "level_2"].includes(draft.customerLevel);
+  const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
+  const leadQuotes = (quotes.data?.items || []).filter((quote) => quote.leadId === lead.id);
 
   useEffect(() => {
     setDraft(leadToDraft(lead));
+    setEditing(false);
+    setActiveTab("documents");
   }, [lead]);
-
-  function updateListItem(listName, index, patch) {
-    setDraft((current) => ({
-      ...current,
-      [listName]: current[listName].map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item))
-    }));
-  }
-
-  function removeListItem(listName, index) {
-    setDraft((current) => ({
-      ...current,
-      [listName]: current[listName].filter((_, itemIndex) => itemIndex !== index)
-    }));
-  }
 
   async function saveProfile() {
     if (!token) return;
@@ -1997,6 +2009,7 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
         }
       });
       onSaved?.(result.item);
+      setEditing(false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -2042,55 +2055,278 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <article
-        className="product-detail lead-detail wide-modal"
+        className="product-detail lead-detail lead-record-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="lead-detail-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <header className="product-detail-header">
-          <div>
-            <p>{customerTypeLabel(draft.customerType)}</p>
-            <h3 id="lead-detail-title">{fullNameFromDraft(draft) || "Contacto"}</h3>
+        <header className="lead-record-header">
+          <div className="lead-record-title">
+            <UsersRound size={21} />
+            <div>
+              <p>{customerTypeLabel(draft.customerType)} · Moneda: EUR</p>
+              <h3 id="lead-detail-title">{fullNameFromDraft(draft) || draft.companyName || "Contacto"}</h3>
+            </div>
+            <span className="contact-class-badge">C</span>
           </div>
           <div className="modal-header-actions">
-            <button className="secondary-button" type="button" onClick={saveProfile} disabled={saving || !token}>
-              {saving ? "Guardando..." : "Guardar cambios"}
-            </button>
+            {editing ? (
+              <button className="secondary-button" type="button" onClick={saveProfile} disabled={saving || !token}>
+                {saving ? "Guardando..." : "Guardar cambios"}
+              </button>
+            ) : null}
             <button className="icon-button" onClick={onClose} aria-label="Cerrar ficha">
               <X size={18} />
             </button>
           </div>
         </header>
 
-        <div className="lead-detail-body">
-          <LeadMainFields
-            form={draft}
-            setForm={setDraft}
-            onValidateVies={validateDetailVies}
-            viesChecking={viesChecking}
-            viesMessage={viesMessage}
-            onViesInputChange={() => setViesMessage("")}
-            onCheckWhatsapp={checkDetailWhatsapp}
-            whatsappMessage={whatsappMessage}
-          />
+        <div className="lead-record-body">
+          <div className="lead-summary-grid">
+            <LeadSummaryCard title="Datos básicos" onEdit={() => setEditing(true)}>
+              <SummaryLine label="Datos de facturación" value={draft.companyName || fullNameFromDraft(draft)} />
+              <SummaryLine label="Mostrar como" value={fullNameFromDraft(draft) || draft.companyName} />
+              <SummaryLine label="Perfil de cliente" value={customerLevelLabel(draft.customerLevel)} />
+              <SummaryLine label="Identificador fiscal" value={draft.taxId || "Sin NIF/CIF"} />
+              <SummaryLine label="Descuento" value={discountLabel(draft.defaultDiscountPercent, draft.defaultDiscountMaxPercent)} />
+            </LeadSummaryCard>
 
-          <LeadCrmFields
-            form={draft}
-            setForm={setDraft}
-            paymentNotificationsAllowed={paymentNotificationsAllowed}
-            fallbackCountry={lead.country || "ES"}
-          />
+            <LeadSummaryCard title="Direcciones" onEdit={() => setEditing(true)}>
+              <SummaryLine label="Dirección fiscal" value={[draft.address, draft.postalCode, draft.population || draft.city].filter(Boolean).join(", ") || "Sin dirección fiscal"} />
+              <SummaryLine label="Provincia" value={draft.province || "-"} />
+              <SummaryLine label="País" value={countryLabel(draft.country)} />
+              <SummaryLine label="Direcciones adicionales" value={`${draft.additionalAddresses.length} registradas`} />
+            </LeadSummaryCard>
 
-          {lead.notes ? (
-            <section className="detail-copy">
-              <h4>Notas internas</h4>
-              <p>{lead.notes}</p>
-            </section>
+            <LeadSummaryCard title="Comunicación" onEdit={() => setEditing(true)}>
+              <SummaryLine label="Principal" value={draft.email || "Sin email"} icon={<Mail size={16} />} />
+              <SummaryLine label="Teléfono" value={draft.phone || "-"} />
+              <SummaryLine label="Móvil" value={draft.mobilePhone || "-"} icon={<MessageCircle size={16} />} />
+              <SummaryLine label="Contactos adicionales" value={`${draft.communicationContacts.length} registrados`} />
+            </LeadSummaryCard>
+
+            <LeadSummaryCard title="Preferencias del cliente" onEdit={() => setEditing(true)}>
+              <SummaryLine label="Impuestos como cliente" value={draft.defaultTaxRate === 0 ? "Exento / sujeto pasivo" : `${draft.defaultTaxRate ?? 21}%`} />
+              <SummaryLine label="Método de cobro" value={draft.preferredPaymentMethod || "Sin definir"} />
+              <SummaryLine label="Plazo de cobro" value={draft.paymentTermDays ? `${draft.paymentTermDays} días` : "Sin definir"} />
+              <SummaryLine label="Notificaciones" value={draft.paymentNotificationsEnabled ? "Activadas" : "Sin activar"} />
+            </LeadSummaryCard>
+
+            <LeadSummaryCard title="Otros" onEdit={() => setEditing(true)} compact>
+              <p className="summary-notes">{draft.notes || "No hay información adicional"}</p>
+            </LeadSummaryCard>
+          </div>
+
+          {editing ? (
+            <div className="lead-edit-panel">
+              <LeadMainFields
+                form={draft}
+                setForm={setDraft}
+                onValidateVies={validateDetailVies}
+                viesChecking={viesChecking}
+                viesMessage={viesMessage}
+                onViesInputChange={() => setViesMessage("")}
+                onCheckWhatsapp={checkDetailWhatsapp}
+                whatsappMessage={whatsappMessage}
+              />
+
+              <LeadCrmFields
+                form={draft}
+                setForm={setDraft}
+                paymentNotificationsAllowed={paymentNotificationsAllowed}
+                fallbackCountry={lead.country || "ES"}
+              />
+            </div>
           ) : null}
+
+          <div className="lead-record-tabs" role="tablist" aria-label="Información del cliente">
+            <button className={activeTab === "documents" ? "active" : ""} type="button" onClick={() => setActiveTab("documents")}>
+              Documentos
+            </button>
+            <button className={activeTab === "more" ? "active" : ""} type="button" onClick={() => setActiveTab("more")}>
+              Más información
+            </button>
+          </div>
+
+          {activeTab === "documents" ? (
+            <LeadDocumentsPanel quotes={leadQuotes} loading={quotes.loading} error={quotes.error} />
+          ) : (
+            <LeadMoreInfoPanel lead={lead} draft={draft} />
+          )}
+
           {error ? <p className="form-error">{error}</p> : null}
         </div>
       </article>
+    </div>
+  );
+}
+
+function LeadSummaryCard({ title, children, onEdit, compact = false }) {
+  return (
+    <section className={`lead-summary-card ${compact ? "compact" : ""}`}>
+      <header>
+        <h4>{title}</h4>
+        <button className="tiny-icon-button" type="button" onClick={onEdit} aria-label={`Modificar ${title}`}>
+          <Pencil size={15} />
+        </button>
+      </header>
+      <div className="lead-summary-content">{children}</div>
+    </section>
+  );
+}
+
+function SummaryLine({ label, value, icon }) {
+  return (
+    <div className="summary-line">
+      <span>{label}</span>
+      <strong>
+        {icon}
+        {value || "-"}
+      </strong>
+    </div>
+  );
+}
+
+function LeadDocumentsPanel({ quotes, loading, error }) {
+  return (
+    <section className="lead-tab-panel documents-panel">
+      <header>
+        <div>
+          <h4>Documentos</h4>
+          <p>Presupuestos y futuras facturas vinculadas a este cliente.</p>
+        </div>
+        <button className="primary-button" type="button">Crear</button>
+      </header>
+
+      <div className="documents-toolbar">
+        <select defaultValue="all" aria-label="Tipo de documento">
+          <option value="all">Todos los documentos</option>
+          <option value="quote">Presupuestos</option>
+          <option value="invoice">Facturas</option>
+        </select>
+        <div className="contacts-search document-search">
+          <Search size={18} />
+          <input placeholder="Buscar..." readOnly />
+        </div>
+        <select defaultValue="all_dates" aria-label="Fechas">
+          <option value="all_dates">Todas las fechas</option>
+        </select>
+      </div>
+
+      {error ? <p className="form-error">{error}</p> : null}
+      <div className="table-wrap lead-documents-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Detalle</th>
+              <th>Vencimiento</th>
+              <th>Saldo pendiente</th>
+              <th>Subtotal</th>
+              <th>Total</th>
+              <th>Moneda</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan="8">Cargando documentos...</td></tr>
+            ) : quotes.length ? (
+              quotes.map((quote) => (
+                <tr key={quote.id} className="clickable-row" tabIndex={0}>
+                  <td>{dateOnly(quote.createdAt)}</td>
+                  <td>
+                    <a className="document-link" href={`#quote-${quote.id}`}>
+                      <FileText size={16} />
+                      <span>
+                        <strong>{quote.quoteNumber || "Presupuesto"}</strong>
+                        <small>{quote.notes || "Presupuesto vinculado al cliente"}</small>
+                      </span>
+                    </a>
+                  </td>
+                  <td>{dateOnly(addDays(quote.createdAt, 30))}</td>
+                  <td>{quote.status === "accepted" ? money(0) : money(quote.total)}</td>
+                  <td>{money(quote.subtotal)}</td>
+                  <td>{money(quote.total)}</td>
+                  <td>{quote.currency || "EUR"}</td>
+                  <td><span className={`document-status ${quote.status || "draft"}`}>{quote.status || "draft"}</span></td>
+                </tr>
+              ))
+            ) : (
+              <tr><td colSpan="8">No hay documentos vinculados a este cliente.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function LeadMoreInfoPanel({ lead, draft }) {
+  const activity = [
+    lead.updatedAt && lead.updatedAt !== lead.createdAt
+      ? { date: lead.updatedAt, user: "Usuario del panel", type: "Cliente modificado" }
+      : null,
+    lead.createdAt ? { date: lead.createdAt, user: "Usuario del panel", type: "Cliente creado" } : null
+  ].filter(Boolean);
+
+  return (
+    <div className="lead-more-info">
+      <section className="lead-tab-panel">
+        <header>
+          <div>
+            <h4>Comentarios</h4>
+            <p>{draft.notes || "Sin comentarios"}</p>
+          </div>
+          <button className="secondary-button" type="button">Añadir comentario</button>
+        </header>
+      </section>
+
+      <section className="lead-tab-panel">
+        <header>
+          <div>
+            <h4>Adjuntos</h4>
+            <p>Sin archivos adjuntos</p>
+          </div>
+          <button className="secondary-button" type="button">
+            <Paperclip size={16} />
+            Añadir adjunto
+          </button>
+        </header>
+      </section>
+
+      <section className="lead-tab-panel activity-panel">
+        <header>
+          <div>
+            <h4>Actividad</h4>
+            <p>Registro de movimientos del cliente. La auditoría completa por usuario se conectará al backend.</p>
+          </div>
+          <History size={20} />
+        </header>
+        <div className="table-wrap activity-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Responsable</th>
+                <th>Tipo de actividad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activity.length ? activity.map((item, index) => (
+                <tr key={`${item.type}-${index}`}>
+                  <td>{shortDate(item.date)}</td>
+                  <td>{item.user}</td>
+                  <td>{item.type}</td>
+                </tr>
+              )) : (
+                <tr><td colSpan="3">Sin actividad registrada.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
