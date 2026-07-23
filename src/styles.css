@@ -1629,19 +1629,13 @@ th {
   transform: translateY(-50%);
 }
 
-.vies-field {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--ink);
-  font-weight: 650;
+.vies-validated-button {
+  color: var(--green-dark);
+  border-color: rgba(156, 195, 27, 0.55);
 }
 
-.vies-field input {
-  width: 18px;
-  min-height: 18px;
-  padding: 0;
+.vies-validated-button svg {
+  color: var(--green-dark);
 }
 
 .form-section {

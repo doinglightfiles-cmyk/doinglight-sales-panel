@@ -2133,21 +2133,14 @@ function LeadMainFields({ form, setForm, onValidateVies, viesChecking = false, v
           />
           {form.viesValid ? <CheckCircle2 size={18} /> : null}
         </div>
-        <label className="vies-field">
-          <input
-            type="checkbox"
-            checked={form.viesEnabled}
-            onChange={(event) => setForm({ ...form, viesEnabled: event.target.checked, viesValid: event.target.checked ? form.viesValid : false })}
-          />
-          <span>VIES</span>
-        </label>
         <button
-          className="secondary-button"
+          className={form.viesValid ? "secondary-button vies-validated-button" : "secondary-button"}
           type="button"
           onClick={onValidateVies}
-          disabled={!form.viesEnabled || !form.country || !form.taxId || viesChecking || !onValidateVies}
+          disabled={!form.country || !form.taxId || viesChecking || !onValidateVies}
         >
-          {viesChecking ? "Validando..." : "Validar VIES"}
+          {form.viesValid ? <CheckCircle2 size={16} /> : null}
+          {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : "Validar VIES"}
         </button>
         {viesMessage ? <p className={form.viesValid ? "form-help success" : "form-help"}>{viesMessage}</p> : null}
         <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
@@ -2465,21 +2458,14 @@ function LeadFormFields({
         />
         {form.viesValid ? <CheckCircle2 size={18} /> : null}
       </div>
-      <label className="vies-field">
-        <input
-          type="checkbox"
-          checked={form.viesEnabled}
-          onChange={(event) => setForm({ ...form, viesEnabled: event.target.checked, viesValid: event.target.checked ? form.viesValid : false })}
-        />
-        <span>VIES</span>
-      </label>
       <button
-        className="secondary-button"
+        className={form.viesValid ? "secondary-button vies-validated-button" : "secondary-button"}
         type="button"
         onClick={validateVies}
-        disabled={!form.viesEnabled || !form.country || !form.taxId || viesChecking || !onValidateVies}
+        disabled={!form.country || !form.taxId || viesChecking || !onValidateVies}
       >
-        {viesChecking ? "Validando..." : "Validar VIES"}
+        {form.viesValid ? <CheckCircle2 size={16} /> : null}
+        {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : "Validar VIES"}
       </button>
       {viesMessage ? <p className={form.viesValid ? "form-help success" : "form-help"}>{viesMessage}</p> : null}
       <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
