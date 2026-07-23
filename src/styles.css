@@ -215,11 +215,13 @@ select:focus {
 .nav-dropdown {
   position: relative;
   flex: 0 0 auto;
+  padding-bottom: 12px;
+  margin-bottom: -12px;
 }
 
 .nav-submenu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% - 2px);
   left: 50%;
   z-index: 35;
   min-width: 168px;
@@ -251,7 +253,7 @@ select:focus {
   color: var(--white);
   background: transparent;
   text-align: left;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
 }
 
