@@ -245,6 +245,7 @@ function App() {
 
 function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [contactsInitialFilter, setContactsInitialFilter] = useState("all");
   const primaryNav = [
     { id: "dashboard", label: "Inicio" },
     { id: "invoices", label: "Facturas" },
@@ -295,8 +296,13 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const activeMoreItem = moreNav.find((item) => item.id === activeView && !primaryNav.some((navItem) => navItem.id === item.id));
   const visibleNav = activeMoreItem ? [...primaryNav, activeMoreItem] : primaryNav;
 
-  function navigate(viewId) {
+  function navigate(viewId, options = {}) {
     setMoreOpen(false);
+    if (viewId === "contacts" && options.contactFilter) {
+      setContactsInitialFilter(options.contactFilter);
+    } else if (viewId !== "contacts") {
+      setContactsInitialFilter("all");
+    }
     onNavigate(viewId);
   }
 
@@ -308,6 +314,28 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         </button>
         <nav className="main-nav" aria-label="Navegación principal">
           {visibleNav.map((item) => {
+            if (item.id === "contacts") {
+              return (
+                <div className="nav-dropdown" key={item.id}>
+                  <button
+                    className={activeView === item.id ? "nav-item active" : "nav-item"}
+                    onClick={() => navigate(item.id)}
+                    aria-haspopup="menu"
+                  >
+                    {item.label}
+                  </button>
+                  <div className="nav-submenu" role="menu">
+                    <button type="button" onClick={() => navigate("contacts", { contactFilter: "clients" })} role="menuitem">
+                      Clientes
+                    </button>
+                    <button type="button" onClick={() => navigate("contacts", { contactFilter: "suppliers" })} role="menuitem">
+                      Proveedores
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <button
                 key={item.id}
@@ -384,7 +412,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "settings" ? <SettingsView /> : null}
           {activeView === "invoices" ? <ModuleWorkspace moduleId="invoices" /> : null}
           {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
-          {activeView === "contacts" ? <ContactsView token={session.token} /> : null}
+          {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
           {activeView === "delivery-notes" ? <ModuleWorkspace moduleId="delivery-notes" /> : null}
           {activeView === "all-sales" ? <ModuleWorkspace moduleId="all-sales" /> : null}
@@ -1610,19 +1638,23 @@ function fullNameFromDraft(form) {
   return [form.firstName, form.lastName].filter(Boolean).join(" ").trim() || form.fullName;
 }
 
-function ContactsView({ token }) {
+function ContactsView({ token, initialFilter = "all" }) {
   const [showForm, setShowForm] = useState(false);
   const [showContactTypePicker, setShowContactTypePicker] = useState(false);
   const [newContactType, setNewContactType] = useState("client");
   const [newCustomerLevel, setNewCustomerLevel] = useState(CUSTOMER_LEVELS[0]);
   const [selectedLead, setSelectedLead] = useState(null);
-  const [contactFilter, setContactFilter] = useState("all");
+  const [contactFilter, setContactFilter] = useState(initialFilter);
   const [customerLevelFilter, setCustomerLevelFilter] = useState("all");
   const [query, setQuery] = useState("");
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200", { token }), [token]);
   const clientContacts = (leads.data?.items || []).map((lead) => ({ ...lead, contactClass: "client" }));
   const supplierContacts = [];
   const contacts = contactFilter === "suppliers" ? supplierContacts : contactFilter === "clients" ? clientContacts : [...clientContacts, ...supplierContacts];
+
+  useEffect(() => {
+    setContactFilter(initialFilter);
+  }, [initialFilter]);
   const filteredContacts = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return contacts.filter((contact) => {
