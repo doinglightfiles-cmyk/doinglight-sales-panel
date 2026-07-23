@@ -1390,6 +1390,59 @@ th {
   gap: 12px;
 }
 
+.lead-main-edit {
+  grid-column: 1 / -1;
+}
+
+.contact-data-grid {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  align-items: start;
+}
+
+.contact-level-field {
+  grid-column: span 3;
+}
+
+.tax-contact-field {
+  align-self: stretch;
+}
+
+.tax-contact-stack,
+.whatsapp-contact-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.tax-contact-stack {
+  grid-template-columns: minmax(88px, 0.55fr) minmax(130px, 1fr);
+}
+
+.tax-contact-stack button {
+  grid-column: 1 / -1;
+}
+
+.whatsapp-contact-stack {
+  grid-template-columns: minmax(140px, 1fr);
+}
+
+.whatsapp-contact-stack button {
+  justify-content: center;
+}
+
+.whatsapp-help {
+  grid-column: 1 / -1;
+}
+
+.hidden-grid-cell {
+  min-height: 1px;
+}
+
+.contact-notes-field {
+  grid-column: 1 / -1;
+  min-height: 118px;
+  resize: vertical;
+}
+
 .field-with-label {
   display: grid;
   gap: 6px;
@@ -2174,6 +2227,18 @@ th {
   .detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .contact-data-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .contact-level-field {
+    grid-column: span 1;
+  }
+
+  .hidden-grid-cell {
+    display: none;
+  }
 }
 
 @media (max-width: 560px) {
@@ -2198,6 +2263,11 @@ th {
   .contacts-page-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .contact-data-grid,
+  .tax-contact-stack {
+    grid-template-columns: 1fr;
   }
 
   .module-page-header {

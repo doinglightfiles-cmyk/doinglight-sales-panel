@@ -16,6 +16,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  MessageCircle,
   Paintbrush,
   Plus,
   RefreshCw,
@@ -1417,15 +1418,43 @@ function customerTypeLabel(value) {
 }
 
 function countryLabel(value) {
-  const labels = {
-    ES: "España",
-    IT: "Italia",
-    FR: "Francia",
-    PT: "Portugal",
-    DE: "Alemania"
-  };
-  return labels[String(value || "").toUpperCase()] || value || "-";
+  const country = EUROPEAN_COUNTRIES.find((item) => item.code === String(value || "").toUpperCase());
+  return country?.label || value || "-";
 }
+
+const EUROPEAN_COUNTRIES = [
+  { code: "ES", label: "España" },
+  { code: "PT", label: "Portugal" },
+  { code: "FR", label: "Francia" },
+  { code: "IT", label: "Italia" },
+  { code: "DE", label: "Alemania" },
+  { code: "NL", label: "Países Bajos" },
+  { code: "BE", label: "Bélgica" },
+  { code: "LU", label: "Luxemburgo" },
+  { code: "IE", label: "Irlanda" },
+  { code: "DK", label: "Dinamarca" },
+  { code: "SE", label: "Suecia" },
+  { code: "FI", label: "Finlandia" },
+  { code: "AT", label: "Austria" },
+  { code: "CZ", label: "Chequia" },
+  { code: "SK", label: "Eslovaquia" },
+  { code: "SI", label: "Eslovenia" },
+  { code: "HR", label: "Croacia" },
+  { code: "HU", label: "Hungría" },
+  { code: "PL", label: "Polonia" },
+  { code: "EE", label: "Estonia" },
+  { code: "LV", label: "Letonia" },
+  { code: "LT", label: "Lituania" },
+  { code: "GR", label: "Grecia" },
+  { code: "CY", label: "Chipre" },
+  { code: "MT", label: "Malta" },
+  { code: "BG", label: "Bulgaria" },
+  { code: "RO", label: "Rumanía" },
+  { code: "NO", label: "Noruega" },
+  { code: "CH", label: "Suiza" },
+  { code: "GB", label: "Reino Unido" },
+  { code: "AD", label: "Andorra" }
+];
 
 const CUSTOMER_LEVELS = [
   {
@@ -1537,6 +1566,9 @@ function leadToDraft(lead) {
     taxId: lead.taxId || "",
     email: lead.email || "",
     phone: lead.phone || "",
+    mobilePhone: lead.mobilePhone || "",
+    whatsappStatus: lead.whatsappStatus || "unknown",
+    whatsappCheckedAt: lead.whatsappCheckedAt || null,
     address: lead.address || "",
     postalCode: lead.postalCode || "",
     population: lead.population || "",
@@ -1928,6 +1960,7 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
   const [error, setError] = useState("");
   const [viesMessage, setViesMessage] = useState("");
   const [viesChecking, setViesChecking] = useState(false);
+  const [whatsappMessage, setWhatsappMessage] = useState("");
   const paymentNotificationsAllowed = !["level_1", "level_2"].includes(draft.customerLevel);
 
   useEffect(() => {
@@ -1997,6 +2030,15 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
     }
   }
 
+  function checkDetailWhatsapp() {
+    setDraft((current) => ({
+      ...current,
+      whatsappStatus: "pending",
+      whatsappCheckedAt: new Date().toISOString()
+    }));
+    setWhatsappMessage("Comprobación preparada. Falta conectar WhatsApp Business API para validar este móvil automáticamente.");
+  }
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <article
@@ -2028,6 +2070,8 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
             onValidateVies={validateDetailVies}
             viesChecking={viesChecking}
             viesMessage={viesMessage}
+            onCheckWhatsapp={checkDetailWhatsapp}
+            whatsappMessage={whatsappMessage}
           />
 
           <LeadCrmFields
@@ -2062,7 +2106,15 @@ function LeadForm({ token, onDone, onCancel, initialCustomerLevel }) {
   );
 }
 
-function LeadMainFields({ form, setForm, onValidateVies, viesChecking = false, viesMessage = "" }) {
+function LeadMainFields({
+  form,
+  setForm,
+  onValidateVies,
+  viesChecking = false,
+  viesMessage = "",
+  onCheckWhatsapp,
+  whatsappMessage = ""
+}) {
   return (
     <section className="crm-section lead-main-edit">
       <header>
@@ -2071,8 +2123,8 @@ function LeadMainFields({ form, setForm, onValidateVies, viesChecking = false, v
           <p>Información general, fiscal y dirección principal.</p>
         </div>
       </header>
-      <div className="lead-main-grid">
-        <label className="lead-level-field">
+      <div className="lead-main-grid contact-data-grid">
+        <label className="lead-level-field contact-level-field">
           <span>Nivel de cliente</span>
           <select
             value={form.customerLevel}
@@ -2115,61 +2167,94 @@ function LeadMainFields({ form, setForm, onValidateVies, viesChecking = false, v
             <span>%</span>
           </div>
         </label>
+        <label className="field-with-label tax-contact-field">
+          <span>Identificador fiscal</span>
+          <div className="tax-contact-stack">
+            <select
+              value={form.taxIdentifierType}
+              onChange={(event) => {
+                const type = event.target.value;
+                setForm({
+                  ...form,
+                  taxIdentifierType: type,
+                  defaultTaxRate: type === "sujeto_pasivo" ? 0 : form.viesValid ? 0 : 21
+                });
+              }}
+              aria-label="Tipo de identificador fiscal"
+            >
+              <option value="nif">NIF</option>
+              <option value="cif">CIF</option>
+              <option value="sujeto_pasivo">Sujeto pasivo</option>
+            </select>
+            <div className="tax-id-field">
+              <input
+                placeholder={taxIdentifierPlaceholder(form.taxIdentifierType)}
+                value={form.taxId}
+                onChange={(event) => setForm({ ...form, taxId: event.target.value.toUpperCase(), viesValid: false })}
+              />
+              {form.viesValid ? <CheckCircle2 size={18} /> : null}
+            </div>
+            <button
+              className={form.viesValid ? "secondary-button vies-validated-button" : "secondary-button"}
+              type="button"
+              onClick={onValidateVies}
+              disabled={!form.country || !form.taxId || viesChecking || !onValidateVies}
+            >
+              {form.viesValid ? <CheckCircle2 size={16} /> : null}
+              {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : "Validar VIES"}
+            </button>
+          </div>
+        </label>
         <input placeholder="Nombre" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
         <input placeholder="Apellidos" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
-        <label className="field-with-label">
-          <span>País</span>
-          <input
-            placeholder="ES, IT, FR, PT..."
-            value={form.country}
-            onChange={(event) => setForm({ ...form, country: event.target.value.toUpperCase(), viesValid: false })}
-          />
-        </label>
         {form.customerType !== "particular" ? (
           <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
-        ) : null}
-        <select
-          value={form.taxIdentifierType}
-          onChange={(event) => {
-            const type = event.target.value;
-            setForm({
-              ...form,
-              taxIdentifierType: type,
-              defaultTaxRate: type === "sujeto_pasivo" ? 0 : form.viesValid ? 0 : 21
-            });
-          }}
-          aria-label="Tipo de identificador fiscal"
-        >
-          <option value="nif">NIF</option>
-          <option value="cif">CIF</option>
-          <option value="sujeto_pasivo">Sujeto pasivo</option>
-        </select>
-        <div className="tax-id-field">
-          <input
-            placeholder={taxIdentifierPlaceholder(form.taxIdentifierType)}
-            value={form.taxId}
-            onChange={(event) => setForm({ ...form, taxId: event.target.value.toUpperCase(), viesValid: false })}
-          />
-          {form.viesValid ? <CheckCircle2 size={18} /> : null}
-        </div>
-        <button
-          className={form.viesValid ? "secondary-button vies-validated-button" : "secondary-button"}
-          type="button"
-          onClick={onValidateVies}
-          disabled={!form.country || !form.taxId || viesChecking || !onValidateVies}
-        >
-          {form.viesValid ? <CheckCircle2 size={16} /> : null}
-          {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : "Validar VIES"}
-        </button>
+        ) : <span className="hidden-grid-cell" aria-hidden="true" />}
         {viesMessage ? <p className={form.viesValid ? "form-help success" : "form-help"}>{viesMessage}</p> : null}
-        <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-        <input placeholder="Teléfono" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-        <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
+        <input placeholder="Calle" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
         <input placeholder="C.P." value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
         <input placeholder="Población" value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
         <input placeholder="Ciudad" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
+        <input placeholder="Teléfono" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+        <label className="field-with-label whatsapp-contact-field">
+          <span>Teléfono móvil</span>
+          <div className="whatsapp-contact-stack">
+            <input
+              placeholder="+34 600 000 000"
+              value={form.mobilePhone || ""}
+              onChange={(event) => setForm({ ...form, mobilePhone: event.target.value, whatsappStatus: "unknown" })}
+            />
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={onCheckWhatsapp}
+              disabled={!form.mobilePhone || !onCheckWhatsapp}
+            >
+              <MessageCircle size={16} />
+              Comprobar WhatsApp
+            </button>
+          </div>
+        </label>
+        <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+        <label className="field-with-label">
+          <span>País</span>
+          <select
+            value={form.country}
+            onChange={(event) => setForm({ ...form, country: event.target.value, viesValid: false })}
+          >
+            {EUROPEAN_COUNTRIES.map((country) => (
+              <option key={country.code} value={country.code}>{country.label}</option>
+            ))}
+          </select>
+        </label>
         <input placeholder="Provincia" value={form.province} onChange={(event) => setForm({ ...form, province: event.target.value })} />
-        <input placeholder="Notas internas" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+        {whatsappMessage ? <p className="form-help whatsapp-help">{whatsappMessage}</p> : null}
+        <textarea
+          className="contact-notes-field"
+          placeholder="Notas internas"
+          value={form.notes}
+          onChange={(event) => setForm({ ...form, notes: event.target.value })}
+        />
       </div>
     </section>
   );
@@ -2346,6 +2431,9 @@ function LeadFormFields({
     taxId: "",
     email: "",
     phone: "",
+    mobilePhone: "",
+    whatsappStatus: "unknown",
+    whatsappCheckedAt: null,
     address: "",
     postalCode: "",
     population: "",
@@ -2362,6 +2450,7 @@ function LeadFormFields({
   const [error, setError] = useState("");
   const [viesMessage, setViesMessage] = useState("");
   const [viesChecking, setViesChecking] = useState(false);
+  const [whatsappMessage, setWhatsappMessage] = useState("");
   const paymentNotificationsAllowed = !["level_1", "level_2"].includes(form.customerLevel);
 
   async function submit(event) {
@@ -2402,106 +2491,26 @@ function LeadFormFields({
     }
   }
 
+  function checkWhatsapp() {
+    setForm((current) => ({
+      ...current,
+      whatsappStatus: "pending",
+      whatsappCheckedAt: new Date().toISOString()
+    }));
+    setWhatsappMessage("Comprobación preparada. Falta conectar WhatsApp Business API para validar este móvil automáticamente.");
+  }
+
   return (
     <form className="modal-form lead-form" onSubmit={submit}>
-      <label className="lead-level-field">
-        <span>Nivel de cliente</span>
-        <select
-          value={form.customerLevel}
-          onChange={(event) => {
-            const level = customerLevelById(event.target.value);
-            setForm({
-              ...form,
-              customerLevel: level.id,
-              customerType: level.customerType,
-              companyName: level.customerType === "particular" ? "" : form.companyName,
-              country: level.country,
-              defaultDiscountPercent: level.discountPercent,
-              defaultDiscountMaxPercent: level.discountMaxPercent || level.discountPercent,
-              paymentNotificationsEnabled:
-                !["level_1", "level_2"].includes(level.id) && form.paymentNotificationsEnabled
-            });
-          }}
-        >
-          {CUSTOMER_LEVELS.map((level) => (
-            <option key={level.id} value={level.id}>
-              {level.label} · {level.title} · {discountLabel(level.discountPercent, level.discountMaxPercent)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="lead-discount-field">
-        <span>Descuento</span>
-        <div>
-          <input
-            placeholder="%"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={form.defaultDiscountPercent}
-            onChange={(event) =>
-              setForm({ ...form, defaultDiscountPercent: event.target.value, defaultDiscountMaxPercent: event.target.value })
-            }
-          />
-          <span>%</span>
-        </div>
-      </label>
-      <input placeholder="Nombre" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
-      <input placeholder="Apellidos" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
-      <label className="field-with-label">
-        <span>País</span>
-        <input
-          placeholder="ES, IT, FR, PT..."
-          value={form.country}
-          onChange={(event) => setForm({ ...form, country: event.target.value.toUpperCase(), viesValid: false })}
-        />
-      </label>
-      {form.customerType !== "particular" ? (
-        <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
-      ) : null}
-      <select
-        value={form.taxIdentifierType}
-        onChange={(event) => {
-          const type = event.target.value;
-          setForm({
-            ...form,
-            taxIdentifierType: type,
-            defaultTaxRate: type === "sujeto_pasivo" ? 0 : form.viesValid ? 0 : 21
-          });
-        }}
-        aria-label="Tipo de identificador fiscal"
-      >
-        <option value="nif">NIF</option>
-        <option value="cif">CIF</option>
-        <option value="sujeto_pasivo">Sujeto pasivo</option>
-      </select>
-      <div className="tax-id-field">
-        <input
-          placeholder={taxIdentifierPlaceholder(form.taxIdentifierType)}
-          value={form.taxId}
-          onChange={(event) => setForm({ ...form, taxId: event.target.value.toUpperCase(), viesValid: false })}
-        />
-        {form.viesValid ? <CheckCircle2 size={18} /> : null}
-      </div>
-      <button
-        className={form.viesValid ? "secondary-button vies-validated-button" : "secondary-button"}
-        type="button"
-        onClick={validateVies}
-        disabled={!form.country || !form.taxId || viesChecking || !onValidateVies}
-      >
-        {form.viesValid ? <CheckCircle2 size={16} /> : null}
-        {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : "Validar VIES"}
-      </button>
-      {viesMessage ? <p className={form.viesValid ? "form-help success" : "form-help"}>{viesMessage}</p> : null}
-      <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-      <input placeholder="Teléfono" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-      <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
-      <input placeholder="C.P." value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
-      <input placeholder="Población" value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
-      <input placeholder="Ciudad" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
-      <input placeholder="Provincia" value={form.province} onChange={(event) => setForm({ ...form, province: event.target.value })} />
-      <input placeholder="Notas internas" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+      <LeadMainFields
+        form={form}
+        setForm={setForm}
+        onValidateVies={validateVies}
+        viesChecking={viesChecking}
+        viesMessage={viesMessage}
+        onCheckWhatsapp={checkWhatsapp}
+        whatsappMessage={whatsappMessage}
+      />
       <p className="form-help">Este descuento se aplicará por defecto al crear presupuestos para este cliente.</p>
       <LeadCrmFields
         form={form}
