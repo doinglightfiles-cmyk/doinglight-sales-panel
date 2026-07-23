@@ -2211,16 +2211,15 @@ function LeadMainFields({
           <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : <span className="hidden-grid-cell" aria-hidden="true" />}
         {viesMessage ? <p className={form.viesValid ? "form-help success" : "form-help"}>{viesMessage}</p> : null}
-        <input placeholder="Calle" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
+        <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
         <input placeholder="C.P." value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
         <input placeholder="Población" value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
         <input placeholder="Ciudad" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
         <input placeholder="Teléfono" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-        <label className="field-with-label whatsapp-contact-field">
-          <span>Teléfono móvil</span>
+        <label className="field-with-label whatsapp-contact-field compact-field-label">
           <div className="whatsapp-contact-stack">
             <input
-              placeholder="+34 600 000 000"
+              placeholder="Teléfono Móvil"
               value={form.mobilePhone || ""}
               onChange={(event) => setForm({ ...form, mobilePhone: event.target.value, whatsappStatus: "unknown" })}
             />
@@ -2236,8 +2235,7 @@ function LeadMainFields({
           </div>
         </label>
         <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-        <label className="field-with-label">
-          <span>País</span>
+        <label className="field-with-label compact-field-label">
           <select
             value={form.country}
             onChange={(event) => setForm({ ...form, country: event.target.value, viesValid: false })}
