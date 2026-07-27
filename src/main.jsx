@@ -2048,6 +2048,19 @@ function ContactsView({ token, initialFilter = "all" }) {
           </div>
         ) : null}
 
+        {contactFilter === "suppliers" ? (
+          <div className="supplier-import-cta">
+            <div>
+              <strong>Importación desde FacturaDirecta</strong>
+              <span>Lee proveedores, detecta duplicados y permite revisar antes de guardar.</span>
+            </div>
+            <button className="secondary-button" type="button" onClick={loadSupplierImportPreview} disabled={supplierImportLoading || !token}>
+              <RefreshCw size={16} className={supplierImportLoading ? "spin-icon" : ""} />
+              {supplierImportLoading ? "Leyendo FD..." : "Previsualizar proveedores"}
+            </button>
+          </div>
+        ) : null}
+
         {leads.error ? <p className="form-error">{leads.error}</p> : null}
         {supplierImportError ? <p className="form-error supplier-import-error">{supplierImportError}</p> : null}
         {contactFilter === "suppliers" && supplierImportPreview ? (

@@ -1351,6 +1351,32 @@ select:focus {
   margin: 0 32px 18px;
 }
 
+.supplier-import-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 32px 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf5;
+}
+
+.supplier-import-cta div {
+  display: grid;
+  gap: 4px;
+}
+
+.supplier-import-cta strong {
+  font-size: 15px;
+}
+
+.supplier-import-cta span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .supplier-import-preview {
   display: grid;
   gap: 18px;
