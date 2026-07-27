@@ -1959,6 +1959,7 @@ function ContactsView({ token, initialFilter = "all" }) {
     const needle = query.trim().toLowerCase();
     return contacts.filter((contact) => {
       const matchesLevel =
+        contact.contactClass !== "client" ||
         customerLevelFilter === "all" ||
         (customerLevelFilter === "level_4"
           ? String(contact.customerLevel || "").startsWith("level_4")
@@ -2010,19 +2011,21 @@ function ContactsView({ token, initialFilter = "all" }) {
           </div>
         </div>
 
-        <div className="contacts-filters">
-          <select value={customerLevelFilter} onChange={(event) => setCustomerLevelFilter(event.target.value)} aria-label="Nivel de cliente">
-            <option value="all">Todos los niveles</option>
-            <option value="level_1">Nivel 1 · Particular</option>
-            <option value="level_2">Nivel 2 · Profesional</option>
-            <option value="level_3">Nivel 3 · Almacén / vendedor online</option>
-            <option value="level_4">Nivel 4 · Distribuidores</option>
-          </select>
-          <button className="text-button" type="button">
-            <Plus size={16} />
-            Añadir filtro
-          </button>
-        </div>
+        {contactFilter !== "suppliers" ? (
+          <div className="contacts-filters">
+            <select value={customerLevelFilter} onChange={(event) => setCustomerLevelFilter(event.target.value)} aria-label="Nivel de cliente">
+              <option value="all">Todos los niveles</option>
+              <option value="level_1">Nivel 1 · Particular</option>
+              <option value="level_2">Nivel 2 · Profesional</option>
+              <option value="level_3">Nivel 3 · Almacén / vendedor online</option>
+              <option value="level_4">Nivel 4 · Distribuidores</option>
+            </select>
+            <button className="text-button" type="button">
+              <Plus size={16} />
+              Añadir filtro
+            </button>
+          </div>
+        ) : null}
 
         {leads.error ? <p className="form-error">{leads.error}</p> : null}
         <div className="table-wrap contacts-table-wrap">
