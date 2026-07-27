@@ -649,6 +649,10 @@ function normalizeMoneyValue(value) {
 function serializeFacturaDirectaInvoice(item) {
   const main = item?.main || {};
   const combined = { ...item, ...main };
+  const counterpartName = [main.counterpart?.name, main.counterpart?.surname].filter(Boolean).join(" ").trim();
+  const docSeries = String(main.docNumber?.formattedSeries || main.docNumber?.series || "").trim();
+  const docNumber = main.docNumber?.number !== undefined && main.docNumber?.number !== null ? String(main.docNumber.number).trim() : "";
+  const formattedNumber = docSeries && docNumber ? `${docSeries}-${docNumber}` : docNumber || docSeries;
   const total = normalizeMoneyValue(firstValue(combined, [
     "total",
     "totalAmount",
@@ -661,8 +665,15 @@ function serializeFacturaDirectaInvoice(item) {
 
   return {
     id: item?.id || firstValue(combined, ["uuid", "id", "number"], JSON.stringify(main).slice(0, 80)),
-    number: firstValue(combined, ["number", "invoiceNumber", "invoice_number", "documentNumber", "code", "reference"], "-"),
-    contact: firstValue(combined, [
+    number: formattedNumber || firstValue(combined, [
+      "number",
+      "invoiceNumber",
+      "invoice_number",
+      "documentNumber",
+      "code",
+      "reference"
+    ], "-"),
+    contact: counterpartName || firstValue(combined, [
       "contact.name",
       "client.name",
       "customer.name",
