@@ -144,6 +144,11 @@ select:focus {
   background: #edf5d6;
 }
 
+.secondary-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .icon-button {
   width: 40px;
   height: 40px;
@@ -1941,6 +1946,37 @@ th {
 
 .document-status.draft {
   color: #9a6500;
+}
+
+.document-status.imported {
+  color: #3478a9;
+}
+
+.integration-warning {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #f2d9a3;
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: #fff8e8;
+  color: #6c4b00;
+}
+
+.integration-warning strong,
+.integration-warning p,
+.integration-warning span {
+  margin: 0;
+}
+
+.integration-warning p,
+.integration-warning span {
+  font-size: 14px;
+}
+
+.module-page-subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .lead-more-info {

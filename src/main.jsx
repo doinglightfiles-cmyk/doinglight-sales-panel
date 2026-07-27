@@ -403,7 +403,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         <section className="content">
           {activeView === "dashboard" ? <Dashboard token={session.token} locale={session.user.locale} user={session.user} /> : null}
           {activeView === "settings" ? <SettingsView /> : null}
-          {activeView === "invoices" ? <ModuleWorkspace moduleId="invoices" /> : null}
+          {activeView === "invoices" ? <InvoicesMirrorView token={session.token} /> : null}
           {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
           {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
@@ -613,6 +613,175 @@ function ModuleWorkspace({ moduleId }) {
               <tr className="empty-table-row">
                 <td colSpan={module.columns.length + 1}>{module.empty}</td>
               </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function readPath(source, path) {
+  return String(path)
+    .split(".")
+    .reduce((value, key) => (value && value[key] !== undefined ? value[key] : undefined), source);
+}
+
+function firstValue(source, paths, fallback = "") {
+  for (const path of paths) {
+    const value = readPath(source, path);
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return fallback;
+}
+
+function normalizeMoneyValue(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return value;
+  const cleaned = String(value)
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .replace(/[^\d.-]/g, "");
+  return Number(cleaned) || 0;
+}
+
+function serializeFacturaDirectaInvoice(item) {
+  const main = item?.main || {};
+  const combined = { ...item, ...main };
+  const total = normalizeMoneyValue(firstValue(combined, [
+    "total",
+    "totalAmount",
+    "total_amount",
+    "totalWithTaxes",
+    "totalWithTax",
+    "totals.total",
+    "amount"
+  ]));
+
+  return {
+    id: item?.id || firstValue(combined, ["uuid", "id", "number"], JSON.stringify(main).slice(0, 80)),
+    number: firstValue(combined, ["number", "invoiceNumber", "invoice_number", "documentNumber", "code", "reference"], "-"),
+    contact: firstValue(combined, [
+      "contact.name",
+      "client.name",
+      "customer.name",
+      "contactName",
+      "customerName",
+      "recipientName",
+      "fiscalName",
+      "businessName",
+      "name"
+    ], "-"),
+    date: firstValue(combined, ["date", "issueDate", "invoiceDate", "creationDate"], item?.creationDate || ""),
+    dueDate: firstValue(combined, ["dueDate", "expirationDate", "maturityDate", "paymentDueDate"], ""),
+    status: firstValue(combined, ["status", "state", "paymentStatus", "payment_status"], "Importada"),
+    total,
+    currency: firstValue(combined, ["currency", "currencyCode", "currency_code"], "EUR"),
+    raw: item
+  };
+}
+
+function invoiceStatusLabel(status) {
+  const value = String(status || "").trim();
+  if (!value) return "Importada";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function InvoicesMirrorView({ token }) {
+  const [query, setQuery] = useState("");
+  const invoicesResource = useResource(
+    () => apiRequest("/api/facturadirecta/invoices?limit=100", { token }),
+    [token]
+  );
+  const invoices = (invoicesResource.data?.items || []).map(serializeFacturaDirectaInvoice);
+  const filteredInvoices = invoices.filter((invoice) => {
+    const haystack = `${invoice.number} ${invoice.contact} ${invoice.status} ${invoice.total}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase());
+  });
+  const total = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
+  const robrosTotal = invoices
+    .filter((invoice) => invoice.contact.toUpperCase().includes("ROBROS") || invoice.contact.toUpperCase().includes("ROSA ROBERTO"))
+    .reduce((sum, invoice) => sum + invoice.total, 0);
+
+  return (
+    <div className="module-page invoices-mirror-page">
+      <header className="module-page-header">
+        <div>
+          <h3>Facturas</h3>
+          <p className="module-page-subtitle">Espejo de FacturaDirecta en modo solo lectura.</p>
+        </div>
+        <button className="secondary-button" type="button" disabled title="Se activará cuando cerremos numeración, albaranes, impuestos y VeriFactu">
+          Nueva factura desactivada
+        </button>
+      </header>
+
+      <div className="module-metrics">
+        <Metric label="Facturas leídas" value={invoicesResource.loading ? "-" : invoices.length} />
+        <Metric label="Total FacturaDirecta" value={invoicesResource.loading ? "-" : money(total)} />
+        <Metric label="ROBROS detectado" value={invoicesResource.loading ? "-" : money(robrosTotal)} />
+        <Metric label="Modo Doinglight" value="Lectura" />
+      </div>
+
+      {invoicesResource.error ? (
+        <div className="integration-warning">
+          <strong>FacturaDirecta todavía no está disponible online.</strong>
+          <p>{invoicesResource.error}</p>
+          <span>Cuando configuremos las variables `FD_API_KEY` y `FD_COMPANY_ID` en Railway, esta tabla cargará facturas reales.</span>
+        </div>
+      ) : null}
+
+      <section className="module-panel">
+        <div className="module-toolbar">
+          <select defaultValue="all" aria-label="Filtro facturas">
+            <option value="all">Todas las facturas importadas</option>
+            <option value="robros">ROBROS IMPORT EXPORT</option>
+          </select>
+          <div className="module-search">
+            <Search size={18} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por cliente, número o importe" />
+          </div>
+        </div>
+        <div className="module-filters">
+          <button className="filter-chip" type="button">FacturaDirecta</button>
+          <button className="filter-chip" type="button">Solo lectura</button>
+          <button className="filter-chip" type="button">Numeración externa</button>
+        </div>
+        <div className="table-wrap">
+          <table className="module-table">
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Cliente</th>
+                <th>Fecha</th>
+                <th>Vencimiento</th>
+                <th>Estado</th>
+                <th>Total</th>
+                <th>Origen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoicesResource.loading ? (
+                <tr className="empty-table-row">
+                  <td colSpan={7}>Cargando facturas desde FacturaDirecta...</td>
+                </tr>
+              ) : null}
+              {!invoicesResource.loading && !filteredInvoices.length ? (
+                <tr className="empty-table-row">
+                  <td colSpan={7}>No hay facturas para mostrar todavía.</td>
+                </tr>
+              ) : null}
+              {filteredInvoices.map((invoice) => (
+                <tr key={invoice.id}>
+                  <td><strong>{invoice.number}</strong></td>
+                  <td>{invoice.contact}</td>
+                  <td>{dateOnly(invoice.date)}</td>
+                  <td>{dateOnly(invoice.dueDate)}</td>
+                  <td><span className="document-status imported">{invoiceStatusLabel(invoice.status)}</span></td>
+                  <td>{money(invoice.total)}</td>
+                  <td>FacturaDirecta</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
