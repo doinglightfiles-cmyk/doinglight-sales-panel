@@ -2012,8 +2012,34 @@ function ContactsView({ token, initialFilter = "all" }) {
           </div>
         </div>
 
-        {contactFilter !== "suppliers" ? (
-          <div className="contacts-filters">
+        <div className="contacts-filters">
+          {contactFilter === "suppliers" ? (
+            <>
+              <span className="active-filter-chip">
+                Tipo de contacto es Proveedor
+                <button type="button" onClick={() => setContactFilter("all")} aria-label="Quitar filtro de proveedores">
+                  <X size={14} />
+                </button>
+              </span>
+              <button className="text-button" type="button">
+                <Plus size={16} />
+                Añadir filtro
+              </button>
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => {
+                  setContactFilter("all");
+                  setCustomerLevelFilter("all");
+                  setQuery("");
+                }}
+              >
+                <X size={16} />
+                Limpiar filtros
+              </button>
+            </>
+          ) : (
+            <>
             <select value={customerLevelFilter} onChange={(event) => setCustomerLevelFilter(event.target.value)} aria-label="Nivel de cliente">
               <option value="all">Todos los niveles</option>
               <option value="level_1">Nivel 1 · Particular</option>
@@ -2025,8 +2051,9 @@ function ContactsView({ token, initialFilter = "all" }) {
               <Plus size={16} />
               Añadir filtro
             </button>
-          </div>
-        ) : null}
+            </>
+          )}
+        </div>
 
         {leads.error ? <p className="form-error">{leads.error}</p> : null}
         <div className="table-wrap contacts-table-wrap">
