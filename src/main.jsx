@@ -1894,6 +1894,7 @@ function emptyCommunicationContact() {
 
 function leadToDraft(lead) {
   return {
+    contactKind: lead.contactKind || "client",
     customerLevel: lead.customerLevel || "level_1",
     customerType: lead.customerType || "particular",
     defaultDiscountPercent: lead.defaultDiscountPercent || 0,
@@ -1943,8 +1944,12 @@ function ContactsView({ token, initialFilter = "all" }) {
   const [customerLevelFilter, setCustomerLevelFilter] = useState("all");
   const [query, setQuery] = useState("");
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200", { token }), [token]);
-  const clientContacts = (leads.data?.items || []).map((lead) => ({ ...lead, contactClass: "client" }));
-  const supplierContacts = [];
+  const clientContacts = (leads.data?.items || [])
+    .filter((lead) => (lead.contactKind || "client") === "client")
+    .map((lead) => ({ ...lead, contactClass: "client" }));
+  const supplierContacts = (leads.data?.items || [])
+    .filter((lead) => lead.contactKind === "supplier")
+    .map((lead) => ({ ...lead, contactClass: "supplier" }));
   const contacts = contactFilter === "suppliers" ? supplierContacts : contactFilter === "clients" ? clientContacts : [...clientContacts, ...supplierContacts];
 
   useEffect(() => {
@@ -2104,7 +2109,7 @@ function ContactsView({ token, initialFilter = "all" }) {
           onClose={() => setShowForm(false)}
         >
           {newContactType === "supplier" ? (
-            <SupplierForm onCancel={() => setShowForm(false)} />
+            <SupplierForm token={token} onCancel={() => setShowForm(false)} onDone={() => { setShowForm(false); leads.reload(); }} />
           ) : (
             <LeadForm
               token={token}
@@ -2170,25 +2175,134 @@ function ContactTypePicker({ onClose, onSelect }) {
   );
 }
 
-function SupplierForm({ onCancel }) {
+function SupplierForm({ token, onCancel, onDone }) {
+  const [form, setForm] = useState({
+    contactKind: "supplier",
+    customerLevel: "supplier",
+    customerType: "empresa",
+    defaultDiscountPercent: 0,
+    defaultDiscountMaxPercent: 0,
+    defaultTaxRate: 21,
+    firstName: "",
+    lastName: "",
+    fullName: "",
+    companyName: "",
+    taxIdentifierType: "cif",
+    viesEnabled: false,
+    viesValid: false,
+    taxId: "",
+    email: "",
+    phone: "",
+    mobilePhone: "",
+    whatsappStatus: "unknown",
+    whatsappCheckedAt: null,
+    address: "",
+    postalCode: "",
+    population: "",
+    city: "",
+    province: "",
+    country: "ES",
+    notes: "",
+    additionalAddresses: [],
+    communicationContacts: [],
+    preferredPaymentMethod: "",
+    paymentTermDays: "",
+    paymentNotificationsEnabled: false
+  });
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    setSaving(true);
+    try {
+      const displayName = form.companyName || fullNameFromDraft(form);
+      if (!displayName) {
+        throw new Error("El proveedor necesita nombre o razón social.");
+      }
+
+      const result = await apiRequest("/api/sales/leads", {
+        token,
+        method: "POST",
+        body: {
+          ...form,
+          contactKind: "supplier",
+          fullName: displayName,
+          customerType: "empresa",
+          customerLevel: "supplier",
+          defaultDiscountPercent: 0,
+          defaultDiscountMaxPercent: 0,
+          paymentNotificationsEnabled: false
+        }
+      });
+      onDone?.(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <form className="modal-form lead-form">
-      <input placeholder="Nombre comercial" />
-      <input placeholder="Razón social" />
-      <input placeholder="NIF / CIF" />
-      <input placeholder="Email" />
-      <input placeholder="Teléfono" />
-      <input placeholder="Dirección" />
-      <input placeholder="C.P." />
-      <input placeholder="Población" />
-      <input placeholder="Ciudad" />
-      <input placeholder="Provincia" />
-      <input placeholder="País" defaultValue="ES" />
-      <input placeholder="Notas internas" />
-      <p className="form-help">Formulario preparado. La persistencia de proveedores se conectará cuando creemos su tabla en backend.</p>
+    <form className="modal-form lead-form" onSubmit={submit}>
+      <section className="crm-section lead-main-edit">
+        <header>
+          <div>
+            <h4>Datos del proveedor</h4>
+            <p>Información fiscal, contacto principal y dirección.</p>
+          </div>
+        </header>
+        <div className="lead-main-grid contact-data-grid supplier-data-grid">
+          <input placeholder="Razón social" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
+          <input placeholder="Nombre comercial" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
+          <select
+            value={form.taxIdentifierType}
+            onChange={(event) => setForm({ ...form, taxIdentifierType: event.target.value })}
+            aria-label="Tipo de identificador fiscal"
+          >
+            <option value="nif">NIF</option>
+            <option value="cif">CIF</option>
+            <option value="sujeto_pasivo">Sujeto pasivo</option>
+          </select>
+          <input
+            placeholder={taxIdentifierPlaceholder(form.taxIdentifierType)}
+            value={form.taxId}
+            onChange={(event) => setForm({ ...form, taxId: event.target.value.toUpperCase() })}
+          />
+          <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+          <input placeholder="Teléfono" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+          <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
+          <input placeholder="C.P." value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
+          <input placeholder="Población" value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
+          <input placeholder="Ciudad" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
+          <input placeholder="Provincia" value={form.province} onChange={(event) => setForm({ ...form, province: event.target.value })} />
+          <select value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value })}>
+            {EUROPEAN_COUNTRIES.map((country) => (
+              <option key={country.code} value={country.code}>{country.label}</option>
+            ))}
+          </select>
+          <textarea
+            className="contact-notes-field"
+            placeholder="Notas internas"
+            value={form.notes}
+            onChange={(event) => setForm({ ...form, notes: event.target.value })}
+          />
+        </div>
+      </section>
+      <LeadCrmFields
+        form={form}
+        setForm={setForm}
+        paymentNotificationsAllowed={false}
+        fallbackCountry={form.country}
+        contactKind="supplier"
+      />
+      {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
         <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button>
-        <button className="primary-button" type="button" disabled>Guardar proveedor</button>
+        <button className="primary-button" type="submit" disabled={saving || !token}>
+          {saving ? "Guardando..." : "Guardar proveedor"}
+        </button>
       </div>
     </form>
   );
@@ -2197,7 +2311,7 @@ function SupplierForm({ onCancel }) {
 function LeadsView({ token }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
-  const leads = useResource(() => apiRequest("/api/sales/leads?limit=200", { token }), [token]);
+  const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
 
   return (
     <Panel
@@ -2310,9 +2424,10 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("documents");
-  const paymentNotificationsAllowed = !["level_1", "level_2"].includes(draft.customerLevel);
+  const isSupplier = (draft.contactKind || lead.contactKind || "client") === "supplier";
+  const paymentNotificationsAllowed = !isSupplier && !["level_1", "level_2"].includes(draft.customerLevel);
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
-  const leadQuotes = (quotes.data?.items || []).filter((quote) => quote.leadId === lead.id);
+  const leadQuotes = isSupplier ? [] : (quotes.data?.items || []).filter((quote) => quote.leadId === lead.id);
 
   useEffect(() => {
     setDraft(leadToDraft(lead));
@@ -2328,11 +2443,12 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
       const result = await apiRequest(`/api/sales/leads/${lead.id}`, {
         token,
         method: "PATCH",
-        body: {
-          ...draft,
-          fullName: fullNameFromDraft(draft),
-          defaultTaxRate: draft.taxIdentifierType === "sujeto_pasivo" || draft.viesValid ? 0 : draft.defaultTaxRate,
-          paymentNotificationsEnabled: paymentNotificationsAllowed && draft.paymentNotificationsEnabled
+          body: {
+            ...draft,
+            contactKind: isSupplier ? "supplier" : "client",
+            fullName: isSupplier ? draft.companyName || fullNameFromDraft(draft) : fullNameFromDraft(draft),
+            defaultTaxRate: draft.taxIdentifierType === "sujeto_pasivo" || draft.viesValid ? 0 : draft.defaultTaxRate,
+            paymentNotificationsEnabled: paymentNotificationsAllowed && draft.paymentNotificationsEnabled
         }
       });
       onSaved?.(result.item);
@@ -2392,10 +2508,10 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
           <div className="lead-record-title">
             <UsersRound size={21} />
             <div>
-              <p>{customerTypeLabel(draft.customerType)} · Moneda: EUR</p>
+              <p>{isSupplier ? "Proveedor" : customerTypeLabel(draft.customerType)} · Moneda: EUR</p>
               <h3 id="lead-detail-title">{fullNameFromDraft(draft) || draft.companyName || "Contacto"}</h3>
             </div>
-            <span className="contact-class-badge">C</span>
+            <span className="contact-class-badge">{isSupplier ? "P" : "C"}</span>
           </div>
           <div className="modal-header-actions">
             {editing ? (
@@ -2414,9 +2530,9 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
             <LeadSummaryCard title="Datos básicos" onEdit={() => setEditing(true)}>
               <SummaryLine label="Datos de facturación" value={draft.companyName || fullNameFromDraft(draft)} />
               <SummaryLine label="Mostrar como" value={fullNameFromDraft(draft) || draft.companyName} />
-              <SummaryLine label="Perfil de cliente" value={customerLevelLabel(draft.customerLevel)} />
+              {!isSupplier ? <SummaryLine label="Perfil de cliente" value={customerLevelLabel(draft.customerLevel)} /> : null}
               <SummaryLine label="Identificador fiscal" value={draft.taxId || "Sin NIF/CIF"} />
-              <SummaryLine label="Descuento" value={discountLabel(draft.defaultDiscountPercent, draft.defaultDiscountMaxPercent)} />
+              {!isSupplier ? <SummaryLine label="Descuento" value={discountLabel(draft.defaultDiscountPercent, draft.defaultDiscountMaxPercent)} /> : null}
             </LeadSummaryCard>
 
             <LeadSummaryCard title="Direcciones" onEdit={() => setEditing(true)}>
@@ -2433,11 +2549,11 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
               <SummaryLine label="Contactos adicionales" value={`${draft.communicationContacts.length} registrados`} />
             </LeadSummaryCard>
 
-            <LeadSummaryCard title="Preferencias del cliente" onEdit={() => setEditing(true)}>
-              <SummaryLine label="Impuestos como cliente" value={draft.defaultTaxRate === 0 ? "Exento / sujeto pasivo" : `${draft.defaultTaxRate ?? 21}%`} />
+            <LeadSummaryCard title={isSupplier ? "Preferencias del proveedor" : "Preferencias del cliente"} onEdit={() => setEditing(true)}>
+              <SummaryLine label={isSupplier ? "Impuestos como proveedor" : "Impuestos como cliente"} value={draft.defaultTaxRate === 0 ? "Exento / sujeto pasivo" : `${draft.defaultTaxRate ?? 21}%`} />
               <SummaryLine label="Método de cobro" value={draft.preferredPaymentMethod || "Sin definir"} />
-              <SummaryLine label="Plazo de cobro" value={draft.paymentTermDays ? `${draft.paymentTermDays} días` : "Sin definir"} />
-              <SummaryLine label="Notificaciones" value={draft.paymentNotificationsEnabled ? "Activadas" : "Sin activar"} />
+              {!isSupplier ? <SummaryLine label="Plazo de cobro" value={draft.paymentTermDays ? `${draft.paymentTermDays} días` : "Sin definir"} /> : null}
+              {!isSupplier ? <SummaryLine label="Notificaciones" value={draft.paymentNotificationsEnabled ? "Activadas" : "Sin activar"} /> : null}
             </LeadSummaryCard>
 
             <LeadSummaryCard title="Otros" onEdit={() => setEditing(true)} compact>
@@ -2450,6 +2566,7 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
               <LeadMainFields
                 form={draft}
                 setForm={setDraft}
+                contactKind={isSupplier ? "supplier" : "client"}
                 onValidateVies={validateDetailVies}
                 viesChecking={viesChecking}
                 viesMessage={viesMessage}
@@ -2462,12 +2579,13 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
                 form={draft}
                 setForm={setDraft}
                 paymentNotificationsAllowed={paymentNotificationsAllowed}
+                contactKind={isSupplier ? "supplier" : "client"}
                 fallbackCountry={lead.country || "ES"}
               />
             </div>
           ) : null}
 
-          <div className="lead-record-tabs" role="tablist" aria-label="Información del cliente">
+          <div className="lead-record-tabs" role="tablist" aria-label={isSupplier ? "Información del proveedor" : "Información del cliente"}>
             <button className={activeTab === "documents" ? "active" : ""} type="button" onClick={() => setActiveTab("documents")}>
               Documentos
             </button>
@@ -2477,7 +2595,7 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
           </div>
 
           {activeTab === "documents" ? (
-            <LeadDocumentsPanel quotes={leadQuotes} loading={quotes.loading} error={quotes.error} />
+            <LeadDocumentsPanel quotes={leadQuotes} loading={isSupplier ? false : quotes.loading} error={isSupplier ? "" : quotes.error} contactKind={isSupplier ? "supplier" : "client"} />
           ) : (
             <LeadMoreInfoPanel lead={lead} draft={draft} />
           )}
@@ -2515,13 +2633,14 @@ function SummaryLine({ label, value, icon }) {
   );
 }
 
-function LeadDocumentsPanel({ quotes, loading, error }) {
+function LeadDocumentsPanel({ quotes, loading, error, contactKind = "client" }) {
+  const isSupplier = contactKind === "supplier";
   return (
     <section className="lead-tab-panel documents-panel">
       <header>
         <div>
           <h4>Documentos</h4>
-          <p>Presupuestos y futuras facturas vinculadas a este cliente.</p>
+          <p>{isSupplier ? "Facturas de compra y documentos vinculados a este proveedor." : "Presupuestos y futuras facturas vinculadas a este cliente."}</p>
         </div>
         <button className="primary-button" type="button">Crear</button>
       </header>
@@ -2581,7 +2700,7 @@ function LeadDocumentsPanel({ quotes, loading, error }) {
                 </tr>
               ))
             ) : (
-              <tr><td colSpan="8">No hay documentos vinculados a este cliente.</td></tr>
+              <tr><td colSpan="8">No hay documentos vinculados a este {isSupplier ? "proveedor" : "cliente"}.</td></tr>
             )}
           </tbody>
         </table>
@@ -2673,6 +2792,7 @@ function LeadForm({ token, onDone, onCancel, initialCustomerLevel }) {
 function LeadMainFields({
   form,
   setForm,
+  contactKind = "client",
   onValidateVies,
   viesChecking = false,
   viesMessage = "",
@@ -2680,6 +2800,7 @@ function LeadMainFields({
   onCheckWhatsapp,
   whatsappMessage = ""
 }) {
+  const isSupplier = contactKind === "supplier";
   const viesInvalid = Boolean(viesMessage && !form.viesValid && !viesChecking);
   const viesButtonClass = [
     "secondary-button",
@@ -2691,12 +2812,12 @@ function LeadMainFields({
     <section className="crm-section lead-main-edit">
       <header>
         <div>
-          <h4>Datos del contacto</h4>
+          <h4>{isSupplier ? "Datos del proveedor" : "Datos del contacto"}</h4>
           <p>Información general, fiscal y dirección principal.</p>
         </div>
       </header>
       <div className="lead-main-grid contact-data-grid">
-        <label className="lead-level-field contact-level-field">
+        {!isSupplier ? <label className="lead-level-field contact-level-field">
           <span>Nivel de cliente</span>
           <select
             value={form.customerLevel}
@@ -2721,8 +2842,8 @@ function LeadMainFields({
               </option>
             ))}
           </select>
-        </label>
-        <label className="lead-discount-field">
+        </label> : null}
+        {!isSupplier ? <label className="lead-discount-field">
           <span>Descuento</span>
           <div>
             <input
@@ -2738,7 +2859,7 @@ function LeadMainFields({
             />
             <span>%</span>
           </div>
-        </label>
+        </label> : null}
         <label className="field-with-label tax-contact-field">
           <span>Identificador fiscal</span>
           <div className="tax-contact-stack">
@@ -2783,7 +2904,7 @@ function LeadMainFields({
         </label>
         <input placeholder="Nombre" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
         <input placeholder="Apellidos" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
-        {form.customerType !== "particular" ? (
+        {form.customerType !== "particular" || isSupplier ? (
           <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : <span className="hidden-grid-cell" aria-hidden="true" />}
         <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
@@ -2836,7 +2957,8 @@ function LeadMainFields({
   );
 }
 
-function LeadCrmFields({ form, setForm, paymentNotificationsAllowed, fallbackCountry = "ES" }) {
+function LeadCrmFields({ form, setForm, paymentNotificationsAllowed, fallbackCountry = "ES", contactKind = "client" }) {
+  const isSupplier = contactKind === "supplier";
   function updateListItem(listName, index, patch) {
     setForm((current) => ({
       ...current,
@@ -2930,12 +3052,12 @@ function LeadCrmFields({ form, setForm, paymentNotificationsAllowed, fallbackCou
         <header>
           <div>
             <h4>Preferencias del cliente</h4>
-            <p>Condiciones habituales de cobro para presupuestos y futuras facturas.</p>
+            <p>{isSupplier ? "Condiciones habituales de pago y relación de compras." : "Condiciones habituales de cobro para presupuestos y futuras facturas."}</p>
           </div>
         </header>
         <div className="crm-preferences-grid">
           <label>
-            <span>Método de cobro preferido</span>
+            <span>{isSupplier ? "Método de pago preferido" : "Método de cobro preferido"}</span>
             <select value={form.preferredPaymentMethod} onChange={(event) => setForm({ ...form, preferredPaymentMethod: event.target.value })}>
               <option value="">Sin definir</option>
               <option value="transferencia">Transferencia bancaria</option>
@@ -2956,7 +3078,7 @@ function LeadCrmFields({ form, setForm, paymentNotificationsAllowed, fallbackCou
         </div>
       </section>
 
-      <section className="crm-section notifications-section">
+      {!isSupplier ? <section className="crm-section notifications-section">
         <header>
           <div>
             <h4>Notificaciones</h4>
@@ -2977,7 +3099,7 @@ function LeadCrmFields({ form, setForm, paymentNotificationsAllowed, fallbackCou
               : "No disponible para clientes de nivel 1 y nivel 2."}
           </span>
         </label>
-      </section>
+      </section> : null}
     </>
   );
 }
@@ -3035,6 +3157,7 @@ function LeadFormFields({
     try {
       const result = await onSubmit({
         ...form,
+        contactKind: "client",
         fullName: fullNameFromDraft(form),
         defaultTaxRate: form.taxIdentifierType === "sujeto_pasivo" || form.viesValid ? 0 : form.defaultTaxRate
       });
@@ -3081,6 +3204,7 @@ function LeadFormFields({
       <LeadMainFields
         form={form}
         setForm={setForm}
+        contactKind="client"
         onValidateVies={validateVies}
         viesChecking={viesChecking}
         viesMessage={viesMessage}
@@ -3093,6 +3217,7 @@ function LeadFormFields({
         form={form}
         setForm={setForm}
         paymentNotificationsAllowed={paymentNotificationsAllowed}
+        contactKind="client"
         fallbackCountry={form.country || defaultLevel.country}
       />
       {error ? <p className="form-error">{error}</p> : null}
@@ -3223,7 +3348,7 @@ function DownloadsView() {
 }
 
 function QuoteForm({ token, onDone, onCancel, template }) {
-  const leads = useResource(() => apiRequest("/api/sales/leads?limit=200", { token }), [token]);
+  const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
   const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const [clientMode, setClientMode] = useState("existing");
   const [leadQuery, setLeadQuery] = useState("");
