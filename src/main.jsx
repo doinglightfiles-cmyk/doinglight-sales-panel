@@ -1997,7 +1997,7 @@ function ContactsView({ token, initialFilter = "all" }) {
     setSupplierImportError("");
     setSupplierImportLoading(true);
     try {
-      const result = await apiRequest("/api/facturadirecta/import-preview/suppliers?limit=100&maxPages=90&maxItems=80", { token });
+      const result = await apiRequest("/api/facturadirecta/supplier-import-preview?limit=100&maxPages=90&maxItems=80", { token });
       setSupplierImportPreview(result);
     } catch (error) {
       setSupplierImportError(error.message);
