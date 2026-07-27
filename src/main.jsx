@@ -2021,10 +2021,6 @@ function ContactsView({ token, initialFilter = "all" }) {
               <option value="level_3">Nivel 3 · Almacén / vendedor online</option>
               <option value="level_4">Nivel 4 · Distribuidores</option>
             </select>
-            <button className="text-button" type="button">
-              <Plus size={16} />
-              Añadir filtro
-            </button>
           </div>
         ) : null}
 
