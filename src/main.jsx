@@ -1,24 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  BadgeCent,
   Bell,
   Building2,
   CheckCircle2,
   ChevronRight,
-  CreditCard,
   Download,
   FileText,
   Fingerprint,
-  Gift,
   ImageIcon,
   Landmark,
-  ListOrdered,
   LogOut,
   Mail,
   Menu,
   MessageCircle,
-  Paintbrush,
   Paperclip,
   Pencil,
   Plus,
@@ -26,9 +21,7 @@ import {
   Search,
   Settings,
   Share2,
-  SlidersHorizontal,
   Truck,
-  Type,
   History,
   UsersRound,
   X,
@@ -642,17 +635,7 @@ const SETTINGS_SECTIONS = [
   { id: "taxes", title: "Impuestos", description: "Operador intracomunitario e impuestos habituales", icon: Landmark },
   { id: "verifactu", title: "VeriFactu", description: "Configura VeriFactu", icon: Fingerprint },
   { id: "sales", title: "Ventas", description: "Cálculo de impuestos, creación de facturas y firma digital", icon: Truck },
-  { id: "custom-fields", title: "Campos personalizados", description: "Campos de texto adicionales para documentos", icon: Type },
-  { id: "purchases", title: "Compras", description: "Creación de facturas y escáner de documentos", icon: BadgeCent },
-  { id: "payment-methods", title: "Métodos de pago", description: "Gestiona los métodos de pago", icon: CreditCard },
-  { id: "numbering", title: "Numeración", description: "Numeración y series de facturas, presupuestos y albaranes", icon: ListOrdered },
-  { id: "email", title: "Envío de correo electrónico", description: "Configuración del envío por correo electrónico", icon: Mail },
-  { id: "advanced", title: "Avanzado", description: "Monedas, formatos, bloqueo de documentos y certificados", icon: SlidersHorizontal },
-  { id: "templates", title: "Plantillas", description: "Colores, textos...", icon: Paintbrush },
-  { id: "accounting", title: "Ajustes de contabilidad", description: "Consulta y personaliza el plan contable de tu empresa", icon: Share2 },
-  { id: "api", title: "API e integraciones", description: "API, Sandbox, Google Drive, Shopify, Zapier...", icon: Share2 },
-  { id: "subscription", title: "Suscripción", description: "Gestiona tu plan y método de pago", icon: CreditCard },
-  { id: "referral", title: "Plan amigo", description: "Gana meses gratis invitando a amigos a Doinglight", icon: Gift }
+  { id: "accounting", title: "Contabilidad", description: "Cuentas contables y reglas internas pendientes de definir", icon: Share2 }
 ];
 
 const SETTINGS_PANELS = {
@@ -703,124 +686,15 @@ const SETTINGS_PANELS = {
       ["Conversión", "Presupuesto → Albarán → Factura"]
     ]
   },
-  "custom-fields": {
-    title: "Campos personalizados",
-    description: "Campos adicionales para contactos, productos y documentos.",
-    actionLabel: "Nuevo campo",
-    fields: [
-      ["Contactos", "Tipo, distribuidor, origen"],
-      ["Productos", "Familia, diámetro, imágenes"],
-      ["Presupuestos", "Notas internas y condiciones"],
-      ["Facturas", "Referencia y observaciones"]
-    ]
-  },
-  purchases: {
-    title: "Compras",
-    description: "Ajustes para facturas recibidas, proveedores y escáner de documentos.",
-    actionLabel: "Modificar",
-    fields: [
-      ["Proveedores", "Separados de clientes"],
-      ["Cuenta contable", "600000"],
-      ["Escáner", "Pendiente de conectar"],
-      ["Impuestos", "IVA soportado"]
-    ]
-  },
-  "payment-methods": {
-    title: "Métodos de pago",
-    description: "Gestiona formas de cobro y pago usadas en documentos.",
-    actionLabel: "Nuevo método",
-    fields: [
-      ["Transferencia", "Activa"],
-      ["Tarjeta", "Preparada para PayGold"],
-      ["Recibo bancario", "Pendiente"],
-      ["Efectivo", "Desactivado"]
-    ]
-  },
-  numbering: {
-    title: "Numeración",
-    description: "Series y contadores para facturas, presupuestos, albaranes y compras.",
-    actionLabel: "Nueva serie",
-    fields: [
-      ["Presupuestos", "P-{año}-{número}"],
-      ["Albaranes", "A-{año}-{número}"],
-      ["Facturas", "F-{año}-{número}"],
-      ["Compras", "C-{año}-{número}"]
-    ]
-  },
-  email: {
-    title: "Envío de correo electrónico",
-    description: "Plantillas y remitentes para enviar documentos desde el panel.",
-    actionLabel: "Modificar",
-    fields: [
-      ["Remitente", "info@doinglight.es"],
-      ["Presupuestos", "Plantilla pendiente"],
-      ["Facturas", "Plantilla pendiente"],
-      ["Copias internas", "Configurable"]
-    ]
-  },
-  advanced: {
-    title: "Avanzado",
-    description: "Monedas, formatos, certificados, bloqueo de documentos e integridad.",
-    actionLabel: "Modificar",
-    fields: [
-      ["Moneda", "EUR"],
-      ["Formato fecha", "dd/mm/aaaa"],
-      ["Bloqueo documental", "Pendiente"],
-      ["Certificados", "Pendiente"]
-    ]
-  },
-  templates: {
-    title: "Plantillas",
-    description: "Diseño de documentos PDF, textos, colores y condiciones comerciales.",
-    actionLabel: "Nueva plantilla",
-    fields: [
-      ["Presupuesto", "Doinglight estándar"],
-      ["Albarán", "Pendiente"],
-      ["Factura", "Pendiente"],
-      ["Color principal", "#9cc31b"]
-    ]
-  },
   accounting: {
-    title: "Ajustes de contabilidad",
-    description: "Plan contable, cuentas por defecto y reglas automáticas.",
+    title: "Contabilidad",
+    description: "Cuentas contables y reglas internas pendientes de definir.",
     actionLabel: "Modificar",
     fields: [
       ["Ventas", "700000"],
       ["Clientes", "430000"],
       ["Compras", "600000"],
       ["Proveedores", "400000"]
-    ]
-  },
-  api: {
-    title: "API e integraciones",
-    description: "Conexiones con FacturaDirecta, Google Drive, Railway y futuros conectores.",
-    actionLabel: "Nueva integración",
-    fields: [
-      ["FacturaDirecta", "Conectado en modo lectura"],
-      ["Google Drive", "Catálogo e imágenes"],
-      ["Railway", "Backend Doinglight"],
-      ["Modo escritura", "Desactivado"]
-    ]
-  },
-  subscription: {
-    title: "Suscripción",
-    description: "Información interna de plan, uso y acceso al sistema.",
-    actionLabel: "Modificar",
-    fields: [
-      ["Plan", "Doinglight interno"],
-      ["Usuarios", "Sin límite definido"],
-      ["Entorno", "Producción"],
-      ["Facturación", "No aplica"]
-    ]
-  },
-  referral: {
-    title: "Plan amigo",
-    description: "Sección heredada del modelo original. Pendiente de decidir si se mantiene.",
-    actionLabel: "Ocultar sección",
-    fields: [
-      ["Estado", "No prioritario"],
-      ["Uso Doinglight", "Pendiente de definición"],
-      ["Recomendación", "Probablemente eliminar"]
     ]
   }
 };
