@@ -701,10 +701,15 @@ function invoiceStatusLabel(status) {
 
 function InvoicesMirrorView({ token }) {
   const [query, setQuery] = useState("");
+  const statusResource = useResource(
+    () => apiRequest("/api/facturadirecta/status", { token }),
+    [token]
+  );
   const invoicesResource = useResource(
     () => apiRequest("/api/facturadirecta/invoices?limit=100", { token }),
     [token]
   );
+  const fdStatus = statusResource.data?.status || {};
   const invoices = (invoicesResource.data?.items || []).map(serializeFacturaDirectaInvoice);
   const filteredInvoices = invoices.filter((invoice) => {
     const haystack = `${invoice.number} ${invoice.contact} ${invoice.status} ${invoice.total}`.toLowerCase();
@@ -734,11 +739,17 @@ function InvoicesMirrorView({ token }) {
         <Metric label="Modo Doinglight" value="Lectura" />
       </div>
 
-      {invoicesResource.error ? (
+      {fdStatus.configured === false || invoicesResource.error ? (
         <div className="integration-warning">
           <strong>FacturaDirecta todavía no está disponible online.</strong>
-          <p>{invoicesResource.error}</p>
-          <span>Cuando configuremos las variables `FD_API_KEY` y `FD_COMPANY_ID` en Railway, esta tabla cargará facturas reales.</span>
+          <p>{invoicesResource.error || "La integración no está configurada en Railway."}</p>
+          {fdStatus.configured === false ? (
+            <span>
+              Estado Railway: FD_API_KEY {fdStatus.hasApiKey ? "detectada" : "falta"} · FD_COMPANY_ID {fdStatus.hasCompanyId ? "detectado" : "falta"}.
+            </span>
+          ) : (
+            <span>Cuando configuremos las variables `FD_API_KEY` y `FD_COMPANY_ID` en Railway, esta tabla cargará facturas reales.</span>
+          )}
         </div>
       ) : null}
 
