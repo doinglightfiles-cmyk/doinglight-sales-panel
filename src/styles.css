@@ -1314,31 +1314,6 @@ select:focus {
   padding: 12px 32px 24px;
 }
 
-.active-filter-chip {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 0 8px 0 14px;
-  color: var(--green-dark);
-  background: #eaf5c9;
-  font-size: 14px;
-  font-weight: 750;
-}
-
-.active-filter-chip button {
-  width: 22px;
-  height: 22px;
-  border: 0;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
-  color: var(--white);
-  background: var(--green-dark);
-  padding: 0;
-}
-
 .text-button {
   min-height: 34px;
   border: 0;
