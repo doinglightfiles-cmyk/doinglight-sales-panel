@@ -1951,6 +1951,7 @@ function ContactsView({ token, initialFilter = "all" }) {
     .filter((lead) => lead.contactKind === "supplier")
     .map((lead) => ({ ...lead, contactClass: "supplier" }));
   const contacts = contactFilter === "suppliers" ? supplierContacts : contactFilter === "clients" ? clientContacts : [...clientContacts, ...supplierContacts];
+  const showCustomerColumns = contactFilter !== "suppliers";
 
   useEffect(() => {
     setContactFilter(initialFilter);
@@ -2037,8 +2038,8 @@ function ContactsView({ token, initialFilter = "all" }) {
                 </th>
                 <th></th>
                 <th>Detalle</th>
-                <th>Nivel</th>
-                <th>Dto.</th>
+                {showCustomerColumns ? <th>Nivel</th> : null}
+                {showCustomerColumns ? <th>Dto.</th> : null}
                 <th>NIF</th>
                 <th>Email</th>
                 <th>Teléfono</th>
@@ -2071,12 +2072,14 @@ function ContactsView({ token, initialFilter = "all" }) {
                     <strong>{contact.fullName || contact.companyName || "-"}</strong>
                     {contact.companyName && contact.companyName !== contact.fullName ? <span>{contact.companyName}</span> : null}
                   </td>
-                  <td>{contact.contactClass === "client" ? customerLevelLabel(contact.customerLevel) : "-"}</td>
-                  <td>
-                    {contact.contactClass === "client"
-                      ? discountLabel(contact.defaultDiscountPercent, contact.defaultDiscountMaxPercent)
-                      : "-"}
-                  </td>
+                  {showCustomerColumns ? <td>{contact.contactClass === "client" ? customerLevelLabel(contact.customerLevel) : "-"}</td> : null}
+                  {showCustomerColumns ? (
+                    <td>
+                      {contact.contactClass === "client"
+                        ? discountLabel(contact.defaultDiscountPercent, contact.defaultDiscountMaxPercent)
+                        : "-"}
+                    </td>
+                  ) : null}
                   <td>{contact.taxId || "-"}</td>
                   <td>{contact.email || "-"}</td>
                   <td>{contact.phone || "-"}</td>
