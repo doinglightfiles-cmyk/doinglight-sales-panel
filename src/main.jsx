@@ -1945,6 +1945,7 @@ function ContactsView({ token, initialFilter = "all" }) {
   const [query, setQuery] = useState("");
   const [supplierImportPreview, setSupplierImportPreview] = useState(null);
   const [supplierImportLoading, setSupplierImportLoading] = useState(false);
+  const [supplierImporting, setSupplierImporting] = useState(false);
   const [supplierImportError, setSupplierImportError] = useState("");
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200", { token }), [token]);
   const clientContacts = (leads.data?.items || [])
@@ -2006,6 +2007,34 @@ function ContactsView({ token, initialFilter = "all" }) {
     }
   }
 
+  async function importSuppliersFromFacturaDirecta() {
+    setSupplierImportError("");
+    setSupplierImporting(true);
+    try {
+      const result = await apiRequest("/api/facturadirecta/supplier-import", {
+        token,
+        method: "POST",
+        body: {
+          limit: 100,
+          maxPages: 90,
+          maxItems: 500
+        }
+      });
+      setSupplierImportPreview({
+        ...supplierImportPreview,
+        mode: "import",
+        importResult: result,
+        newCount: 0,
+        duplicateCount: result.duplicateCount || supplierImportPreview?.duplicateCount || 0
+      });
+      leads.reload();
+    } catch (error) {
+      setSupplierImportError(error.message);
+    } finally {
+      setSupplierImporting(false);
+    }
+  }
+
   return (
     <div className="contacts-page">
       <header className="contacts-page-header">
@@ -2064,7 +2093,11 @@ function ContactsView({ token, initialFilter = "all" }) {
         {leads.error ? <p className="form-error">{leads.error}</p> : null}
         {supplierImportError ? <p className="form-error supplier-import-error">{supplierImportError}</p> : null}
         {contactFilter === "suppliers" && supplierImportPreview ? (
-          <SupplierImportPreview preview={supplierImportPreview} />
+          <SupplierImportPreview
+            preview={supplierImportPreview}
+            onImport={importSuppliersFromFacturaDirecta}
+            importing={supplierImporting}
+          />
         ) : null}
         <div className="table-wrap contacts-table-wrap">
           <table className="contacts-table">
@@ -2167,17 +2200,28 @@ function ContactsView({ token, initialFilter = "all" }) {
   );
 }
 
-function SupplierImportPreview({ preview }) {
+function SupplierImportPreview({ preview, onImport, importing }) {
   const rows = preview.items || [];
+  const canImport = Number(preview.newCount || 0) > 0;
+  const importResult = preview.importResult;
 
   return (
     <section className="supplier-import-preview">
       <header>
         <div>
           <h4>Previsualización FacturaDirecta</h4>
-          <p>No se ha guardado nada. Esta lectura solo detecta proveedores y posibles duplicados.</p>
+          <p>
+            {importResult
+              ? `Importados ${importResult.importedCount || 0} proveedores. Fallidos: ${importResult.failedCount || 0}.`
+              : "No se ha guardado nada. Esta lectura solo detecta proveedores y posibles duplicados."}
+          </p>
         </div>
-        <span>{preview.pagination?.pagesRead || 0} páginas leídas</span>
+        <div className="supplier-import-actions">
+          <span>{preview.pagination?.pagesRead || 0} páginas leídas</span>
+          <button className="primary-button" type="button" onClick={onImport} disabled={!canImport || importing}>
+            {importing ? "Importando..." : "Importar proveedores nuevos"}
+          </button>
+        </div>
       </header>
       <div className="supplier-import-metrics">
         <SummaryMini label="Contactos revisados" value={preview.scanned || 0} />

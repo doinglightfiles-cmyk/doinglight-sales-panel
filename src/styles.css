@@ -1394,6 +1394,12 @@ select:focus {
   gap: 18px;
 }
 
+.supplier-import-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .supplier-import-preview h4 {
   margin: 0 0 6px;
   font-size: 18px;
