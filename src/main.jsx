@@ -401,7 +401,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 
       <div className="main-area">
         <section className="content">
-          {activeView === "dashboard" ? <Dashboard token={session.token} locale={session.user.locale} /> : null}
+          {activeView === "dashboard" ? <Dashboard token={session.token} locale={session.user.locale} user={session.user} /> : null}
           {activeView === "settings" ? <SettingsView /> : null}
           {activeView === "invoices" ? <ModuleWorkspace moduleId="invoices" /> : null}
           {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
@@ -1068,7 +1068,7 @@ function findMarketSummary(markets, country) {
   return (markets || []).find((market) => market.country === country) || null;
 }
 
-function Dashboard({ token, locale = "es" }) {
+function Dashboard({ token, locale = "es", user }) {
   const dashboard = useResource(() => apiRequest("/api/sales/dashboard", { token }), [token]);
   const catalog = useResource(
     () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(locale || "es")}&channel=sales_app`, { token }),
@@ -1077,19 +1077,74 @@ function Dashboard({ token, locale = "es" }) {
 
   const totals = dashboard.data?.totals || {};
   const markets = dashboard.data?.markets || [];
+  const leadCount = totals.leadCount ?? 0;
+  const quoteCount = totals.quoteCount ?? 0;
+  const quoteTotal = totals.quoteTotal || 0;
+  const productCount = catalog.data?.count ?? 0;
+  const firstName = (user?.fullName || user?.email || "Doinglight").split(" ")[0];
 
   return (
-    <div className="stack">
-      <div className="metrics-grid">
-        <Metric label="Clientes" value={totals.leadCount ?? "-"} />
-        <Metric label="Presupuestos" value={totals.quoteCount ?? "-"} />
-        <Metric label="Catálogo" value={catalog.data?.count ?? "-"} />
-        <Metric label="Importe general" value={money(totals.quoteTotal)} />
+    <div className="home-dashboard">
+      <header className="home-dashboard-header">
+        <div>
+          <p>Inicio</p>
+          <h1>Hola {firstName}</h1>
+        </div>
+        <div className="home-dashboard-filter">
+          <span>Todo el año 2026</span>
+        </div>
+      </header>
+
+      <div className="home-card-grid">
+        <FinanceSummaryCard
+          title="Ingresos"
+          subtitle="Facturas emitidas"
+          value={money(0)}
+          bars={[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+          tone="green"
+          note="Pendiente de activar facturación"
+        />
+        <FinanceSummaryCard
+          title="Presupuestos"
+          subtitle={`${quoteCount} presupuestos creados`}
+          value={money(quoteTotal)}
+          bars={buildDashboardBars(markets, "quoteTotal")}
+          tone="blue"
+        />
+        <ProfitSummaryCard quoteTotal={quoteTotal} />
+        <TaxSummaryCard />
+        <DonutSummaryCard
+          title="Clientes"
+          value={leadCount}
+          label="Contactos cliente"
+          segments={buildDashboardSegments(markets, "leadCount")}
+          tone="green"
+        />
+        <DonutSummaryCard
+          title="Productos"
+          value={productCount}
+          label="Catálogo común"
+          segments={[100]}
+          tone="blue"
+        />
+        <DonutSummaryCard
+          title="Bancos"
+          value={money(0)}
+          label="Saldo contable"
+          segments={[100]}
+          tone="coral"
+        />
+        <PendingCollectionCard />
       </div>
 
       {dashboard.error ? <p className="form-error">{dashboard.error}</p> : null}
 
-      <div className="country-dashboard">
+      <section className="market-dashboard-section">
+        <header>
+          <h2>Resumen por país</h2>
+          <p>Visión admin por distribuidor. Las facturas se activarán cuando creemos el módulo fiscal de cada país.</p>
+        </header>
+        <div className="country-dashboard">
         {DASHBOARD_MARKETS.map((market) => (
           <CountrySummaryCard
             key={market.country}
@@ -1098,7 +1153,71 @@ function Dashboard({ token, locale = "es" }) {
             loading={dashboard.loading}
           />
         ))}
-      </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function buildDashboardBars(markets, field) {
+  const values = (markets || []).map((market) => Number(market?.[field] || 0));
+  const total = values.reduce((sum, value) => sum + value, 0);
+  if (!total) return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+  const bars = Array.from({ length: 12 }, () => 0);
+  values.forEach((value, index) => {
+    bars[index + 1] = Math.max(8, Math.round((value / total) * 100));
+  });
+  return bars;
+}
+
+function buildDashboardSegments(markets, field) {
+  const values = (markets || []).map((market) => Number(market?.[field] || 0)).filter(Boolean);
+  const total = values.reduce((sum, value) => sum + value, 0);
+  if (!total) return [100];
+  return values.map((value) => Math.max(6, Math.round((value / total) * 100)));
+}
+
+function conicGradient(segments, palette) {
+  let cursor = 0;
+  const stops = (segments || [100]).map((segment, index) => {
+    const start = cursor;
+    const end = Math.min(100, cursor + Number(segment || 0));
+    cursor = end;
+    return `${palette[index % palette.length]} ${start}% ${end}%`;
+  });
+  if (cursor < 100) stops.push(`rgba(70, 70, 70, 0.12) ${cursor}% 100%`);
+  return `conic-gradient(${stops.join(", ")})`;
+}
+
+function FinanceSummaryCard({ title, subtitle, value, bars, tone, note }) {
+  return (
+    <section className={`home-summary-card ${tone}`}>
+      <header>
+        <div>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
+        </div>
+        <span className="summary-card-menu">⋮</span>
+      </header>
+      <strong>{value}</strong>
+      <MiniBars values={bars} tone={tone} />
+      {note ? <small>{note}</small> : null}
+    </section>
+  );
+}
+
+function MiniBars({ values, tone }) {
+  const max = Math.max(...values, 1);
+  return (
+    <div className={`mini-bars ${tone}`} aria-hidden="true">
+      {values.map((value, index) => (
+        <span
+          key={`${value}-${index}`}
+          className={value ? "" : "empty"}
+          style={{ height: `${value ? Math.max(12, (value / max) * 72) : 12}%` }}
+        />
+      ))}
     </div>
   );
 }
@@ -1112,10 +1231,110 @@ function Metric({ label, value }) {
   );
 }
 
+function ProfitSummaryCard({ quoteTotal }) {
+  return (
+    <section className="home-summary-card wide">
+      <header>
+        <div>
+          <h2>Beneficio</h2>
+          <p>Facturas - gastos</p>
+        </div>
+      </header>
+      <strong>{money(0)}</strong>
+      <div className="comparison-bars">
+        <div>
+          <span>Presupuestado</span>
+          <b>{money(quoteTotal)}</b>
+        </div>
+        <div>
+          <span>Gastos</span>
+          <b>{money(0)}</b>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TaxSummaryCard() {
+  return (
+    <section className="home-summary-card tax-card">
+      <header>
+        <div>
+          <h2>Impuestos</h2>
+          <p>IVA y fiscalidad</p>
+        </div>
+      </header>
+      <div className="tax-lines">
+        <div>
+          <span>IVA España</span>
+          <i />
+          <strong>{money(0)}</strong>
+        </div>
+        <div>
+          <span>VeriFactu</span>
+          <i />
+          <strong>Pendiente</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DonutSummaryCard({ title, value, label, segments, tone }) {
+  const palettes = {
+    green: ["#9cc31b", "#6f9817", "#cfe889", "#464646"],
+    blue: ["#5aa9e6", "#3478a9", "#a6d6f6", "#464646"],
+    coral: ["#c97a66", "#e3a190", "#8e554b", "#464646"]
+  };
+  const background = conicGradient(segments, palettes[tone] || palettes.green);
+
+  return (
+    <section className={`home-summary-card donut-card ${tone}`}>
+      <header>
+        <div>
+          <h2>{title}</h2>
+          <p>{label}</p>
+        </div>
+        <span className="summary-card-menu">⋮</span>
+      </header>
+      <div className="donut-chart" style={{ background }}>
+        <div>
+          <strong>{value}</strong>
+          <span>{label}</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PendingCollectionCard() {
+  return (
+    <section className="home-summary-card collection-card">
+      <header>
+        <div>
+          <h2>Pendiente de cobro</h2>
+          <p>Facturas no cobradas</p>
+        </div>
+      </header>
+      <strong>{money(0)}</strong>
+      <div className="collection-bars">
+        <span style={{ width: "50%" }} />
+        <span style={{ width: "50%" }} />
+      </div>
+      <div className="collection-values">
+        <span>Atrasado {money(0)}</span>
+        <span>No vencido {money(0)}</span>
+      </div>
+    </section>
+  );
+}
+
 function CountrySummaryCard({ market, summary, loading }) {
   const users = summary?.users || [];
   const primaryUser = users.find((user) => user.email === market.email) || users[0];
   const displayEmail = market.email || primaryUser?.email || "";
+  const quoteCount = loading ? "-" : summary?.quoteCount ?? 0;
+  const quoteTotal = loading ? "-" : money(summary?.quoteTotal || 0);
 
   return (
     <section className="country-card">
@@ -1129,10 +1348,21 @@ function CountrySummaryCard({ market, summary, loading }) {
         </div>
         <strong>{summary?.distributorName || "Doinglight"}</strong>
       </header>
-      <div className="country-metrics">
-        <Metric label="Clientes" value={loading ? "-" : summary?.leadCount ?? 0} />
-        <Metric label="Presupuestos" value={loading ? "-" : summary?.quoteCount ?? 0} />
-        <Metric label="Importe" value={loading ? "-" : money(summary?.quoteTotal || 0)} />
+      <div className="country-card-body">
+        <div className="country-kpi-circles">
+          <div className="country-kpi-circle">
+            <strong>{quoteCount}</strong>
+            <span>Presupuestos</span>
+          </div>
+          <div className="country-kpi-circle income">
+            <strong>{money(0)}</strong>
+            <span>Facturas</span>
+          </div>
+        </div>
+        <div className="country-card-footer">
+          <span>{loading ? "-" : summary?.leadCount ?? 0} clientes</span>
+          <strong>{quoteTotal} presupuestado</strong>
+        </div>
       </div>
     </section>
   );
