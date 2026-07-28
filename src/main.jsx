@@ -71,6 +71,16 @@ function addDays(value, days) {
   return date;
 }
 
+function inputDate(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function addDaysInput(value, days) {
+  return inputDate(addDays(value, days));
+}
+
 async function apiRequest(path, { token, method = "GET", body } = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
@@ -243,6 +253,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [contactsInitialFilter, setContactsInitialFilter] = useState("all");
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
+  const [globalInvoiceOpen, setGlobalInvoiceOpen] = useState(false);
   const [globalQuoteOpen, setGlobalQuoteOpen] = useState(false);
   const [globalContactPickerOpen, setGlobalContactPickerOpen] = useState(false);
   const [globalContactForm, setGlobalContactForm] = useState(null);
@@ -310,6 +321,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   function openGlobalQuote() {
     setCreateDrawerOpen(false);
     setGlobalQuoteOpen(true);
+  }
+
+  function openGlobalInvoice() {
+    setCreateDrawerOpen(false);
+    setGlobalInvoiceOpen(true);
   }
 
   function openGlobalContactPicker() {
@@ -433,7 +449,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
             />
           ) : null}
           {activeView === "settings" ? <SettingsView /> : null}
-          {activeView === "invoices" ? <InvoicesMirrorView token={session.token} /> : null}
+          {activeView === "invoices" ? <InvoicesMirrorView token={session.token} onCreateInvoice={openGlobalInvoice} /> : null}
           {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
           {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
@@ -458,9 +474,27 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         <CreateActionDrawer
           onClose={() => setCreateDrawerOpen(false)}
           onNavigate={navigate}
+          onCreateInvoice={openGlobalInvoice}
           onCreateQuote={openGlobalQuote}
           onCreateContact={openGlobalContactPicker}
         />
+      ) : null}
+      {globalInvoiceOpen ? (
+        <ModalShell
+          title="Factura simplificada"
+          eyebrow="Factura de venta"
+          size="invoice-create-modal"
+          onClose={() => setGlobalInvoiceOpen(false)}
+        >
+          <InvoiceCreateForm
+            token={session.token}
+            onCancel={() => setGlobalInvoiceOpen(false)}
+            onNavigateSettings={() => {
+              setGlobalInvoiceOpen(false);
+              navigate("settings");
+            }}
+          />
+        </ModalShell>
       ) : null}
       {globalQuoteOpen ? (
         <ModalShell
@@ -514,10 +548,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   );
 }
 
-function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContact }) {
+function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateContact }) {
   const [isClosing, setIsClosing] = useState(false);
   const actions = [
-    { label: "Factura de venta", action: () => onNavigate("invoices") },
+    { label: "Factura de venta", action: onCreateInvoice },
     { label: "Presupuesto", action: onCreateQuote },
     { label: "Proforma", action: () => onNavigate("all-sales") },
     { label: "Albarán", action: () => onNavigate("delivery-notes") },
@@ -941,7 +975,283 @@ function serializeFacturaDirectaInvoice(item) {
   };
 }
 
-function InvoicesMirrorView({ token }) {
+function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
+  const today = inputDate();
+  const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
+  const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
+  const [form, setForm] = useState({
+    operation: "Empresa nacional",
+    template: "Principal",
+    responsible: "",
+    clientQuery: "",
+    leadId: "",
+    date: today,
+    dueDate: today,
+    documentNumber: "",
+    sendEmail: "",
+    paymentMethod: "",
+    billingData: "España",
+    notes: "",
+    internalNotes: ""
+  });
+  const [lines, setLines] = useState([
+    {
+      id: crypto.randomUUID(),
+      skuQuery: "",
+      sku: "",
+      description: "",
+      quantity: 0,
+      unitPrice: 0,
+      taxRate: 21,
+      discountPercent: 0
+    }
+  ]);
+
+  const products = catalog.data?.products || [];
+  const clients = leads.data?.items || [];
+  const clientOptionLabel = (lead) =>
+    `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
+  const selectedClient = clients.find((lead) => lead.id === form.leadId) || null;
+  const filteredClients = useMemo(() => {
+    const needle = form.clientQuery.trim().toLowerCase();
+    if (!needle) return clients;
+    return clients.filter((lead) =>
+      [lead.fullName, lead.companyName, lead.email, lead.phone, lead.taxId].some((value) =>
+        String(value || "").toLowerCase().includes(needle)
+      )
+    );
+  }, [clients, form.clientQuery]);
+
+  function productForLine(line) {
+    return products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku) || null;
+  }
+
+  function updateLine(lineId, patch) {
+    setLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
+  }
+
+  function lineSubtotal(line) {
+    return Number(line.quantity || 0) * Number(line.unitPrice || 0) * (1 - Number(line.discountPercent || 0) / 100);
+  }
+
+  function addInvoiceLine() {
+    setLines((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        skuQuery: "",
+        sku: "",
+        description: "",
+        quantity: 1,
+        unitPrice: 0,
+        taxRate: 21,
+        discountPercent: 0
+      }
+    ]);
+  }
+
+  function removeInvoiceLine(lineId) {
+    setLines((current) => (current.length === 1 ? current : current.filter((line) => line.id !== lineId)));
+  }
+
+  const subtotal = lines.reduce((sum, line) => sum + lineSubtotal(line), 0);
+  const taxTotal = lines.reduce((sum, line) => sum + lineSubtotal(line) * (Number(line.taxRate || 0) / 100), 0);
+  const total = subtotal + taxTotal;
+
+  return (
+    <div className="invoice-create-form">
+      <section className="invoice-create-meta">
+        <div className="invoice-create-meta-line">
+          <span>Operación:</span>
+          <strong>{form.operation}</strong>
+          <span>Plantilla:</span>
+          <strong>{form.template}</strong>
+          <span>Responsable:</span>
+          <strong>{form.responsible || "-"}</strong>
+          <button type="button" onClick={onNavigateSettings}>Cambiar</button>
+        </div>
+        <div className="invoice-create-title-row">
+          <h4>Factura simplificada</h4>
+          <div className="invoice-create-total">
+            <span>Total</span>
+            <strong>{money(total)}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="invoice-create-grid">
+        <div className="invoice-field invoice-client-field">
+          <input
+            list="invoice-client-suggestions"
+            placeholder="Cliente"
+            value={form.clientQuery}
+            onChange={(event) => {
+              const value = event.target.value;
+              const exactLead = clients.find((lead) => clientOptionLabel(lead) === value);
+              setForm((current) => ({
+                ...current,
+                clientQuery: value,
+                leadId: exactLead?.id || "",
+                sendEmail: exactLead?.email || current.sendEmail,
+                billingData: exactLead
+                  ? [exactLead.country || "España", exactLead.taxId, exactLead.address].filter(Boolean).join(" · ")
+                  : current.billingData,
+                paymentMethod: exactLead?.preferredPaymentMethod || current.paymentMethod,
+                dueDate: exactLead?.paymentTermDays ? addDaysInput(current.date, Number(exactLead.paymentTermDays)) : current.dueDate
+              }));
+            }}
+          />
+          <ChevronDown size={16} />
+          <datalist id="invoice-client-suggestions">
+            {filteredClients.map((lead) => (
+              <option key={lead.id} value={clientOptionLabel(lead)} />
+            ))}
+          </datalist>
+        </div>
+        <label className="invoice-field">
+          <span>Fecha</span>
+          <input
+            type="date"
+            value={form.date}
+            onChange={(event) => {
+              const date = event.target.value;
+              setForm((current) => ({ ...current, date, dueDate: selectedClient?.paymentTermDays ? addDaysInput(date, Number(selectedClient.paymentTermDays)) : current.dueDate }));
+            }}
+          />
+        </label>
+        <div className="invoice-field invoice-number-field">
+          <input
+            placeholder="Número de documento"
+            value={form.documentNumber}
+            onChange={(event) => setForm({ ...form, documentNumber: event.target.value })}
+          />
+          <small>El número se generará automáticamente</small>
+        </div>
+        <div className="invoice-field invoice-client-field">
+          <input
+            placeholder="Correo electrónico de envío"
+            value={form.sendEmail}
+            onChange={(event) => setForm({ ...form, sendEmail: event.target.value })}
+          />
+          <ChevronDown size={16} />
+        </div>
+        <label className="invoice-field">
+          <span>Vencimiento</span>
+          <input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
+        </label>
+        <div className="invoice-field invoice-client-field">
+          <select value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })}>
+            <option value="">Método de pago</option>
+            <option value="transferencia">Transferencia bancaria</option>
+            <option value="recibo">Recibo domiciliado</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="contado">Contado</option>
+          </select>
+        </div>
+        <label className="invoice-field invoice-billing-field">
+          <span>Datos de facturación</span>
+          <input value={form.billingData} onChange={(event) => setForm({ ...form, billingData: event.target.value })} />
+        </label>
+        <label className="invoice-field invoice-notes-field">
+          <textarea placeholder="Notas" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+          <small>Notas visibles para el cliente</small>
+        </label>
+        <label className="invoice-field invoice-notes-field internal">
+          <textarea placeholder="Notas internas" value={form.internalNotes} onChange={(event) => setForm({ ...form, internalNotes: event.target.value })} />
+          <small>Notas no visibles para el cliente</small>
+        </label>
+      </section>
+
+      <section className="invoice-lines-section">
+        <div className="invoice-lines-header">
+          <span>Producto</span>
+          <span>Descripción</span>
+          <span>Cantidad</span>
+          <span>Precio de venta</span>
+          <span>Impuestos</span>
+          <span>Dto (%)</span>
+          <span>Importe</span>
+        </div>
+        {lines.map((line) => {
+          const product = productForLine(line);
+          return (
+            <div className="invoice-line-row" key={line.id}>
+              <div className="invoice-product-cell">
+                <input
+                  list="invoice-product-suggestions"
+                  placeholder="Producto"
+                  value={line.skuQuery}
+                  onChange={(event) => {
+                    const skuQuery = event.target.value.toUpperCase();
+                    const matchedProduct = products.find((item) => item.sku === skuQuery);
+                    updateLine(line.id, {
+                      skuQuery,
+                      sku: matchedProduct?.sku || "",
+                      description: matchedProduct?.title || line.description,
+                      unitPrice: matchedProduct?.pricePvpEur ?? line.unitPrice
+                    });
+                  }}
+                />
+                <ChevronDown size={14} />
+              </div>
+              <input
+                placeholder="Añade una descripción"
+                value={line.description}
+                onChange={(event) => updateLine(line.id, { description: event.target.value })}
+              />
+              <input type="number" min="0" value={line.quantity} onChange={(event) => updateLine(line.id, { quantity: event.target.value })} />
+              <input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => updateLine(line.id, { unitPrice: event.target.value })} />
+              <select value={line.taxRate} onChange={(event) => updateLine(line.id, { taxRate: event.target.value })}>
+                <option value="0">Exento</option>
+                <option value="21">IVA 21%</option>
+                <option value="23">IVA PT 23%</option>
+                <option value="22">IVA IT 22%</option>
+                <option value="20">IVA FR 20%</option>
+                <option value="19">IVA DE 19%</option>
+              </select>
+              <input type="number" min="0" max="100" value={line.discountPercent} onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })} />
+              <strong>{tableMoney(lineSubtotal(line))}</strong>
+              <button className="tiny-icon-button danger" type="button" onClick={() => removeInvoiceLine(line.id)} disabled={lines.length === 1} aria-label="Eliminar línea">
+                <X size={14} />
+              </button>
+            </div>
+          );
+        })}
+        <datalist id="invoice-product-suggestions">
+          {products.map((product) => (
+            <option key={product.sku} value={product.sku}>
+              {product.title || product.slug}
+            </option>
+          ))}
+        </datalist>
+        <button className="invoice-add-line" type="button" onClick={addInvoiceLine}>Añadir línea</button>
+      </section>
+
+      <section className="invoice-create-summary">
+        <div>
+          <span>Subtotal</span>
+          <strong>{money(subtotal)}</strong>
+        </div>
+        <div>
+          <span>Impuestos</span>
+          <strong>{money(taxTotal)}</strong>
+        </div>
+        <div>
+          <span>Total</span>
+          <strong>{money(total)}</strong>
+        </div>
+      </section>
+
+      <div className="invoice-create-actions">
+        <p>La creación definitiva se activará al cerrar series, numeración y VeriFactu.</p>
+        <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button>
+        <button className="primary-button" type="button" disabled>Guardar factura</button>
+      </div>
+    </div>
+  );
+}
+
+function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [query, setQuery] = useState("");
   const statusResource = useResource(
     () => apiRequest("/api/facturadirecta/status", { token }),
@@ -962,9 +1272,9 @@ function InvoicesMirrorView({ token }) {
     <div className="module-page invoices-mirror-page">
       <header className="module-page-header invoices-page-header">
         <h3>Facturas de venta</h3>
-        <div className="invoice-new-split" title="Se activará cuando cerremos numeración, albaranes, impuestos y VeriFactu">
-          <button type="button" disabled>Nueva factura</button>
-          <button type="button" disabled aria-label="Opciones de nueva factura">
+        <div className="invoice-new-split" title="Crear nueva factura de venta">
+          <button type="button" onClick={onCreateInvoice}>Nueva factura</button>
+          <button type="button" onClick={onCreateInvoice} aria-label="Opciones de nueva factura">
             <ChevronDown size={18} />
           </button>
         </div>
