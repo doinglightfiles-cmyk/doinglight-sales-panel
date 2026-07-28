@@ -1266,6 +1266,33 @@ select:focus {
   opacity: 0.85;
 }
 
+.invoice-new-split.single-action {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 22px;
+  color: var(--white);
+  background: var(--green-dark);
+  font-weight: 800;
+}
+
+.quote-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quote-template-select {
+  min-width: 245px;
+  min-height: 44px;
+  border-color: var(--line);
+  color: var(--ink);
+  background-color: var(--green-soft);
+}
+
 .invoices-list-panel {
   border-radius: 24px;
 }
@@ -1331,7 +1358,7 @@ select:focus {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: #3f97d5;
+  color: var(--green-dark);
   font-weight: 750;
 }
 
@@ -1341,6 +1368,10 @@ select:focus {
 
 .invoice-table {
   min-width: 1420px;
+}
+
+.quotes-table {
+  min-width: 1360px;
 }
 
 .invoice-table th,
@@ -1377,6 +1408,10 @@ select:focus {
   background: #1f7a28;
   font-size: 14px;
   font-weight: 800;
+}
+
+.quote-badge {
+  background: #49aa4d;
 }
 
 .invoice-payment-status {

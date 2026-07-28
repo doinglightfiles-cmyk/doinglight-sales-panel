@@ -1019,6 +1019,63 @@ function serializeFacturaDirectaInvoice(item) {
   };
 }
 
+function quoteStatusState(status = "") {
+  const normalized = String(status || "").trim().toLowerCase();
+  const labels = {
+    draft: "Pendiente",
+    pending: "Pendiente",
+    sent: "Pendiente",
+    accepted: "Aceptado",
+    approved: "Aceptado",
+    closed: "Cerrado",
+    rejected: "Rechazado",
+    cancelled: "Cancelado",
+    canceled: "Cancelado"
+  };
+  const keys = {
+    draft: "pending",
+    pending: "pending",
+    sent: "pending",
+    accepted: "paid",
+    approved: "paid",
+    closed: "voided",
+    rejected: "overdue",
+    cancelled: "voided",
+    canceled: "voided"
+  };
+
+  return {
+    key: keys[normalized] || "pending",
+    label: labels[normalized] || status || "Pendiente"
+  };
+}
+
+function serializeSalesQuote(quote, leadsById) {
+  const status = quoteStatusState(quote.status);
+  const lead = leadsById.get(quote.leadId) || {};
+  const firstLine = Array.isArray(quote.items) ? quote.items[0] : null;
+  const firstLineText = [firstLine?.title, firstLine?.sku].filter(Boolean).join(" · ");
+  const detail = [
+    `Presupuesto ${quote.quoteNumber || "-"}${quote.createdAt ? ` ${dateOnly(quote.createdAt)}` : ""}`,
+    quote.notes || firstLineText || "Presupuesto comercial"
+  ].filter(Boolean).join("  ");
+
+  return {
+    id: quote.id,
+    number: quote.quoteNumber || "-",
+    contact: lead.fullName || lead.companyName || "Cliente sin asignar",
+    detail,
+    date: quote.createdAt,
+    status: status.label,
+    statusKey: status.key,
+    subtotal: Number(quote.subtotal || 0),
+    total: Number(quote.total || 0),
+    currency: quote.currency || "EUR",
+    sent: false,
+    hasAttachment: false
+  };
+}
+
 function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
   const today = inputDate();
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
@@ -3883,7 +3940,19 @@ const QUOTE_TEMPLATES = [
 function QuotesView({ token }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [query, setQuery] = useState("");
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
+  const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
+  const leadsById = useMemo(() => {
+    const map = new Map();
+    (leads.data?.items || []).forEach((lead) => map.set(lead.id, lead));
+    return map;
+  }, [leads.data]);
+  const quoteRows = (quotes.data?.items || []).map((quote) => serializeSalesQuote(quote, leadsById));
+  const filteredQuotes = quoteRows.filter((quote) => {
+    const haystack = `${quote.number} ${quote.contact} ${quote.status} ${quote.total} ${quote.detail}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase());
+  });
 
   function openEmptyQuote() {
     setSelectedTemplate(null);
@@ -3898,11 +3967,12 @@ function QuotesView({ token }) {
   }
 
   return (
-    <Panel
-      title="Presupuestos"
-      action={
-        <div className="panel-actions">
+    <div className="module-page quotes-page">
+      <header className="module-page-header invoices-page-header">
+        <h3>Presupuestos</h3>
+        <div className="quote-header-actions">
           <select
+            className="quote-template-select"
             aria-label="Presupuestos predefinidos"
             value=""
             onChange={(event) => openTemplateQuote(event.target.value)}
@@ -3912,36 +3982,93 @@ function QuotesView({ token }) {
               <option key={template.id} value={template.id}>{template.name}</option>
             ))}
           </select>
-          <button className="secondary-button" onClick={openEmptyQuote}>
-            <Plus size={16} />
-            Nuevo
+          <button className="invoice-new-split single-action" type="button" onClick={openEmptyQuote}>
+            Nuevo presupuesto
           </button>
         </div>
-      }
-    >
-      {quotes.error ? <p className="form-error">{quotes.error}</p> : null}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Número</th>
-              <th>Estado</th>
-              <th>Total</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(quotes.data?.items || []).map((quote) => (
-              <tr key={quote.id}>
-                <td>{quote.quoteNumber}</td>
-                <td>{quote.status}</td>
-                <td>{money(quote.total)}</td>
-                <td>{shortDate(quote.createdAt)}</td>
+      </header>
+
+      {quotes.error || leads.error ? <p className="form-error">{quotes.error || leads.error}</p> : null}
+      <section className="module-panel invoices-list-panel quotes-list-panel">
+        <div className="invoice-toolbar">
+          <button className="invoice-view-filter" type="button">
+            <FileText size={18} />
+            Todos los presupuestos
+            <ChevronDown size={16} />
+          </button>
+          <div className="module-search">
+            <Search size={18} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
+          </div>
+          <button className="invoice-date-filter" type="button">
+            <CalendarDays size={18} />
+            Todas las fechas
+            <ChevronDown size={16} />
+          </button>
+          <button className="invoice-more-button" type="button" aria-label="Más opciones">
+            <MoreVertical size={20} />
+          </button>
+        </div>
+        <div className="module-filters invoice-filter-row">
+          <button className="invoice-filter-chip" type="button">Estado <MoreVertical size={14} /></button>
+          <button className="invoice-filter-chip" type="button">Cliente <MoreVertical size={14} /></button>
+          <button className="invoice-add-filter" type="button">
+            <Plus size={18} />
+            Añadir filtro
+          </button>
+        </div>
+        <div className="table-wrap invoice-table-wrap">
+          <table className="module-table invoice-table quotes-table">
+            <thead>
+              <tr>
+                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todos los presupuestos" /></th>
+                <th className="invoice-kind-column"></th>
+                <th>Fecha <span className="sort-arrow">↓</span></th>
+                <th>Estado</th>
+                <th>Serie / Núm.</th>
+                <th>Cliente / Detalle</th>
+                <th>Subtotal</th>
+                <th>Total</th>
+                <th>Moneda</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {quotes.loading || leads.loading ? (
+                <tr className="empty-table-row">
+                  <td colSpan={9}>Cargando presupuestos...</td>
+                </tr>
+              ) : null}
+              {!quotes.loading && !leads.loading && !filteredQuotes.length ? (
+                <tr className="empty-table-row">
+                  <td colSpan={9}>No hay presupuestos para mostrar todavía.</td>
+                </tr>
+              ) : null}
+              {filteredQuotes.map((quote) => (
+                <tr key={quote.id}>
+                  <td className="select-column"><input type="checkbox" aria-label={`Seleccionar presupuesto ${quote.number}`} /></td>
+                  <td className="invoice-kind-column"><span className="invoice-kind-badge quote-badge">P</span></td>
+                  <td>{dateOnly(quote.date)}</td>
+                  <td><span className={`invoice-payment-status ${quote.statusKey}`}>{quote.status}</span></td>
+                  <td>{quote.number}</td>
+                  <td>
+                    <div className="invoice-detail-cell">
+                      <strong>{quote.contact}</strong>
+                      <span>{quote.detail}</span>
+                      <span className="invoice-row-icons">
+                        {quote.hasAttachment ? <Paperclip size={17} /> : null}
+                        <Mail size={18} />
+                      </span>
+                    </div>
+                  </td>
+                  <td>{tableMoney(quote.subtotal)}</td>
+                  <td>{tableMoney(quote.total)}</td>
+                  <td>{quote.currency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
       {showForm ? (
         <ModalShell
           title={selectedTemplate ? selectedTemplate.name : "Nuevo presupuesto"}
@@ -3957,7 +4084,7 @@ function QuotesView({ token }) {
           />
         </ModalShell>
       ) : null}
-    </Panel>
+    </div>
   );
 }
 
