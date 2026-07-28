@@ -2318,6 +2318,11 @@ th {
   max-height: min(940px, calc(100vh - 48px));
 }
 
+.quote-work-modal {
+  width: min(1680px, calc(100vw - 48px));
+  max-height: min(960px, calc(100vh - 48px));
+}
+
 .invoice-create-modal {
   width: min(1680px, calc(100vw - 48px));
 }
@@ -3224,6 +3229,16 @@ th {
   padding: 20px 22px;
 }
 
+.quote-work-modal .quote-modal-form {
+  padding: 22px 24px;
+}
+
+.quote-client-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .quote-line-card {
   display: grid;
   grid-template-columns: 24px 54px 150px minmax(260px, 1fr) 92px 112px 120px 30px;
@@ -3439,6 +3454,12 @@ th {
   color: var(--green-dark);
   background: var(--green-soft);
   font-weight: 800;
+}
+
+.icon-only-attachment {
+  width: 42px;
+  justify-content: center;
+  padding: 0;
 }
 
 .attachment-menu {

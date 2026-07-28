@@ -535,7 +535,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         <ModalShell
           title="Nuevo presupuesto"
           eyebrow="Presupuesto"
-          size="wide-modal"
+          size="wide-modal quote-work-modal"
           onClose={() => setGlobalQuoteOpen(false)}
         >
           <QuoteForm
@@ -4073,7 +4073,7 @@ function QuotesView({ token }) {
         <ModalShell
           title={selectedTemplate ? selectedTemplate.name : "Nuevo presupuesto"}
           eyebrow={selectedTemplate ? "Presupuesto predefinido" : "Presupuesto"}
-          size="wide-modal"
+          size="wide-modal quote-work-modal"
           onClose={() => setShowForm(false)}
         >
           <QuoteForm
@@ -4285,13 +4285,37 @@ function QuoteForm({ token, onDone, onCancel, template }) {
       <section className="form-section">
         <header className="form-section-header">
           <h4>Cliente</h4>
-          <div className="segmented-control">
-            <button type="button" className={clientMode === "existing" ? "active" : ""} onClick={() => setClientMode("existing")}>
-              Buscar
-            </button>
-            <button type="button" className={clientMode === "new" ? "active" : ""} onClick={() => setClientMode("new")}>
-              Crear
-            </button>
+          <div className="quote-client-header-actions">
+            <div className="segmented-control">
+              <button type="button" className={clientMode === "existing" ? "active" : ""} onClick={() => setClientMode("existing")}>
+                Buscar
+              </button>
+              <button type="button" className={clientMode === "new" ? "active" : ""} onClick={() => setClientMode("new")}>
+                Crear
+              </button>
+            </div>
+            <div className="attachment-menu-wrap">
+              <button
+                className="attachment-trigger icon-only-attachment"
+                type="button"
+                onClick={() => setAttachmentMenuOpen((value) => !value)}
+                aria-label="Adjuntar archivo"
+                aria-haspopup="menu"
+                aria-expanded={attachmentMenuOpen}
+                title="Adjuntar archivo"
+              >
+                <Paperclip size={18} />
+              </button>
+              {attachmentMenuOpen ? (
+                <div className="attachment-menu" role="menu">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">Subir un archivo</button>
+                  <button type="button" onClick={() => setDocumentPicker("Catálogos")} role="menuitem">Catálogos</button>
+                  <button type="button" onClick={() => setDocumentPicker("Fichas técnicas")} role="menuitem">Fichas técnicas</button>
+                  <button type="button" onClick={() => setDocumentPicker("Certificados")} role="menuitem">Certificados</button>
+                </div>
+              ) : null}
+              <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
+            </div>
           </div>
         </header>
 
@@ -4466,29 +4490,6 @@ function QuoteForm({ token, onDone, onCancel, template }) {
 
       <textarea placeholder="Notas" value={notes} onChange={(event) => setNotes(event.target.value)} />
       <section className="quote-attachments">
-        <div className="quote-attachment-actions">
-          <div className="attachment-menu-wrap">
-            <button
-              className="attachment-trigger"
-              type="button"
-              onClick={() => setAttachmentMenuOpen((value) => !value)}
-              aria-haspopup="menu"
-              aria-expanded={attachmentMenuOpen}
-            >
-              <Paperclip size={18} />
-              Adjuntar
-            </button>
-            {attachmentMenuOpen ? (
-              <div className="attachment-menu" role="menu">
-                <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">Subir un archivo</button>
-                <button type="button" onClick={() => setDocumentPicker("Catálogos")} role="menuitem">Catálogos</button>
-                <button type="button" onClick={() => setDocumentPicker("Fichas técnicas")} role="menuitem">Fichas técnicas</button>
-                <button type="button" onClick={() => setDocumentPicker("Certificados")} role="menuitem">Certificados</button>
-              </div>
-            ) : null}
-          </div>
-          <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
-        </div>
         {attachments.length ? (
           <div className="attachment-chip-list">
             {attachments.map((attachment) => (
