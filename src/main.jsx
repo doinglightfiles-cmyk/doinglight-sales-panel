@@ -259,7 +259,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [globalContactForm, setGlobalContactForm] = useState(null);
   const primaryNav = [
     { id: "dashboard", label: "Inicio" },
-    { id: "invoices", label: "Facturas" },
+    { id: "documents", label: "Documento" },
     { id: "purchases", label: "Compras" },
     { id: "contacts", label: "Contactos" },
     { id: "banks", label: "Bancos" }
@@ -304,7 +304,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     }
   ];
   const moreNav = moreGroups.flatMap((group) => group.items);
-  const activeMoreItem = moreNav.find((item) => item.id === activeView && !primaryNav.some((navItem) => navItem.id === item.id));
+  const documentViewIds = ["quotes", "delivery-notes", "proformas", "invoices"];
+  const activeMoreItem = moreNav.find(
+    (item) => item.id === activeView && !primaryNav.some((navItem) => navItem.id === item.id) && !documentViewIds.includes(item.id)
+  );
   const visibleNav = activeMoreItem ? [...primaryNav, activeMoreItem] : primaryNav;
 
   function navigate(viewId, options = {}) {
@@ -346,6 +349,34 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         </button>
         <nav className="main-nav" aria-label="Navegación principal">
           {visibleNav.map((item) => {
+            if (item.id === "documents") {
+              return (
+                <div className="nav-dropdown" key={item.id}>
+                  <button
+                    className={documentViewIds.includes(activeView) ? "nav-item active" : "nav-item"}
+                    onClick={() => navigate("quotes")}
+                    aria-haspopup="menu"
+                  >
+                    {item.label}
+                  </button>
+                  <div className="nav-submenu" role="menu">
+                    <button type="button" onClick={() => navigate("quotes")} role="menuitem">
+                      Presupuesto
+                    </button>
+                    <button type="button" onClick={() => navigate("delivery-notes")} role="menuitem">
+                      Albarán
+                    </button>
+                    <button type="button" onClick={() => navigate("proformas")} role="menuitem">
+                      Proforma
+                    </button>
+                    <button type="button" onClick={() => navigate("invoices")} role="menuitem">
+                      Factura
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
             if (item.id === "contacts") {
               return (
                 <div className="nav-dropdown" key={item.id}>
@@ -454,6 +485,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
           {activeView === "delivery-notes" ? <ModuleWorkspace moduleId="delivery-notes" /> : null}
+          {activeView === "proformas" ? <ModuleWorkspace moduleId="proformas" /> : null}
           {activeView === "all-sales" ? <ModuleWorkspace moduleId="all-sales" /> : null}
           {activeView === "payroll" ? <ModuleWorkspace moduleId="payroll" /> : null}
           {activeView === "purchase-scan" ? <ModuleWorkspace moduleId="purchase-scan" /> : null}
@@ -553,7 +585,7 @@ function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuot
   const actions = [
     { label: "Factura de venta", action: onCreateInvoice },
     { label: "Presupuesto", action: onCreateQuote },
-    { label: "Proforma", action: () => onNavigate("all-sales") },
+    { label: "Proforma", action: () => onNavigate("proformas") },
     { label: "Albarán", action: () => onNavigate("delivery-notes") },
     { label: "Factura de compra", action: () => onNavigate("purchases") },
     { label: "Gasto/Tiquet", action: () => onNavigate("purchases") },
@@ -658,6 +690,15 @@ const MODULES = {
     metrics: ["Borradores", "Preparados", "Servidos", "Facturados"],
     columns: ["Número", "Cliente", "Fecha", "Estado", "Origen", "Total"],
     empty: "No hay albaranes todavía."
+  },
+  proformas: {
+    title: "Proformas",
+    actionLabel: "Nueva proforma",
+    filterLabel: "Todas las proformas",
+    searchPlaceholder: "Buscar por cliente, número o estado",
+    metrics: ["Borradores", "Enviadas", "Aceptadas", "Convertidas"],
+    columns: ["Número", "Cliente", "Fecha", "Vencimiento", "Estado", "Total"],
+    empty: "No hay proformas todavía."
   },
   "all-sales": {
     title: "Todas las ventas",
