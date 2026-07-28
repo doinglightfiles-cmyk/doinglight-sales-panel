@@ -3,7 +3,9 @@ import { createRoot } from "react-dom/client";
 import {
   Bell,
   Building2,
+  CalendarDays,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Download,
   FileText,
@@ -14,6 +16,7 @@ import {
   Mail,
   Menu,
   MessageCircle,
+  MoreVertical,
   Paperclip,
   Pencil,
   Plus,
@@ -646,13 +649,57 @@ function normalizeMoneyValue(value) {
   return Number(cleaned) || 0;
 }
 
+function tableMoney(value) {
+  if (value === null || value === undefined || value === "") return "";
+  return new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(value) || 0);
+}
+
+function formatInvoiceNumber(docNumber = {}) {
+  const series = String(docNumber.formattedSeries || docNumber.series || "").trim();
+  const rawNumber = docNumber.formattedNumber ?? docNumber.number ?? docNumber.fullNumber ?? "";
+  const number = String(rawNumber || "").trim();
+  const paddedNumber = /^\d+$/.test(number) ? number.padStart(5, "0") : number;
+  return [series, paddedNumber].filter(Boolean).join(" ") || "-";
+}
+
+function invoicePaymentState(main, total) {
+  const explicitStatus = String(firstValue(main, [
+    "paymentState",
+    "paymentStatus",
+    "status",
+    "state"
+  ], "")).toLowerCase();
+  const pendingBalance = normalizeMoneyValue(firstValue(main, [
+    "pendingBalance",
+    "pendingAmount",
+    "amountDue",
+    "balance",
+    "remaining",
+    "totals.pending",
+    "totals.pendingAmount"
+  ], 0));
+
+  if (main.voided || explicitStatus.includes("void") || explicitStatus.includes("cancel")) {
+    return { key: "voided", label: "Anulada", pendingBalance: 0 };
+  }
+  if (main.draft || explicitStatus.includes("draft") || explicitStatus.includes("borrador")) {
+    return { key: "draft", label: "Borrador", pendingBalance: total };
+  }
+  if (pendingBalance > 0 || explicitStatus.includes("pending") || explicitStatus.includes("pendiente")) {
+    return { key: "pending", label: "Pendiente", pendingBalance: pendingBalance || total };
+  }
+
+  return { key: "paid", label: "Pagado", pendingBalance: 0 };
+}
+
 function serializeFacturaDirectaInvoice(item) {
   const main = item?.main || {};
   const combined = { ...item, ...main };
   const counterpartName = [main.counterpart?.name, main.counterpart?.surname].filter(Boolean).join(" ").trim();
-  const docSeries = String(main.docNumber?.formattedSeries || main.docNumber?.series || "").trim();
-  const docNumber = main.docNumber?.number !== undefined && main.docNumber?.number !== null ? String(main.docNumber.number).trim() : "";
-  const formattedNumber = docSeries && docNumber ? `${docSeries}-${docNumber}` : docNumber || docSeries;
+  const seriesNumber = formatInvoiceNumber(main.docNumber);
   const total = normalizeMoneyValue(firstValue(combined, [
     "total",
     "totalAmount",
@@ -662,10 +709,26 @@ function serializeFacturaDirectaInvoice(item) {
     "totals.total",
     "amount"
   ]));
+  const subtotal = normalizeMoneyValue(firstValue(combined, [
+    "totalBeforeTaxes",
+    "subtotal",
+    "totalWithoutTaxes",
+    "totalWithoutTax",
+    "totals.subtotal",
+    "taxBase"
+  ], total));
+  const payment = invoicePaymentState(main, total);
+  const firstLine = Array.isArray(main.lines) ? main.lines[0] : null;
+  const lineText = String(firstLine?.text || firstLine?.description || firstLine?.title || "").trim();
+  const date = firstValue(combined, ["date", "issueDate", "invoiceDate", "creationDate"], item?.creationDate || "");
+  const detail = [
+    `Factura ${seriesNumber}${date ? ` (${dateOnly(date)})` : ""}`,
+    lineText
+  ].filter(Boolean).join("  ");
 
   return {
     id: item?.id || firstValue(combined, ["uuid", "id", "number"], JSON.stringify(main).slice(0, 80)),
-    number: formattedNumber || firstValue(combined, [
+    number: seriesNumber || firstValue(combined, [
       "number",
       "invoiceNumber",
       "invoice_number",
@@ -673,6 +736,9 @@ function serializeFacturaDirectaInvoice(item) {
       "code",
       "reference"
     ], "-"),
+    series: String(main.docNumber?.formattedSeries || main.docNumber?.series || "").trim(),
+    rawNumber: main.docNumber?.number ?? "",
+    detail,
     contact: counterpartName || firstValue(combined, [
       "contact.name",
       "client.name",
@@ -684,19 +750,19 @@ function serializeFacturaDirectaInvoice(item) {
       "businessName",
       "name"
     ], "-"),
-    date: firstValue(combined, ["date", "issueDate", "invoiceDate", "creationDate"], item?.creationDate || ""),
+    date,
     dueDate: firstValue(combined, ["dueDate", "expirationDate", "maturityDate", "paymentDueDate"], ""),
-    status: firstValue(combined, ["status", "state", "paymentStatus", "payment_status"], "Importada"),
+    status: payment.label,
+    statusKey: payment.key,
+    verifactuStatus: firstValue(combined, ["verifactuStatus", "verifactu.status", "veriFactuStatus"], ""),
+    pendingBalance: payment.pendingBalance,
+    subtotal,
     total,
     currency: firstValue(combined, ["currency", "currencyCode", "currency_code"], "EUR"),
+    sent: Boolean(main.emails?.length || main.sent || main.emailSent),
+    hasAttachment: Boolean(main.attachments?.length || main.files?.length),
     raw: item
   };
-}
-
-function invoiceStatusLabel(status) {
-  const value = String(status || "").trim();
-  if (!value) return "Importada";
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function InvoicesMirrorView({ token }) {
@@ -712,32 +778,21 @@ function InvoicesMirrorView({ token }) {
   const fdStatus = statusResource.data?.status || {};
   const invoices = (invoicesResource.data?.items || []).map(serializeFacturaDirectaInvoice);
   const filteredInvoices = invoices.filter((invoice) => {
-    const haystack = `${invoice.number} ${invoice.contact} ${invoice.status} ${invoice.total}`.toLowerCase();
+    const haystack = `${invoice.number} ${invoice.contact} ${invoice.status} ${invoice.total} ${invoice.detail}`.toLowerCase();
     return haystack.includes(query.trim().toLowerCase());
   });
-  const total = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
-  const robrosTotal = invoices
-    .filter((invoice) => invoice.contact.toUpperCase().includes("ROBROS") || invoice.contact.toUpperCase().includes("ROSA ROBERTO"))
-    .reduce((sum, invoice) => sum + invoice.total, 0);
 
   return (
     <div className="module-page invoices-mirror-page">
-      <header className="module-page-header">
-        <div>
-          <h3>Facturas</h3>
-          <p className="module-page-subtitle">Espejo de FacturaDirecta en modo solo lectura.</p>
+      <header className="module-page-header invoices-page-header">
+        <h3>Facturas de venta</h3>
+        <div className="invoice-new-split" title="Se activará cuando cerremos numeración, albaranes, impuestos y VeriFactu">
+          <button type="button" disabled>Nueva factura</button>
+          <button type="button" disabled aria-label="Opciones de nueva factura">
+            <ChevronDown size={18} />
+          </button>
         </div>
-        <button className="secondary-button" type="button" disabled title="Se activará cuando cerremos numeración, albaranes, impuestos y VeriFactu">
-          Nueva factura desactivada
-        </button>
       </header>
-
-      <div className="module-metrics">
-        <Metric label="Facturas leídas" value={invoicesResource.loading ? "-" : invoices.length} />
-        <Metric label="Total FacturaDirecta" value={invoicesResource.loading ? "-" : money(total)} />
-        <Metric label="ROBROS detectado" value={invoicesResource.loading ? "-" : money(robrosTotal)} />
-        <Metric label="Modo Doinglight" value="Lectura" />
-      </div>
 
       {fdStatus.configured === false || invoicesResource.error ? (
         <div className="integration-warning">
@@ -753,55 +808,84 @@ function InvoicesMirrorView({ token }) {
         </div>
       ) : null}
 
-      <section className="module-panel">
-        <div className="module-toolbar">
-          <select defaultValue="all" aria-label="Filtro facturas">
-            <option value="all">Todas las facturas importadas</option>
-            <option value="robros">ROBROS IMPORT EXPORT</option>
-          </select>
+      <section className="module-panel invoices-list-panel">
+        <div className="invoice-toolbar">
+          <button className="invoice-view-filter" type="button">
+            <FileText size={18} />
+            Todas las facturas
+            <ChevronDown size={16} />
+          </button>
           <div className="module-search">
             <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por cliente, número o importe" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
           </div>
+          <button className="invoice-date-filter" type="button">
+            <CalendarDays size={18} />
+            Todas las fechas
+            <ChevronDown size={16} />
+          </button>
+          <button className="invoice-more-button" type="button" aria-label="Más opciones">
+            <MoreVertical size={20} />
+          </button>
         </div>
-        <div className="module-filters">
-          <button className="filter-chip" type="button">FacturaDirecta</button>
-          <button className="filter-chip" type="button">Solo lectura</button>
-          <button className="filter-chip" type="button">Numeración externa</button>
+        <div className="module-filters invoice-filter-row">
+          <button className="invoice-filter-chip" type="button">Estado <MoreVertical size={14} /></button>
+          <button className="invoice-filter-chip" type="button">Cliente <MoreVertical size={14} /></button>
+          <button className="invoice-add-filter" type="button">
+            <Plus size={18} />
+            Añadir filtro
+          </button>
         </div>
-        <div className="table-wrap">
-          <table className="module-table">
+        <div className="table-wrap invoice-table-wrap">
+          <table className="module-table invoice-table">
             <thead>
               <tr>
-                <th>Número</th>
-                <th>Cliente</th>
-                <th>Fecha</th>
-                <th>Vencimiento</th>
+                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todas las facturas" /></th>
+                <th className="invoice-kind-column"></th>
+                <th>Fecha <span className="sort-arrow">↓</span></th>
+                <th>Verifactu</th>
                 <th>Estado</th>
+                <th>Serie / Núm.</th>
+                <th>Cliente / Detalle</th>
+                <th>Saldo pendiente</th>
+                <th>Subtotal</th>
                 <th>Total</th>
-                <th>Origen</th>
+                <th>Moneda</th>
               </tr>
             </thead>
             <tbody>
               {invoicesResource.loading ? (
                 <tr className="empty-table-row">
-                  <td colSpan={7}>Cargando facturas desde FacturaDirecta...</td>
+                  <td colSpan={11}>Cargando facturas desde FacturaDirecta...</td>
                 </tr>
               ) : null}
               {!invoicesResource.loading && !filteredInvoices.length ? (
                 <tr className="empty-table-row">
-                  <td colSpan={7}>No hay facturas para mostrar todavía.</td>
+                  <td colSpan={11}>No hay facturas para mostrar todavía.</td>
                 </tr>
               ) : null}
               {filteredInvoices.map((invoice) => (
                 <tr key={invoice.id}>
-                  <td><strong>{invoice.number}</strong></td>
-                  <td>{invoice.contact}</td>
+                  <td className="select-column"><input type="checkbox" aria-label={`Seleccionar factura ${invoice.number}`} /></td>
+                  <td className="invoice-kind-column"><span className="invoice-kind-badge">F</span></td>
                   <td>{dateOnly(invoice.date)}</td>
-                  <td>{dateOnly(invoice.dueDate)}</td>
-                  <td><span className="document-status imported">{invoiceStatusLabel(invoice.status)}</span></td>
-                  <td>{money(invoice.total)}</td>
-                  <td>FacturaDirecta</td>
+                  <td>{invoice.verifactuStatus || ""}</td>
+                  <td><span className={`invoice-payment-status ${invoice.statusKey}`}>{invoice.status}</span></td>
+                  <td>{invoice.number}</td>
+                  <td>
+                    <div className="invoice-detail-cell">
+                      <strong>{invoice.contact}</strong>
+                      <span>{invoice.detail}</span>
+                      <span className="invoice-row-icons">
+                        {invoice.hasAttachment ? <Paperclip size={17} /> : null}
+                        <Mail size={18} />
+                      </span>
+                    </div>
+                  </td>
+                  <td className={invoice.pendingBalance > 0 ? "amount-pending" : ""}>{invoice.pendingBalance > 0 ? tableMoney(invoice.pendingBalance) : ""}</td>
+                  <td>{tableMoney(invoice.subtotal)}</td>
+                  <td>{tableMoney(invoice.total)}</td>
+                  <td>{invoice.currency}</td>
                 </tr>
               ))}
             </tbody>
