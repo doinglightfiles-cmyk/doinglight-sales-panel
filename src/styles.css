@@ -1511,6 +1511,11 @@ select:focus {
   font-weight: 700;
 }
 
+.invoice-field-spacer {
+  display: block;
+  height: 16px;
+}
+
 .invoice-field input,
 .invoice-field select,
 .invoice-field textarea,

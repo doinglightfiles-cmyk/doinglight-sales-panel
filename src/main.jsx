@@ -1081,6 +1081,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 
       <section className="invoice-create-grid">
         <div className="invoice-field invoice-client-field">
+          <span className="invoice-field-spacer" aria-hidden="true" />
           <input
             list="invoice-client-suggestions"
             placeholder="Cliente"
@@ -1120,6 +1121,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           />
         </label>
         <div className="invoice-field invoice-number-field">
+          <span className="invoice-field-spacer" aria-hidden="true" />
           <input
             placeholder="Número de documento"
             value={form.documentNumber}
@@ -1128,6 +1130,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           <small>El número se generará automáticamente</small>
         </div>
         <div className="invoice-field invoice-client-field">
+          <span className="invoice-field-spacer" aria-hidden="true" />
           <input
             placeholder="Correo electrónico de envío"
             value={form.sendEmail}
@@ -1140,6 +1143,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           <input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
         </label>
         <div className="invoice-field invoice-client-field">
+          <span className="invoice-field-spacer" aria-hidden="true" />
           <select value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })}>
             <option value="">Método de pago</option>
             <option value="transferencia">Transferencia bancaria</option>
@@ -1153,10 +1157,12 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           <input value={form.billingData} onChange={(event) => setForm({ ...form, billingData: event.target.value })} />
         </label>
         <label className="invoice-field invoice-notes-field">
+          <span className="invoice-field-spacer" aria-hidden="true" />
           <textarea placeholder="Notas" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
           <small>Notas visibles para el cliente</small>
         </label>
         <label className="invoice-field invoice-notes-field internal">
+          <span className="invoice-field-spacer" aria-hidden="true" />
           <textarea placeholder="Notas internas" value={form.internalNotes} onChange={(event) => setForm({ ...form, internalNotes: event.target.value })} />
           <small>Notas no visibles para el cliente</small>
         </label>
