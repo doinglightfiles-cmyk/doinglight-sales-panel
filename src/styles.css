@@ -2165,8 +2165,13 @@ th {
   z-index: 20;
   display: grid;
   place-items: center;
-  padding: 28px;
+  padding: 24px;
   background: rgba(23, 32, 20, 0.36);
+}
+
+.nested-modal-backdrop {
+  z-index: 40;
+  background: rgba(23, 32, 20, 0.22);
 }
 
 .create-drawer-backdrop {
@@ -2297,8 +2302,8 @@ th {
 }
 
 .product-detail {
-  width: min(1040px, 100%);
-  max-height: min(820px, calc(100vh - 56px));
+  width: min(1180px, calc(100vw - 48px));
+  max-height: min(920px, calc(100vh - 48px));
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
@@ -2309,11 +2314,24 @@ th {
 }
 
 .wide-modal {
-  width: min(1180px, 100%);
+  width: min(1540px, calc(100vw - 48px));
+  max-height: min(940px, calc(100vh - 48px));
 }
 
 .invoice-create-modal {
-  width: min(1480px, 100%);
+  width: min(1680px, calc(100vw - 48px));
+}
+
+.document-picker-modal {
+  width: min(720px, calc(100vw - 48px));
+  max-height: min(680px, calc(100vh - 56px));
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 26px 90px rgba(23, 32, 20, 0.3);
 }
 
 .product-detail-header {
@@ -3202,6 +3220,10 @@ th {
   grid-template-columns: 1fr;
 }
 
+.wide-modal .quote-modal-form {
+  padding: 20px 22px;
+}
+
 .quote-line-card {
   display: grid;
   grid-template-columns: 24px 54px 150px minmax(260px, 1fr) 92px 112px 120px 30px;
@@ -3377,6 +3399,146 @@ th {
   justify-content: flex-end;
   color: var(--ink);
   font-size: 16px;
+}
+
+.quote-attachments {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.quote-attachments p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.quote-attachment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attachment-menu-wrap {
+  position: relative;
+  width: fit-content;
+}
+
+.attachment-trigger {
+  min-height: 38px;
+  border: 1px solid rgba(80, 116, 23, 0.28);
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  font-weight: 800;
+}
+
+.attachment-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 7px);
+  z-index: 5;
+  width: 210px;
+  display: grid;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 16px 44px rgba(23, 32, 20, 0.18);
+}
+
+.attachment-menu button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+}
+
+.attachment-menu button:hover {
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.attachment-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attachment-chip {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 8px 0 10px;
+  color: var(--ink);
+  background: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.attachment-chip button {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  padding: 0;
+}
+
+.attachment-chip button:hover {
+  color: var(--danger);
+  background: #fff0ee;
+}
+
+.document-picker-body {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding: 18px;
+}
+
+.document-picker-row {
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 0 14px;
+  color: var(--ink);
+  background: var(--white);
+  text-align: left;
+}
+
+.document-picker-row:hover {
+  border-color: rgba(143, 188, 19, 0.6);
+  background: var(--green-soft);
+}
+
+.document-picker-row strong {
+  color: var(--green-dark);
+  font-size: 13px;
 }
 
 .form-actions {

@@ -4117,6 +4117,9 @@ function QuoteForm({ token, onDone, onCancel, template }) {
   const [clientMode, setClientMode] = useState("existing");
   const [leadQuery, setLeadQuery] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState("");
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [documentPicker, setDocumentPicker] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [lines, setLines] = useState(() => {
     if (template?.lines?.length) {
       return template.lines.map((line) => ({
@@ -4135,6 +4138,7 @@ function QuoteForm({ token, onDone, onCancel, template }) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const lineReferenceRefs = useRef({});
+  const fileInputRef = useRef(null);
   const lastDiscountLeadId = useRef("");
 
   const products = catalog.data?.products || [];
@@ -4252,6 +4256,28 @@ function QuoteForm({ token, onDone, onCancel, template }) {
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  function addAttachment(attachment) {
+    setAttachments((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        ...attachment
+      }
+    ]);
+    setAttachmentMenuOpen(false);
+    setDocumentPicker(null);
+  }
+
+  function removeAttachment(attachmentId) {
+    setAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId));
+  }
+
+  function handleFileInput(event) {
+    const files = Array.from(event.target.files || []);
+    files.forEach((file) => addAttachment({ type: "Archivo", name: file.name, source: "local" }));
+    event.target.value = "";
   }
 
   return (
@@ -4439,11 +4465,104 @@ function QuoteForm({ token, onDone, onCancel, template }) {
       </section>
 
       <textarea placeholder="Notas" value={notes} onChange={(event) => setNotes(event.target.value)} />
+      <section className="quote-attachments">
+        <div className="quote-attachment-actions">
+          <div className="attachment-menu-wrap">
+            <button
+              className="attachment-trigger"
+              type="button"
+              onClick={() => setAttachmentMenuOpen((value) => !value)}
+              aria-haspopup="menu"
+              aria-expanded={attachmentMenuOpen}
+            >
+              <Paperclip size={18} />
+              Adjuntar
+            </button>
+            {attachmentMenuOpen ? (
+              <div className="attachment-menu" role="menu">
+                <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">Subir un archivo</button>
+                <button type="button" onClick={() => setDocumentPicker("Catálogos")} role="menuitem">Catálogos</button>
+                <button type="button" onClick={() => setDocumentPicker("Fichas técnicas")} role="menuitem">Fichas técnicas</button>
+                <button type="button" onClick={() => setDocumentPicker("Certificados")} role="menuitem">Certificados</button>
+              </div>
+            ) : null}
+          </div>
+          <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
+        </div>
+        {attachments.length ? (
+          <div className="attachment-chip-list">
+            {attachments.map((attachment) => (
+              <span className="attachment-chip" key={attachment.id}>
+                <Paperclip size={14} />
+                {attachment.name}
+                <button type="button" onClick={() => removeAttachment(attachment.id)} aria-label={`Quitar ${attachment.name}`}>
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p>Sin adjuntos.</p>
+        )}
+      </section>
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
         {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
         <button className="primary-button" type="button" onClick={submit}>Crear presupuesto</button>
       </div>
+      {documentPicker ? (
+        <DocumentAttachmentPicker
+          category={documentPicker}
+          onClose={() => setDocumentPicker(null)}
+          onSelect={(document) => addAttachment({ type: documentPicker, name: document.title, source: "library" })}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function DocumentAttachmentPicker({ category, onClose, onSelect }) {
+  const sampleDocuments = {
+    Catálogos: [
+      "Catálogo general Doinglight",
+      "Catálogo instalador",
+      "Tarifa comercial"
+    ],
+    "Fichas técnicas": [
+      "Ficha técnica Kit 240",
+      "Ficha técnica Kit 340",
+      "Ficha técnica Kit 525"
+    ],
+    Certificados: [
+      "Certificado CE",
+      "Certificado de garantía",
+      "Certificado de prestaciones"
+    ]
+  };
+  const documents = sampleDocuments[category] || [];
+
+  return (
+    <div className="modal-backdrop nested-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <article className="document-picker-modal" role="dialog" aria-modal="true" aria-labelledby="document-picker-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="product-detail-header">
+          <div>
+            <p>Adjuntar documento</p>
+            <h3 id="document-picker-title">{category}</h3>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="Cerrar selector de documentos">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="document-picker-body">
+          {documents.map((title) => (
+            <button className="document-picker-row" type="button" key={title} onClick={() => onSelect({ title })}>
+              <FileText size={18} />
+              <span>{title}</span>
+              <strong>Adjuntar</strong>
+            </button>
+          ))}
+        </div>
+      </article>
     </div>
   );
 }
