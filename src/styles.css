@@ -1235,14 +1235,14 @@ select:focus {
   grid-template-columns: auto 42px;
   overflow: hidden;
   border-radius: 8px;
-  background: #5baeee;
+  background: var(--green-dark);
 }
 
 .invoice-new-split button {
   min-height: 52px;
   border: 0;
-  color: #0d2433;
-  background: #5baeee;
+  color: var(--white);
+  background: var(--green-dark);
   font-weight: 800;
 }
 
