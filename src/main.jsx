@@ -242,6 +242,10 @@ function App() {
 function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [contactsInitialFilter, setContactsInitialFilter] = useState("all");
+  const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
+  const [globalQuoteOpen, setGlobalQuoteOpen] = useState(false);
+  const [globalContactPickerOpen, setGlobalContactPickerOpen] = useState(false);
+  const [globalContactForm, setGlobalContactForm] = useState(null);
   const primaryNav = [
     { id: "dashboard", label: "Inicio" },
     { id: "invoices", label: "Facturas" },
@@ -294,12 +298,28 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 
   function navigate(viewId, options = {}) {
     setMoreOpen(false);
+    setCreateDrawerOpen(false);
     if (viewId === "contacts" && options.contactFilter) {
       setContactsInitialFilter(options.contactFilter);
     } else if (viewId !== "contacts") {
       setContactsInitialFilter("all");
     }
     onNavigate(viewId);
+  }
+
+  function openGlobalQuote() {
+    setCreateDrawerOpen(false);
+    setGlobalQuoteOpen(true);
+  }
+
+  function openGlobalContactPicker() {
+    setCreateDrawerOpen(false);
+    setGlobalContactPickerOpen(true);
+  }
+
+  function openGlobalContactForm(type, level = CUSTOMER_LEVELS[0]) {
+    setGlobalContactPickerOpen(false);
+    setGlobalContactForm({ type, level });
   }
 
   return (
@@ -404,7 +424,14 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 
       <div className="main-area">
         <section className="content">
-          {activeView === "dashboard" ? <Dashboard token={session.token} locale={session.user.locale} user={session.user} /> : null}
+          {activeView === "dashboard" ? (
+            <Dashboard
+              token={session.token}
+              locale={session.user.locale}
+              user={session.user}
+              onOpenCreate={() => setCreateDrawerOpen(true)}
+            />
+          ) : null}
           {activeView === "settings" ? <SettingsView /> : null}
           {activeView === "invoices" ? <InvoicesMirrorView token={session.token} /> : null}
           {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
@@ -426,6 +453,113 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "downloads" ? <DownloadsView /> : null}
         </section>
       </div>
+
+      {createDrawerOpen ? (
+        <CreateActionDrawer
+          onClose={() => setCreateDrawerOpen(false)}
+          onNavigate={navigate}
+          onCreateQuote={openGlobalQuote}
+          onCreateContact={openGlobalContactPicker}
+        />
+      ) : null}
+      {globalQuoteOpen ? (
+        <ModalShell
+          title="Nuevo presupuesto"
+          eyebrow="Presupuesto"
+          size="wide-modal"
+          onClose={() => setGlobalQuoteOpen(false)}
+        >
+          <QuoteForm
+            token={session.token}
+            onCancel={() => setGlobalQuoteOpen(false)}
+            onDone={() => {
+              setGlobalQuoteOpen(false);
+              navigate("quotes");
+            }}
+          />
+        </ModalShell>
+      ) : null}
+      {globalContactPickerOpen ? (
+        <ContactTypePicker onClose={() => setGlobalContactPickerOpen(false)} onSelect={openGlobalContactForm} />
+      ) : null}
+      {globalContactForm ? (
+        <ModalShell
+          title={globalContactForm.type === "supplier" ? "Nuevo proveedor" : "Nuevo cliente"}
+          eyebrow="Ficha de contacto"
+          onClose={() => setGlobalContactForm(null)}
+        >
+          {globalContactForm.type === "supplier" ? (
+            <SupplierForm
+              token={session.token}
+              onCancel={() => setGlobalContactForm(null)}
+              onDone={() => {
+                setGlobalContactForm(null);
+                navigate("contacts", { contactFilter: "suppliers" });
+              }}
+            />
+          ) : (
+            <LeadForm
+              token={session.token}
+              initialCustomerLevel={globalContactForm.level}
+              onCancel={() => setGlobalContactForm(null)}
+              onDone={() => {
+                setGlobalContactForm(null);
+                navigate("contacts", { contactFilter: "clients" });
+              }}
+            />
+          )}
+        </ModalShell>
+      ) : null}
+    </div>
+  );
+}
+
+function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContact }) {
+  const actions = [
+    { label: "Factura de venta", badge: "F", tone: "green", action: () => onNavigate("invoices") },
+    { label: "Presupuesto", badge: "P", tone: "green", action: onCreateQuote },
+    { label: "Proforma", badge: "P", tone: "muted", action: () => onNavigate("all-sales") },
+    { label: "Albarán", badge: "A", tone: "light-green", action: () => onNavigate("delivery-notes") },
+    { label: "Factura de compra", badge: "C", tone: "red", action: () => onNavigate("purchases") },
+    { label: "Gasto/Tiquet", badge: "G", tone: "orange", action: () => onNavigate("purchases") },
+    { label: "Nómina", badge: "N", tone: "salmon", action: () => onNavigate("payroll") },
+    { label: "Contacto", badge: "C", tone: "lime", action: onCreateContact },
+    { label: "Producto", badge: "P", tone: "brown", action: () => onNavigate("catalog") },
+    { label: "Remesa bancaria", badge: "P", tone: "pink", action: () => onNavigate("bank-remittances") },
+    { label: "Presentación de impuestos", badge: "T", tone: "yellow", action: () => onNavigate("taxes") }
+  ];
+
+  return (
+    <div className="create-drawer-backdrop" role="presentation" onMouseDown={onClose}>
+      <aside
+        className="create-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-drawer-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <h3 id="create-drawer-title">Crear</h3>
+          <button className="create-drawer-close" type="button" onClick={onClose} aria-label="Cerrar">
+            <X size={30} />
+          </button>
+        </header>
+        <div className="create-drawer-actions">
+          {actions.map((item) => (
+            <button className="create-action-row" type="button" key={item.label} onClick={item.action}>
+              <span className={`create-action-badge ${item.tone}`}>{item.badge}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="create-scan-block">
+          <strong>Escáner de compras</strong>
+          <button className="create-action-row" type="button" onClick={() => onNavigate("purchase-scan")}>
+            <span className="create-action-badge muted">D</span>
+            <span>Subir documento</span>
+          </button>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -1361,7 +1495,7 @@ function findMarketSummary(markets, country) {
   return (markets || []).find((market) => market.country === country) || null;
 }
 
-function Dashboard({ token, locale = "es", user }) {
+function Dashboard({ token, locale = "es", user, onOpenCreate }) {
   const dashboard = useResource(() => apiRequest("/api/sales/dashboard", { token }), [token]);
   const catalog = useResource(
     () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(locale || "es")}&channel=sales_app`, { token }),
@@ -1383,8 +1517,15 @@ function Dashboard({ token, locale = "es", user }) {
           <p>Inicio</p>
           <h1>Hola {firstName}</h1>
         </div>
-        <div className="home-dashboard-filter">
-          <span>Todo el año 2026</span>
+        <div className="home-dashboard-actions">
+          <div className="home-dashboard-filter">
+            <CalendarDays size={18} />
+            <span>Todo el año 2026</span>
+            <ChevronDown size={16} />
+          </div>
+          <button className="home-create-button" type="button" onClick={onOpenCreate} aria-label="Crear nuevo documento o registro">
+            <Plus size={30} />
+          </button>
         </div>
       </header>
 
