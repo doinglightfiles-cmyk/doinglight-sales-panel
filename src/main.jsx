@@ -665,7 +665,25 @@ function formatInvoiceNumber(docNumber = {}) {
   return [series, paddedNumber].filter(Boolean).join(" ") || "-";
 }
 
-function invoicePaymentState(main, total) {
+function invoicePaymentState(main, total, fdState = "") {
+  const normalizedFdState = String(fdState || "").trim().toLowerCase();
+  const fdStateLabels = {
+    paid: "Pagado",
+    pending: "Pendiente",
+    overdue: "Vencida",
+    overpaid: "Sobrepagada",
+    draft: "Borrador",
+    voided: "Anulada"
+  };
+
+  if (fdStateLabels[normalizedFdState]) {
+    return {
+      key: normalizedFdState,
+      label: fdStateLabels[normalizedFdState],
+      pendingBalance: ["pending", "overdue"].includes(normalizedFdState) ? total : 0
+    };
+  }
+
   const explicitStatus = String(firstValue(main, [
     "paymentState",
     "paymentStatus",
@@ -717,7 +735,7 @@ function serializeFacturaDirectaInvoice(item) {
     "totals.subtotal",
     "taxBase"
   ], total));
-  const payment = invoicePaymentState(main, total);
+  const payment = invoicePaymentState(main, total, item?.fdState || item?.state);
   const firstLine = Array.isArray(main.lines) ? main.lines[0] : null;
   const lineText = String(firstLine?.text || firstLine?.description || firstLine?.title || "").trim();
   const date = firstValue(combined, ["date", "issueDate", "invoiceDate", "creationDate"], item?.creationDate || "");

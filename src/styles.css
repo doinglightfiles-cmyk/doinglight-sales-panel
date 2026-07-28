@@ -1362,6 +1362,14 @@ select:focus {
   color: #d98200;
 }
 
+.invoice-payment-status.overdue {
+  color: var(--danger);
+}
+
+.invoice-payment-status.overpaid {
+  color: #3478a9;
+}
+
 .invoice-payment-status.draft,
 .invoice-payment-status.voided {
   color: var(--muted);
