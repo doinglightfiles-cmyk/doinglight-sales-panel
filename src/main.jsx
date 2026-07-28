@@ -1943,10 +1943,6 @@ function ContactsView({ token, initialFilter = "all" }) {
   const [contactFilter, setContactFilter] = useState(initialFilter);
   const [customerLevelFilter, setCustomerLevelFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [supplierImportPreview, setSupplierImportPreview] = useState(null);
-  const [supplierImportLoading, setSupplierImportLoading] = useState(false);
-  const [supplierImporting, setSupplierImporting] = useState(false);
-  const [supplierImportError, setSupplierImportError] = useState("");
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200", { token }), [token]);
   const clientContacts = (leads.data?.items || [])
     .filter((lead) => (lead.contactKind || "client") === "client")
@@ -1994,58 +1990,11 @@ function ContactsView({ token, initialFilter = "all" }) {
     setShowForm(true);
   }
 
-  async function loadSupplierImportPreview() {
-    setSupplierImportError("");
-    setSupplierImportLoading(true);
-    try {
-      const result = await apiRequest("/api/facturadirecta/supplier-import-preview?limit=100&maxPages=90&maxItems=80", { token });
-      setSupplierImportPreview(result);
-    } catch (error) {
-      setSupplierImportError(error.message);
-    } finally {
-      setSupplierImportLoading(false);
-    }
-  }
-
-  async function importSuppliersFromFacturaDirecta() {
-    setSupplierImportError("");
-    setSupplierImporting(true);
-    try {
-      const result = await apiRequest("/api/facturadirecta/supplier-import", {
-        token,
-        method: "POST",
-        body: {
-          limit: 100,
-          maxPages: 90,
-          maxItems: 500
-        }
-      });
-      setSupplierImportPreview({
-        ...supplierImportPreview,
-        mode: "import",
-        importResult: result,
-        newCount: 0,
-        duplicateCount: result.duplicateCount || supplierImportPreview?.duplicateCount || 0
-      });
-      leads.reload();
-    } catch (error) {
-      setSupplierImportError(error.message);
-    } finally {
-      setSupplierImporting(false);
-    }
-  }
-
   return (
     <div className="contacts-page">
       <header className="contacts-page-header">
         <h3>Contactos</h3>
         <div className="contacts-page-actions">
-          {contactFilter === "suppliers" ? (
-            <button className="secondary-button" type="button" onClick={loadSupplierImportPreview} disabled={supplierImportLoading || !token}>
-              <RefreshCw size={16} className={supplierImportLoading ? "spin-icon" : ""} />
-              {supplierImportLoading ? "Leyendo FD..." : "Previsualizar FD"}
-            </button>
-          ) : null}
           <button className="primary-button contact-new-button" type="button" onClick={() => setShowContactTypePicker(true)}>
             Nuevo contacto
           </button>
@@ -2077,28 +2026,7 @@ function ContactsView({ token, initialFilter = "all" }) {
           </div>
         ) : null}
 
-        {contactFilter === "suppliers" ? (
-          <div className="supplier-import-cta">
-            <div>
-              <strong>Importación desde FacturaDirecta</strong>
-              <span>Lee proveedores, detecta duplicados y permite revisar antes de guardar.</span>
-            </div>
-            <button className="secondary-button" type="button" onClick={loadSupplierImportPreview} disabled={supplierImportLoading || !token}>
-              <RefreshCw size={16} className={supplierImportLoading ? "spin-icon" : ""} />
-              {supplierImportLoading ? "Leyendo FD..." : "Previsualizar proveedores"}
-            </button>
-          </div>
-        ) : null}
-
         {leads.error ? <p className="form-error">{leads.error}</p> : null}
-        {supplierImportError ? <p className="form-error supplier-import-error">{supplierImportError}</p> : null}
-        {contactFilter === "suppliers" && supplierImportPreview ? (
-          <SupplierImportPreview
-            preview={supplierImportPreview}
-            onImport={importSuppliersFromFacturaDirecta}
-            importing={supplierImporting}
-          />
-        ) : null}
         <div className="table-wrap contacts-table-wrap">
           <table className="contacts-table">
             <thead>
@@ -2197,77 +2125,6 @@ function ContactsView({ token, initialFilter = "all" }) {
         </ModalShell>
       ) : null}
     </div>
-  );
-}
-
-function SupplierImportPreview({ preview, onImport, importing }) {
-  const rows = preview.items || [];
-  const canImport = Number(preview.newCount || 0) > 0;
-  const importResult = preview.importResult;
-
-  return (
-    <section className="supplier-import-preview">
-      <header>
-        <div>
-          <h4>Previsualización FacturaDirecta</h4>
-          <p>
-            {importResult
-              ? `Importados ${importResult.importedCount || 0} proveedores. Fallidos: ${importResult.failedCount || 0}.`
-              : "No se ha guardado nada. Esta lectura solo detecta proveedores y posibles duplicados."}
-          </p>
-        </div>
-        <div className="supplier-import-actions">
-          <span>{preview.pagination?.pagesRead || 0} páginas leídas</span>
-          <button className="primary-button" type="button" onClick={onImport} disabled={!canImport || importing}>
-            {importing ? "Importando..." : "Importar proveedores nuevos"}
-          </button>
-        </div>
-      </header>
-      <div className="supplier-import-metrics">
-        <SummaryMini label="Contactos revisados" value={preview.scanned || 0} />
-        <SummaryMini label="Proveedores detectados" value={preview.supplierCandidates || 0} />
-        <SummaryMini label="Nuevos posibles" value={preview.newCount || 0} />
-        <SummaryMini label="Duplicados" value={preview.duplicateCount || 0} />
-      </div>
-      <div className="table-wrap supplier-import-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Estado</th>
-              <th>Proveedor</th>
-              <th>NIF/CIF</th>
-              <th>Email</th>
-              <th>País</th>
-              <th>Coincidencia</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((supplier) => (
-              <tr key={supplier.sourceId || `${supplier.companyName}-${supplier.taxId}`}>
-                <td>
-                  <span className={`import-status-pill ${supplier.importStatus}`}>
-                    {supplier.importStatus === "duplicate" ? "Duplicado" : "Nuevo"}
-                  </span>
-                </td>
-                <td>
-                  <strong>{supplier.companyName || supplier.fullName || "-"}</strong>
-                  {supplier.address ? <span>{supplier.address}</span> : null}
-                </td>
-                <td>{supplier.taxId || "-"}</td>
-                <td>{supplier.email || "-"}</td>
-                <td>{countryLabel(supplier.country)}</td>
-                <td>
-                  {supplier.duplicate
-                    ? `${supplier.duplicate.label} (${supplier.duplicate.matchedBy})`
-                    : "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!rows.length ? <p className="empty">FacturaDirecta no ha devuelto proveedores en esta lectura.</p> : null}
-      </div>
-    </section>
   );
 }
 
