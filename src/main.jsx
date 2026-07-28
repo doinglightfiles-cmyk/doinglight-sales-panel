@@ -476,7 +476,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
               token={session.token}
               locale={session.user.locale}
               user={session.user}
-              onOpenCreate={() => setCreateDrawerOpen(true)}
             />
           ) : null}
           {activeView === "settings" ? <SettingsView /> : null}
@@ -501,6 +500,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "downloads" ? <DownloadsView /> : null}
         </section>
       </div>
+
+      <button className="global-create-button" type="button" onClick={() => setCreateDrawerOpen(true)} aria-label="Crear nuevo documento o registro">
+        <Plus size={30} />
+      </button>
 
       {createDrawerOpen ? (
         <CreateActionDrawer
@@ -1876,7 +1879,7 @@ function findMarketSummary(markets, country) {
   return (markets || []).find((market) => market.country === country) || null;
 }
 
-function Dashboard({ token, locale = "es", user, onOpenCreate }) {
+function Dashboard({ token, locale = "es", user }) {
   const dashboard = useResource(() => apiRequest("/api/sales/dashboard", { token }), [token]);
   const catalog = useResource(
     () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(locale || "es")}&channel=sales_app`, { token }),
@@ -1904,9 +1907,6 @@ function Dashboard({ token, locale = "es", user, onOpenCreate }) {
             <span>Todo el año 2026</span>
             <ChevronDown size={16} />
           </div>
-          <button className="home-create-button" type="button" onClick={onOpenCreate} aria-label="Crear nuevo documento o registro">
-            <Plus size={30} />
-          </button>
         </div>
       </header>
 

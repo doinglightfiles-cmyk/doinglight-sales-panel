@@ -748,7 +748,11 @@ select:focus {
   font-weight: 650;
 }
 
-.home-create-button {
+.global-create-button {
+  position: fixed;
+  top: 50%;
+  right: 24px;
+  z-index: 30;
   width: 62px;
   height: 62px;
   border: 0;
@@ -759,9 +763,10 @@ select:focus {
   color: var(--white);
   box-shadow: 0 16px 40px rgba(82, 116, 11, 0.26);
   cursor: pointer;
+  transform: translateY(-50%);
 }
 
-.home-create-button:hover {
+.global-create-button:hover {
   filter: brightness(1.04);
 }
 
