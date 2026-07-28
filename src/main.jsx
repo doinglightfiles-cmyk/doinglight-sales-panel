@@ -515,6 +515,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 }
 
 function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContact }) {
+  const [isClosing, setIsClosing] = useState(false);
   const actions = [
     { label: "Factura de venta", action: () => onNavigate("invoices") },
     { label: "Presupuesto", action: onCreateQuote },
@@ -529,10 +530,33 @@ function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContac
     { label: "Presentación de impuestos", action: () => onNavigate("taxes") }
   ];
 
+  function closeWithAnimation() {
+    if (isClosing) return;
+    setIsClosing(true);
+    window.setTimeout(onClose, 180);
+  }
+
+  function runAction(action) {
+    if (isClosing) return;
+    setIsClosing(true);
+    window.setTimeout(action, 180);
+  }
+
+  useEffect(() => {
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        closeWithAnimation();
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  });
+
   return (
-    <div className="create-drawer-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="create-drawer-backdrop" role="presentation" onMouseDown={closeWithAnimation}>
       <aside
-        className="create-drawer"
+        className={isClosing ? "create-drawer closing" : "create-drawer"}
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-drawer-title"
@@ -540,13 +564,13 @@ function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContac
       >
         <header>
           <h3 id="create-drawer-title">Crear</h3>
-          <button className="create-drawer-close" type="button" onClick={onClose} aria-label="Cerrar">
+          <button className="create-drawer-close" type="button" onClick={closeWithAnimation} aria-label="Cerrar">
             <X size={30} />
           </button>
         </header>
         <div className="create-drawer-actions">
           {actions.map((item) => (
-            <button className="create-action-row" type="button" key={item.label} onClick={item.action}>
+            <button className="create-action-row" type="button" key={item.label} onClick={() => runAction(item.action)}>
               <span className="create-action-plus">+</span>
               <span>{item.label}</span>
             </button>
@@ -554,7 +578,7 @@ function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContac
         </div>
         <div className="create-scan-block">
           <strong>Escáner de compras</strong>
-          <button className="create-action-row" type="button" onClick={() => onNavigate("purchase-scan")}>
+          <button className="create-action-row" type="button" onClick={() => runAction(() => onNavigate("purchase-scan"))}>
             <span className="create-action-plus">+</span>
             <span>Subir documento</span>
           </button>
