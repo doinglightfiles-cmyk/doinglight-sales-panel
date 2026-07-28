@@ -755,9 +755,9 @@ select:focus {
   display: inline-grid;
   place-items: center;
   border-radius: 999px;
-  background: #5daeed;
-  color: #0d1a23;
-  box-shadow: 0 16px 40px rgba(93, 174, 237, 0.34);
+  background: rgba(156, 195, 27, 0.93);
+  color: var(--white);
+  box-shadow: 0 16px 40px rgba(82, 116, 11, 0.26);
   cursor: pointer;
 }
 
@@ -1915,19 +1915,30 @@ th {
   z-index: 30;
   display: flex;
   justify-content: flex-end;
-  background: rgba(9, 13, 8, 0.42);
+  background: rgba(9, 13, 8, 0.26);
 }
 
 .create-drawer {
-  width: min(430px, 100vw);
+  width: min(390px, 100vw);
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 22px;
-  padding: 34px 36px 42px;
-  background: rgba(70, 70, 70, 0.96);
+  gap: 18px;
+  padding: 32px 34px 40px;
+  background: rgba(156, 195, 27, 0.93);
   color: var(--white);
-  box-shadow: -24px 0 70px rgba(0, 0, 0, 0.22);
+  box-shadow: -24px 0 70px rgba(47, 66, 25, 0.24);
+  animation: createDrawerIn 180ms ease-out;
+}
+
+@keyframes createDrawerIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 .create-drawer header {
@@ -1939,8 +1950,8 @@ th {
 
 .create-drawer h3 {
   margin: 0;
-  font-size: 32px;
-  font-weight: 650;
+  font-size: 28px;
+  font-weight: 600;
 }
 
 .create-drawer-close {
@@ -1950,28 +1961,29 @@ th {
   width: 44px;
   height: 44px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.86);
   cursor: pointer;
 }
 
 .create-drawer-actions {
   display: grid;
   align-content: start;
-  gap: 19px;
-  padding-top: 14px;
+  gap: 11px;
+  padding-top: 10px;
 }
 
 .create-action-row {
   border: 0;
   display: flex;
   align-items: center;
-  gap: 18px;
-  min-height: 42px;
-  padding: 0;
+  gap: 14px;
+  min-height: 36px;
+  padding: 5px 0;
   background: transparent;
   color: var(--white);
   font: inherit;
-  font-size: 24px;
+  font-size: 18px;
+  font-weight: 450;
   text-align: left;
   cursor: pointer;
 }
@@ -1982,73 +1994,32 @@ th {
   text-underline-offset: 5px;
 }
 
-.create-action-badge {
-  width: 34px;
-  height: 34px;
+.create-action-plus {
+  width: 22px;
+  height: 22px;
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
-  border-radius: 999px;
-  background: #9cc31b;
-  color: #0f1b0f;
-  font-size: 19px;
-  font-weight: 750;
-}
-
-.create-action-badge.green {
-  background: #1f7a28;
-  color: #061407;
-}
-
-.create-action-badge.light-green {
-  background: #91d98f;
-}
-
-.create-action-badge.lime {
-  background: #a8f000;
-}
-
-.create-action-badge.muted {
-  background: #b5b8bb;
-}
-
-.create-action-badge.red {
-  background: #e13b18;
-}
-
-.create-action-badge.orange {
-  background: #ff5524;
-}
-
-.create-action-badge.salmon {
-  background: #ff7050;
-}
-
-.create-action-badge.brown {
-  background: #845c4e;
-}
-
-.create-action-badge.pink {
-  background: #e91e76;
-}
-
-.create-action-badge.yellow {
-  background: #ffc928;
+  color: var(--white);
+  font-size: 24px;
+  font-weight: 350;
+  line-height: 1;
 }
 
 .create-scan-block {
   border-top: 1px solid rgba(255, 255, 255, 0.22);
   display: grid;
-  gap: 18px;
-  padding-top: 22px;
+  gap: 14px;
+  padding-top: 18px;
 }
 
 .create-scan-block strong {
   display: block;
-  padding: 18px 20px;
-  background: rgba(12, 18, 24, 0.62);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 21px;
+  padding: 14px 16px;
+  background: rgba(82, 116, 11, 0.34);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 17px;
+  font-weight: 550;
 }
 
 .product-detail {

@@ -516,17 +516,17 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 
 function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContact }) {
   const actions = [
-    { label: "Factura de venta", badge: "F", tone: "green", action: () => onNavigate("invoices") },
-    { label: "Presupuesto", badge: "P", tone: "green", action: onCreateQuote },
-    { label: "Proforma", badge: "P", tone: "muted", action: () => onNavigate("all-sales") },
-    { label: "Albarán", badge: "A", tone: "light-green", action: () => onNavigate("delivery-notes") },
-    { label: "Factura de compra", badge: "C", tone: "red", action: () => onNavigate("purchases") },
-    { label: "Gasto/Tiquet", badge: "G", tone: "orange", action: () => onNavigate("purchases") },
-    { label: "Nómina", badge: "N", tone: "salmon", action: () => onNavigate("payroll") },
-    { label: "Contacto", badge: "C", tone: "lime", action: onCreateContact },
-    { label: "Producto", badge: "P", tone: "brown", action: () => onNavigate("catalog") },
-    { label: "Remesa bancaria", badge: "P", tone: "pink", action: () => onNavigate("bank-remittances") },
-    { label: "Presentación de impuestos", badge: "T", tone: "yellow", action: () => onNavigate("taxes") }
+    { label: "Factura de venta", action: () => onNavigate("invoices") },
+    { label: "Presupuesto", action: onCreateQuote },
+    { label: "Proforma", action: () => onNavigate("all-sales") },
+    { label: "Albarán", action: () => onNavigate("delivery-notes") },
+    { label: "Factura de compra", action: () => onNavigate("purchases") },
+    { label: "Gasto/Tiquet", action: () => onNavigate("purchases") },
+    { label: "Nómina", action: () => onNavigate("payroll") },
+    { label: "Contacto", action: onCreateContact },
+    { label: "Producto", action: () => onNavigate("catalog") },
+    { label: "Remesa bancaria", action: () => onNavigate("bank-remittances") },
+    { label: "Presentación de impuestos", action: () => onNavigate("taxes") }
   ];
 
   return (
@@ -547,7 +547,7 @@ function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContac
         <div className="create-drawer-actions">
           {actions.map((item) => (
             <button className="create-action-row" type="button" key={item.label} onClick={item.action}>
-              <span className={`create-action-badge ${item.tone}`}>{item.badge}</span>
+              <span className="create-action-plus">+</span>
               <span>{item.label}</span>
             </button>
           ))}
@@ -555,7 +555,7 @@ function CreateActionDrawer({ onClose, onNavigate, onCreateQuote, onCreateContac
         <div className="create-scan-block">
           <strong>Escáner de compras</strong>
           <button className="create-action-row" type="button" onClick={() => onNavigate("purchase-scan")}>
-            <span className="create-action-badge muted">D</span>
+            <span className="create-action-plus">+</span>
             <span>Subir documento</span>
           </button>
         </div>
