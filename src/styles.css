@@ -1427,6 +1427,10 @@ select:focus {
   background: #49aa4d;
 }
 
+.delivery-note-badge {
+  background: #82cf83;
+}
+
 .invoice-payment-status {
   font-weight: 750;
 }
@@ -1485,6 +1489,24 @@ select:focus {
   gap: 8px;
   color: var(--muted);
   transform: translateY(-50%);
+}
+
+.invoice-row-icons.inline-icons {
+  position: static;
+  justify-content: flex-end;
+  transform: none;
+}
+
+.document-owner-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  background: #dff2ff;
+  color: #23485f;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .invoice-create-form {

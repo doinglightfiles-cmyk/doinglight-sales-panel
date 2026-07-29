@@ -483,7 +483,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
           {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
-          {activeView === "delivery-notes" ? <ModuleWorkspace moduleId="delivery-notes" /> : null}
+          {activeView === "delivery-notes" ? <DeliveryNotesView token={session.token} /> : null}
           {activeView === "proformas" ? <ModuleWorkspace moduleId="proformas" /> : null}
           {activeView === "all-sales" ? <ModuleWorkspace moduleId="all-sales" /> : null}
           {activeView === "payroll" ? <ModuleWorkspace moduleId="payroll" /> : null}
@@ -1019,6 +1019,92 @@ function serializeFacturaDirectaInvoice(item) {
   };
 }
 
+function deliveryNoteState(main) {
+  const explicitStatus = String(firstValue({ ...main }, [
+    "state",
+    "status",
+    "deliveryState",
+    "deliveryStatus"
+  ], "")).toLowerCase();
+
+  if (main.voided || explicitStatus.includes("void") || explicitStatus.includes("cancel")) {
+    return { key: "voided", label: "Anulado" };
+  }
+  if (main.draft || explicitStatus.includes("draft") || explicitStatus.includes("borrador")) {
+    return { key: "draft", label: "Borrador" };
+  }
+  if (explicitStatus.includes("pending") || explicitStatus.includes("pendiente") || explicitStatus.includes("open")) {
+    return { key: "pending", label: "Pendiente" };
+  }
+
+  return { key: "closed", label: "Cerrado" };
+}
+
+function serializeFacturaDirectaDeliveryNote(item) {
+  const main = item?.main || {};
+  const combined = { ...item, ...main };
+  const counterpartName = [main.counterpart?.name, main.counterpart?.surname].filter(Boolean).join(" ").trim();
+  const seriesNumber = formatInvoiceNumber(main.docNumber);
+  const total = normalizeMoneyValue(firstValue(combined, [
+    "total",
+    "totalAmount",
+    "total_amount",
+    "totalWithTaxes",
+    "totalWithTax",
+    "totals.total",
+    "amount"
+  ]));
+  const subtotal = normalizeMoneyValue(firstValue(combined, [
+    "totalBeforeTaxes",
+    "subtotal",
+    "totalWithoutTaxes",
+    "totalWithoutTax",
+    "totals.subtotal",
+    "taxBase"
+  ], total));
+  const firstLine = Array.isArray(main.lines) ? main.lines[0] : null;
+  const lineText = String(firstLine?.text || firstLine?.description || firstLine?.title || "").trim();
+  const date = firstValue(combined, ["date", "issueDate", "deliveryDate", "creationDate"], item?.creationDate || "");
+  const status = deliveryNoteState(main);
+  const detail = [
+    `Albarán ${seriesNumber}${date ? ` ${dateOnly(date)}` : ""}`,
+    lineText
+  ].filter(Boolean).join("  ");
+
+  return {
+    id: item?.id || firstValue(combined, ["uuid", "id", "number"], JSON.stringify(main).slice(0, 80)),
+    number: seriesNumber || firstValue(combined, [
+      "number",
+      "deliveryNoteNumber",
+      "documentNumber",
+      "code",
+      "reference"
+    ], "-"),
+    detail,
+    contact: counterpartName || firstValue(combined, [
+      "contact.name",
+      "client.name",
+      "customer.name",
+      "contactName",
+      "customerName",
+      "recipientName",
+      "fiscalName",
+      "businessName",
+      "name"
+    ], "-"),
+    date,
+    status: status.label,
+    statusKey: status.key,
+    subtotal,
+    total,
+    currency: firstValue(combined, ["currency", "currencyCode", "currency_code"], "EUR"),
+    hasAttachment: Boolean(main.attachments?.length || main.files?.length),
+    responsible: firstValue(combined, ["responsible.name", "owner.name", "salesPerson.name"], ""),
+    lines: Array.isArray(main.lines) ? main.lines : [],
+    raw: item
+  };
+}
+
 function quoteStatusState(status = "") {
   const normalized = String(status || "").trim().toLowerCase();
   const labels = {
@@ -1487,6 +1573,206 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
         </div>
       </section>
     </div>
+  );
+}
+
+function DeliveryNotesView({ token }) {
+  const [query, setQuery] = useState("");
+  const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
+  const deliveryNotesResource = useResource(
+    () => apiRequest("/api/facturadirecta/deliveryNotes?limit=100", { token }),
+    [token]
+  );
+  const deliveryNotes = (deliveryNotesResource.data?.items || []).map(serializeFacturaDirectaDeliveryNote);
+  const filteredDeliveryNotes = deliveryNotes.filter((deliveryNote) => {
+    const haystack = `${deliveryNote.number} ${deliveryNote.contact} ${deliveryNote.status} ${deliveryNote.total} ${deliveryNote.detail}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase());
+  });
+
+  function openDeliveryNote(deliveryNote) {
+    setSelectedDeliveryNote(deliveryNote);
+  }
+
+  function handleRowKeyDown(event, deliveryNote) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openDeliveryNote(deliveryNote);
+    }
+  }
+
+  return (
+    <div className="module-page invoices-mirror-page">
+      <header className="module-page-header invoices-page-header">
+        <h3>Albaranes de venta</h3>
+        <button className="primary-button" type="button">Nuevo albarán</button>
+      </header>
+
+      {deliveryNotesResource.error ? (
+        <div className="integration-warning">
+          <strong>No se han podido cargar los albaranes de FacturaDirecta.</strong>
+          <p>{deliveryNotesResource.error}</p>
+        </div>
+      ) : null}
+
+      <section className="module-panel invoices-list-panel">
+        <div className="invoice-toolbar">
+          <button className="invoice-view-filter" type="button">
+            <FileText size={18} />
+            Todos los albaranes
+            <ChevronDown size={16} />
+          </button>
+          <div className="module-search">
+            <Search size={18} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
+          </div>
+          <button className="invoice-date-filter" type="button">
+            <CalendarDays size={18} />
+            Todas las fechas
+            <ChevronDown size={16} />
+          </button>
+          <button className="invoice-more-button" type="button" aria-label="Más opciones">
+            <MoreVertical size={20} />
+          </button>
+        </div>
+        <div className="module-filters invoice-filter-row">
+          <button className="invoice-filter-chip" type="button">Estado <MoreVertical size={14} /></button>
+          <button className="invoice-filter-chip" type="button">Cliente <MoreVertical size={14} /></button>
+          <button className="invoice-add-filter" type="button">
+            <Plus size={18} />
+            Añadir filtro
+          </button>
+        </div>
+        <div className="table-wrap invoice-table-wrap">
+          <table className="module-table invoice-table delivery-notes-table">
+            <thead>
+              <tr>
+                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todos los albaranes" /></th>
+                <th className="invoice-kind-column"></th>
+                <th>Fecha <span className="sort-arrow">↓</span></th>
+                <th>Estado</th>
+                <th>Serie / Núm.</th>
+                <th>Cliente / Detalle</th>
+                <th></th>
+                <th>Subtotal</th>
+                <th>Total</th>
+                <th>Moneda</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deliveryNotesResource.loading ? (
+                <tr className="empty-table-row">
+                  <td colSpan={10}>Cargando albaranes desde FacturaDirecta...</td>
+                </tr>
+              ) : null}
+              {!deliveryNotesResource.loading && !filteredDeliveryNotes.length ? (
+                <tr className="empty-table-row">
+                  <td colSpan={10}>No hay albaranes para mostrar todavía.</td>
+                </tr>
+              ) : null}
+              {filteredDeliveryNotes.map((deliveryNote) => (
+                <tr
+                  key={deliveryNote.id}
+                  className="clickable-table-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openDeliveryNote(deliveryNote)}
+                  onKeyDown={(event) => handleRowKeyDown(event, deliveryNote)}
+                >
+                  <td className="select-column">
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar albarán ${deliveryNote.number}`}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    />
+                  </td>
+                  <td className="invoice-kind-column"><span className="invoice-kind-badge delivery-note-badge">A</span></td>
+                  <td>{dateOnly(deliveryNote.date)}</td>
+                  <td><span className={`invoice-payment-status ${deliveryNote.statusKey}`}>{deliveryNote.status}</span></td>
+                  <td>{deliveryNote.number}</td>
+                  <td>
+                    <div className="invoice-detail-cell">
+                      <strong>{deliveryNote.contact}</strong>
+                      <span>{deliveryNote.detail}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="invoice-row-icons inline-icons">
+                      {deliveryNote.hasAttachment ? <Paperclip size={17} /> : null}
+                      <FileText size={18} />
+                      {deliveryNote.responsible ? <span className="document-owner-pill">{deliveryNote.responsible}</span> : null}
+                    </span>
+                  </td>
+                  <td>{tableMoney(deliveryNote.subtotal)}</td>
+                  <td>{tableMoney(deliveryNote.total)}</td>
+                  <td>{deliveryNote.currency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {selectedDeliveryNote ? (
+        <DeliveryNoteDetailModal
+          deliveryNote={selectedDeliveryNote}
+          onClose={() => setSelectedDeliveryNote(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function DeliveryNoteDetailModal({ deliveryNote, onClose }) {
+  return (
+    <ModalShell
+      title={`Albarán ${deliveryNote.number}`}
+      eyebrow="Albarán de venta"
+      size="wide-modal quote-record-modal"
+      onClose={onClose}
+    >
+      <div className="quote-record-body">
+        <section className="quote-detail-grid">
+          <DetailItem label="Cliente" value={deliveryNote.contact} />
+          <DetailItem label="Fecha" value={dateOnly(deliveryNote.date)} />
+          <DetailItem label="Estado" value={deliveryNote.status} />
+          <DetailItem label="Subtotal" value={`${tableMoney(deliveryNote.subtotal)} ${deliveryNote.currency}`} />
+          <DetailItem label="Total" value={`${tableMoney(deliveryNote.total)} ${deliveryNote.currency}`} />
+        </section>
+
+        <section className="quote-record-section">
+          <header>
+            <h4>Líneas del albarán</h4>
+          </header>
+          <div className="quote-record-lines">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Cantidad</th>
+                  <th>Precio</th>
+                  <th>Importe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveryNote.lines.length ? deliveryNote.lines.map((line, index) => (
+                  <tr key={`${deliveryNote.id}-line-${index}`}>
+                    <td>{line.text || line.description || line.title || "-"}</td>
+                    <td>{tableMoney(line.quantity || line.units || 0)}</td>
+                    <td>{tableMoney(line.unitPrice || line.price || 0)}</td>
+                    <td>{tableMoney(line.total || line.amount || 0)}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4}>Este albarán no trae líneas detalladas en la respuesta actual.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </ModalShell>
   );
 }
 
