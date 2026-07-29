@@ -4575,13 +4575,18 @@ function DownloadsView() {
 }
 
 function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
-  const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
-  const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const [clientMode, setClientMode] = useState("existing");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
   const [leadSearchOpen, setLeadSearchOpen] = useState(false);
   const [leadSearchTouched, setLeadSearchTouched] = useState(false);
+  const [selectedLeadSnapshot, setSelectedLeadSnapshot] = useState(null);
+  const normalizedLeadSearch = leadSearchQuery.trim();
+  const leads = useResource(
+    () => apiRequest(`/api/sales/leads?limit=25&contactKind=client&q=${encodeURIComponent(normalizedLeadSearch)}`, { token }),
+    [token, normalizedLeadSearch]
+  );
+  const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
   const [attachments, setAttachments] = useState(() =>
@@ -4639,7 +4644,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const leadsList = leads.data?.items || [];
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
-  const selectedLead = leadsList.find((lead) => lead.id === selectedLeadId) || null;
+  const selectedLead = leadsList.find((lead) => lead.id === selectedLeadId) || (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null);
   const filteredLeadSuggestions = useMemo(() => {
     const needle = leadSearchQuery.trim().toLowerCase();
     const source = needle
@@ -4692,7 +4697,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
 
   function chooseLead(lead) {
     setSelectedLeadId(lead.id);
-    setLeadSearchQuery(leadOptionLabel(lead));
+    setSelectedLeadSnapshot(lead);
+    setLeadSearchQuery(lead.fullName || lead.companyName || leadOptionLabel(lead));
     setLeadSearchTouched(false);
     setLeadSearchOpen(false);
   }
@@ -4703,6 +4709,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     setLeadSearchOpen(true);
     const exactLead = leadsList.find((lead) => leadOptionLabel(lead).toLowerCase() === value.trim().toLowerCase());
     setSelectedLeadId(exactLead?.id || "");
+    setSelectedLeadSnapshot(exactLead || null);
   }
 
   function productForLine(line) {
