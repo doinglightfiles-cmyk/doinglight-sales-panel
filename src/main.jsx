@@ -4127,11 +4127,12 @@ function QuoteForm({ token, onDone, onCancel, template }) {
         skuQuery: line.sku,
         sku: line.sku,
         quantity: line.quantity || 1,
-        discountPercent: line.discountPercent || 0
+        discountPercent: line.discountPercent || 0,
+        manualTotal: null
       }));
     }
 
-    return [{ id: crypto.randomUUID(), skuQuery: "K240", sku: "K240", quantity: 1, discountPercent: 0 }];
+    return [{ id: crypto.randomUUID(), skuQuery: "K240", sku: "K240", quantity: 1, discountPercent: 0, manualTotal: null }];
   });
   const [draggingLineId, setDraggingLineId] = useState("");
   const [taxRate, setTaxRate] = useState(21);
@@ -4179,8 +4180,21 @@ function QuoteForm({ token, onDone, onCancel, template }) {
   }
 
   function lineTotal(line) {
+    if (line.manualTotal !== null && line.manualTotal !== undefined && line.manualTotal !== "") {
+      return normalizeMoneyValue(line.manualTotal);
+    }
+
     const product = productForLine(line);
     return (product?.pricePvpEur || 0) * Number(line.quantity || 0) * (1 - Number(line.discountPercent || 0) / 100);
+  }
+
+  function effectiveUnitPrice(line) {
+    if (line.manualTotal === null || line.manualTotal === undefined || line.manualTotal === "") return undefined;
+
+    const quantity = Math.max(Number(line.quantity || 0), 1);
+    const discountFactor = 1 - Number(line.discountPercent || 0) / 100;
+    if (discountFactor <= 0) return normalizeMoneyValue(line.manualTotal) / quantity;
+    return normalizeMoneyValue(line.manualTotal) / quantity / discountFactor;
   }
 
   function updateLine(lineId, patch) {
@@ -4188,7 +4202,7 @@ function QuoteForm({ token, onDone, onCancel, template }) {
   }
 
   function createEmptyLine() {
-    return { id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0 };
+    return { id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null };
   }
 
   function addLine(focus = false) {
@@ -4247,7 +4261,8 @@ function QuoteForm({ token, onDone, onCancel, template }) {
             .map((line) => ({
               sku: line.sku || line.skuQuery.trim(),
               quantity: Number(line.quantity),
-              discountPercent: Number(line.discountPercent)
+              discountPercent: Number(line.discountPercent),
+              unitPrice: effectiveUnitPrice(line)
             }))
             .filter((line) => line.sku)
         }
@@ -4398,7 +4413,7 @@ function QuoteForm({ token, onDone, onCancel, template }) {
                   onChange={(event) => {
                     const value = event.target.value.toUpperCase();
                     const matchedProduct = products.find((product) => product.sku === value);
-                    updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "" });
+                    updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", manualTotal: null });
                   }}
                 />
               </label>
@@ -4436,7 +4451,12 @@ function QuoteForm({ token, onDone, onCancel, template }) {
               </label>
               <div className="quote-line-total">
                 <span>Importe</span>
-                <strong>{money(lineTotal(line))}</strong>
+                <input
+                  aria-label="Importe"
+                  inputMode="decimal"
+                  value={line.manualTotal ?? tableMoney(lineTotal(line))}
+                  onChange={(event) => updateLine(line.id, { manualTotal: event.target.value })}
+                />
               </div>
               <div className="quote-line-actions">
                 <button

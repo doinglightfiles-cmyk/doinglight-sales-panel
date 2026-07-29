@@ -3341,6 +3341,10 @@ th {
   white-space: nowrap;
 }
 
+.quote-line-total input {
+  text-align: right;
+}
+
 .quote-line-total strong {
   color: var(--ink);
   font-size: 15px;
