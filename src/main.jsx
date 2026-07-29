@@ -4581,6 +4581,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const [leadSearchOpen, setLeadSearchOpen] = useState(false);
   const [leadSearchTouched, setLeadSearchTouched] = useState(false);
   const [selectedLeadSnapshot, setSelectedLeadSnapshot] = useState(null);
+  const [leadDraft, setLeadDraft] = useState(null);
+  const [leadSaveStatus, setLeadSaveStatus] = useState("");
+  const [leadSaving, setLeadSaving] = useState(false);
   const normalizedLeadSearch = leadSearchQuery.trim();
   const leads = useResource(
     () => apiRequest(`/api/sales/leads?limit=25&contactKind=client&q=${encodeURIComponent(normalizedLeadSearch)}`, { token }),
@@ -4644,7 +4647,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const leadsList = leads.data?.items || [];
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
-  const selectedLead = leadsList.find((lead) => lead.id === selectedLeadId) || (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null);
+  const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
   const filteredLeadSuggestions = useMemo(() => {
     const needle = leadSearchQuery.trim().toLowerCase();
     const source = needle
@@ -4663,11 +4666,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
 
     return source.slice(0, 12);
   }, [leadsList, leadSearchQuery]);
+  const leadBillingSource = leadDraft || selectedLead;
   const billingData = selectedLead
     ? [
-        selectedLead.fullName || selectedLead.companyName,
-        [selectedLead.address, selectedLead.postalCode, selectedLead.city || selectedLead.town, selectedLead.province].filter(Boolean).join(" "),
-        selectedLead.country
+        leadBillingSource.fullName || leadBillingSource.companyName,
+        [leadBillingSource.address, leadBillingSource.postalCode, leadBillingSource.city || leadBillingSource.town, leadBillingSource.province].filter(Boolean).join(" "),
+        leadBillingSource.country
       ].filter(Boolean).join("\n")
     : "Sin datos de facturación";
   const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || "Pendiente";
@@ -4695,6 +4699,30 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     setLeadSearchQuery(leadOptionLabel(selectedLead));
   }, [selectedLead, leadSearchTouched]);
 
+  useEffect(() => {
+    if (!selectedLead) {
+      setLeadDraft(null);
+      setLeadSaveStatus("");
+      return;
+    }
+
+    setLeadDraft({
+      fullName: selectedLead.fullName || "",
+      companyName: selectedLead.companyName || "",
+      taxId: selectedLead.taxId || "",
+      email: selectedLead.email || "",
+      phone: selectedLead.phone || "",
+      mobilePhone: selectedLead.mobilePhone || "",
+      address: selectedLead.address || "",
+      postalCode: selectedLead.postalCode || "",
+      population: selectedLead.population || "",
+      city: selectedLead.city || "",
+      province: selectedLead.province || "",
+      country: selectedLead.country || "ES"
+    });
+    setLeadSaveStatus("");
+  }, [selectedLead?.id]);
+
   function chooseLead(lead) {
     setSelectedLeadId(lead.id);
     setSelectedLeadSnapshot(lead);
@@ -4710,6 +4738,60 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     const exactLead = leadsList.find((lead) => leadOptionLabel(lead).toLowerCase() === value.trim().toLowerCase());
     setSelectedLeadId(exactLead?.id || "");
     setSelectedLeadSnapshot(exactLead || null);
+  }
+
+  function updateLeadDraft(patch) {
+    setLeadDraft((current) => ({ ...(current || {}), ...patch }));
+    setLeadSaveStatus("");
+  }
+
+  async function saveSelectedLeadDraft() {
+    if (!selectedLead || !leadDraft) return;
+
+    setLeadSaving(true);
+    setLeadSaveStatus("");
+    try {
+      const payload = {
+        ...selectedLead,
+        ...leadDraft,
+        fullName: leadDraft.fullName || selectedLead.fullName || selectedLead.companyName || "Cliente",
+        contactKind: "client",
+        customerType: selectedLead.customerType || "particular",
+        customerLevel: selectedLead.customerLevel || "level_1",
+        defaultDiscountPercent: selectedLead.defaultDiscountPercent || 0,
+        defaultDiscountMaxPercent: selectedLead.defaultDiscountMaxPercent ?? selectedLead.defaultDiscountPercent ?? 0,
+        taxIdentifierType: selectedLead.taxIdentifierType || (leadDraft.taxId ? "cif" : "nif"),
+        additionalAddresses: selectedLead.additionalAddresses || [],
+        communicationContacts: selectedLead.communicationContacts || [],
+        preferredPaymentMethod: selectedLead.preferredPaymentMethod || "",
+        paymentTermDays: selectedLead.paymentTermDays || null,
+        paymentNotificationsEnabled: Boolean(selectedLead.paymentNotificationsEnabled)
+      };
+      const result = await apiRequest(`/api/sales/leads/${selectedLead.id}`, { token, method: "PATCH", body: payload });
+      setSelectedLeadSnapshot(result.item);
+      setLeadDraft({
+        fullName: result.item.fullName || "",
+        companyName: result.item.companyName || "",
+        taxId: result.item.taxId || "",
+        email: result.item.email || "",
+        phone: result.item.phone || "",
+        mobilePhone: result.item.mobilePhone || "",
+        address: result.item.address || "",
+        postalCode: result.item.postalCode || "",
+        population: result.item.population || "",
+        city: result.item.city || "",
+        province: result.item.province || "",
+        country: result.item.country || "ES"
+      });
+      setLeadSearchQuery(result.item.fullName || result.item.companyName || leadOptionLabel(result.item));
+      setLeadSearchTouched(false);
+      setLeadSaveStatus("Datos del cliente guardados.");
+      leads.reload();
+    } catch (err) {
+      setLeadSaveStatus(err.message);
+    } finally {
+      setLeadSaving(false);
+    }
   }
 
   function productForLine(line) {
@@ -4959,6 +5041,37 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
               </div>
               {selectedLead ? <small>{selectedLead.email || "Sin email"} · {selectedLead.phone || "Sin teléfono"}</small> : null}
             </label>
+            {selectedLead && leadDraft ? (
+              <div className="quote-client-quick-edit">
+                <div className="quote-client-quick-edit-head">
+                  <div>
+                    <strong>Datos rápidos del cliente</strong>
+                    <span>Completa estos campos sin salir del presupuesto.</span>
+                  </div>
+                  <button type="button" onClick={saveSelectedLeadDraft} disabled={leadSaving}>
+                    {leadSaving ? "Guardando..." : "Guardar cliente"}
+                  </button>
+                </div>
+                <div className="quote-client-quick-edit-grid">
+                  <input value={leadDraft.email} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder="Correo electrónico" />
+                  <input value={leadDraft.phone} onChange={(event) => updateLeadDraft({ phone: event.target.value })} placeholder="Teléfono" />
+                  <input value={leadDraft.mobilePhone} onChange={(event) => updateLeadDraft({ mobilePhone: event.target.value })} placeholder="Teléfono móvil" />
+                  <input value={leadDraft.taxId} onChange={(event) => updateLeadDraft({ taxId: event.target.value })} placeholder="NIF / CIF" />
+                  <input value={leadDraft.companyName} onChange={(event) => updateLeadDraft({ companyName: event.target.value })} placeholder="Empresa" />
+                  <input value={leadDraft.address} onChange={(event) => updateLeadDraft({ address: event.target.value })} placeholder="Dirección" />
+                  <input value={leadDraft.postalCode} onChange={(event) => updateLeadDraft({ postalCode: event.target.value })} placeholder="C.P." />
+                  <input value={leadDraft.population} onChange={(event) => updateLeadDraft({ population: event.target.value })} placeholder="Población" />
+                  <input value={leadDraft.city} onChange={(event) => updateLeadDraft({ city: event.target.value })} placeholder="Ciudad" />
+                  <input value={leadDraft.province} onChange={(event) => updateLeadDraft({ province: event.target.value })} placeholder="Provincia" />
+                  <select value={leadDraft.country} onChange={(event) => updateLeadDraft({ country: event.target.value })}>
+                    {EUROPEAN_COUNTRIES.map((country) => (
+                      <option key={country.code} value={country.code}>{country.label}</option>
+                    ))}
+                  </select>
+                </div>
+                {leadSaveStatus ? <p className={leadSaveStatus.includes("guardados") ? "form-success" : "form-error"}>{leadSaveStatus}</p> : null}
+              </div>
+            ) : null}
             <label>
               <span>Fecha</span>
               <input type="date" value={quoteDate} onChange={(event) => setQuoteDate(event.target.value)} />
@@ -4969,7 +5082,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
             </label>
             <label>
               <span>Correo electrónico de envío</span>
-              <input value={selectedLead?.email || ""} placeholder="Sin correo electrónico" readOnly />
+              <input value={leadDraft?.email || selectedLead?.email || ""} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder="Sin correo electrónico" readOnly={!selectedLead} />
             </label>
             <label>
               <span>Válido hasta</span>

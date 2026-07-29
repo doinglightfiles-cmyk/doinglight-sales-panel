@@ -3515,6 +3515,73 @@ th {
   cursor: pointer;
 }
 
+.quote-client-quick-edit {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcf8;
+}
+
+.quote-client-quick-edit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.quote-client-quick-edit-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.quote-client-quick-edit-head strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.quote-client-quick-edit-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.quote-client-quick-edit-head button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 15px;
+  background: var(--green-dark);
+  color: var(--white);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.quote-client-quick-edit-head button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.quote-client-quick-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quote-client-quick-edit-grid input,
+.quote-client-quick-edit-grid select {
+  min-height: 44px;
+}
+
+.form-success {
+  margin: 0;
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .quote-fd-textarea {
   grid-row: span 2;
 }
