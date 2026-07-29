@@ -4392,14 +4392,43 @@ function QuotesView({ token }) {
         </ModalShell>
       ) : null}
       {selectedQuote ? (
-        <QuoteDetailModal
+        <QuoteEditorModal
           token={token}
           quote={selectedQuote}
-          lead={leadsById.get(selectedQuote.leadId)}
           onClose={() => setSelectedQuote(null)}
+          onDone={() => {
+            setSelectedQuote(null);
+            quotes.reload();
+          }}
         />
       ) : null}
     </div>
+  );
+}
+
+function QuoteEditorModal({ token, quote, onClose, onDone }) {
+  const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
+  const item = detail.data?.item || null;
+
+  return (
+    <ModalShell
+      title={`Presupuesto ${quote.number}`}
+      eyebrow="Editar presupuesto"
+      size="wide-modal quote-work-modal"
+      onClose={onClose}
+    >
+      {detail.error ? <p className="form-error">{detail.error}</p> : null}
+      {detail.loading ? <p className="muted-text">Cargando presupuesto...</p> : null}
+      {item ? (
+        <QuoteForm
+          key={item.id}
+          token={token}
+          initialQuote={item}
+          onCancel={onClose}
+          onDone={onDone}
+        />
+      ) : null}
+    </ModalShell>
   );
 }
 
@@ -4532,16 +4561,36 @@ function DownloadsView() {
   );
 }
 
-function QuoteForm({ token, onDone, onCancel, template }) {
+function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
   const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const [clientMode, setClientMode] = useState("existing");
   const [leadQuery, setLeadQuery] = useState("");
-  const [selectedLeadId, setSelectedLeadId] = useState("");
+  const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
-  const [attachments, setAttachments] = useState([]);
+  const [attachments, setAttachments] = useState(() =>
+    (initialQuote?.attachments || []).map((attachment) => ({
+      id: attachment.id || crypto.randomUUID(),
+      type: attachment.type || "Archivo",
+      name: attachment.name,
+      source: attachment.source || "local",
+      url: attachment.url || ""
+    }))
+  );
   const [lines, setLines] = useState(() => {
+    if (initialQuote?.items?.length) {
+      return initialQuote.items.map((line) => ({
+        id: line.id || crypto.randomUUID(),
+        skuQuery: line.sku || "",
+        sku: line.sku || "",
+        quantity: line.quantity || 1,
+        discountPercent: line.discountPercent || 0,
+        unitPriceOverride: line.unitPrice,
+        manualTotal: null
+      }));
+    }
+
     if (template?.lines?.length) {
       return template.lines.map((line) => ({
         id: crypto.randomUUID(),
@@ -4556,8 +4605,11 @@ function QuoteForm({ token, onDone, onCancel, template }) {
     return [{ id: crypto.randomUUID(), skuQuery: "K240", sku: "K240", quantity: 1, discountPercent: 0, manualTotal: null }];
   });
   const [draggingLineId, setDraggingLineId] = useState("");
-  const [taxRate, setTaxRate] = useState(21);
-  const [notes, setNotes] = useState("");
+  const [taxRate, setTaxRate] = useState(() => {
+    if (!initialQuote?.subtotal) return 21;
+    return Math.round((Number(initialQuote.taxTotal || 0) / Number(initialQuote.subtotal || 1)) * 100);
+  });
+  const [notes, setNotes] = useState(initialQuote?.notes || "");
   const [error, setError] = useState("");
   const lineReferenceRefs = useRef({});
   const fileInputRef = useRef(null);
@@ -4596,6 +4648,11 @@ function QuoteForm({ token, onDone, onCancel, template }) {
     );
   }, [selectedLead]);
 
+  useEffect(() => {
+    if (!initialQuote?.leadId || leadQuery || !selectedLead) return;
+    setLeadQuery(leadOptionLabel(selectedLead));
+  }, [initialQuote, leadQuery, selectedLead]);
+
   function productForLine(line) {
     return products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku) || null;
   }
@@ -4606,7 +4663,10 @@ function QuoteForm({ token, onDone, onCancel, template }) {
     }
 
     const product = productForLine(line);
-    return (product?.pricePvpEur || 0) * Number(line.quantity || 0) * (1 - Number(line.discountPercent || 0) / 100);
+    const unitPrice = line.unitPriceOverride !== undefined && line.unitPriceOverride !== null
+      ? Number(line.unitPriceOverride)
+      : product?.pricePvpEur || 0;
+    return unitPrice * Number(line.quantity || 0) * (1 - Number(line.discountPercent || 0) / 100);
   }
 
   function effectiveUnitPrice(line) {
@@ -4616,6 +4676,15 @@ function QuoteForm({ token, onDone, onCancel, template }) {
     const discountFactor = 1 - Number(line.discountPercent || 0) / 100;
     if (discountFactor <= 0) return normalizeMoneyValue(line.manualTotal) / quantity;
     return normalizeMoneyValue(line.manualTotal) / quantity / discountFactor;
+  }
+
+  function unitPriceForSubmit(line) {
+    const manualUnitPrice = effectiveUnitPrice(line);
+    if (manualUnitPrice !== undefined) return manualUnitPrice;
+    if (line.unitPriceOverride !== undefined && line.unitPriceOverride !== null && line.unitPriceOverride !== "") {
+      return Number(line.unitPriceOverride);
+    }
+    return undefined;
   }
 
   function updateLine(lineId, patch) {
@@ -4670,20 +4739,26 @@ function QuoteForm({ token, onDone, onCancel, template }) {
         return;
       }
 
-      await apiRequest("/api/sales/quotes", {
+      await apiRequest(initialQuote ? `/api/sales/quotes/${initialQuote.id}` : "/api/sales/quotes", {
         token,
-        method: "POST",
+        method: initialQuote ? "PATCH" : "POST",
         body: {
           locale: "es",
           leadId,
           notes,
           taxTotal,
+          attachments: attachments.map((attachment) => ({
+            name: attachment.name,
+            type: attachment.type,
+            source: attachment.source,
+            url: attachment.url
+          })),
           items: lines
             .map((line) => ({
               sku: line.sku || line.skuQuery.trim(),
               quantity: Number(line.quantity),
               discountPercent: Number(line.discountPercent),
-              unitPrice: effectiveUnitPrice(line)
+              unitPrice: unitPriceForSubmit(line)
             }))
             .filter((line) => line.sku)
         }
@@ -4834,7 +4909,7 @@ function QuoteForm({ token, onDone, onCancel, template }) {
                   onChange={(event) => {
                     const value = event.target.value.toUpperCase();
                     const matchedProduct = products.find((product) => product.sku === value);
-                    updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", manualTotal: null });
+                    updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", unitPriceOverride: undefined, manualTotal: null });
                   }}
                 />
               </label>
@@ -4950,7 +5025,9 @@ function QuoteForm({ token, onDone, onCancel, template }) {
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
         {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
-        <button className="primary-button" type="button" onClick={submit}>Crear presupuesto</button>
+        <button className="primary-button" type="button" onClick={submit}>
+          {initialQuote ? "Guardar cambios" : "Crear presupuesto"}
+        </button>
       </div>
       {documentPicker ? (
         <DocumentAttachmentPicker
