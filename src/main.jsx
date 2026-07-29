@@ -4638,6 +4638,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const [validUntil, setValidUntil] = useState(addDaysInput(initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
   const [internalNotes, setInternalNotes] = useState(initialQuote?.internalNotes || "");
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendDraft, setSendDraft] = useState(null);
+  const [sendStatus, setSendStatus] = useState("");
   const [error, setError] = useState("");
   const lineReferenceRefs = useRef({});
   const fileInputRef = useRef(null);
@@ -4869,6 +4872,34 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
   const taxTotal = subtotal * (Number(taxRate) / 100);
   const total = subtotal + taxTotal;
+  const quoteNumberLabel = initialQuote?.quoteNumber || initialQuote?.number || "borrador";
+  const quotePdfName = `Presupuesto-${quoteDate || inputDate(new Date())}-${quoteNumberLabel}.pdf`;
+
+  function buildDefaultSendDraft() {
+    return {
+      to: leadDraft?.email || selectedLead?.email || "",
+      from: "ADMINISTRACION <administracion@doinglight.es>",
+      subject: initialQuote?.quoteNumber ? `Envío presupuesto ${initialQuote.quoteNumber}` : "Envío presupuesto",
+      body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestro presupuesto.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.",
+      attachPdf: true
+    };
+  }
+
+  function openSendModal() {
+    setSendDraft(buildDefaultSendDraft());
+    setSendStatus("");
+    setSendModalOpen(true);
+  }
+
+  function updateSendDraft(patch) {
+    setSendDraft((current) => ({ ...(current || buildDefaultSendDraft()), ...patch }));
+    setSendStatus("");
+  }
+
+  function prepareSend(event) {
+    event.preventDefault();
+    setSendStatus("Envío preparado. Conectaremos el envío real cuando cerremos la plantilla PDF definitiva.");
+  }
 
   async function submit(event) {
     event?.preventDefault();
@@ -5294,7 +5325,126 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
         <button className="primary-button" type="button" onClick={submit}>
           {initialQuote ? "Guardar cambios" : "Crear presupuesto"}
         </button>
+        <button className="primary-button send-quote-button" type="button" onClick={openSendModal}>
+          Enviar
+        </button>
       </div>
+      {sendModalOpen && sendDraft ? (
+        <div className="quote-send-overlay" role="dialog" aria-modal="true" aria-label="Enviar por correo electrónico">
+          <form className="quote-send-dialog" onSubmit={prepareSend}>
+            <header className="quote-send-header">
+              <h3>Enviar por correo electrónico</h3>
+              <button type="button" onClick={() => setSendModalOpen(false)} aria-label="Cerrar envío">
+                <X size={28} />
+              </button>
+            </header>
+            <div className="quote-send-content">
+              <section className="quote-send-fields">
+                <label>
+                  <span>Envío a</span>
+                  <input value={sendDraft.to} onChange={(event) => updateSendDraft({ to: event.target.value })} placeholder="cliente@correo.com" />
+                </label>
+                <label>
+                  <span>Remitente</span>
+                  <select value={sendDraft.from} onChange={(event) => updateSendDraft({ from: event.target.value })}>
+                    <option value="ADMINISTRACION <administracion@doinglight.es>">ADMINISTRACION &lt;administracion@doinglight.es&gt;</option>
+                    <option value="MARKETING <marketing@doinglight.es>">MARKETING &lt;marketing@doinglight.es&gt;</option>
+                    <option value="DOINGLIGHT <info@doinglight.es>">DOINGLIGHT &lt;info@doinglight.es&gt;</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Asunto</span>
+                  <input value={sendDraft.subject} onChange={(event) => updateSendDraft({ subject: event.target.value })} />
+                </label>
+                <label className="quote-send-body-field">
+                  <span>Contenido</span>
+                  <textarea value={sendDraft.body} onChange={(event) => updateSendDraft({ body: event.target.value })} />
+                </label>
+                <div className="quote-send-attachments">
+                  <span>Archivos adjuntos</span>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={sendDraft.attachPdf}
+                      onChange={(event) => updateSendDraft({ attachPdf: event.target.checked })}
+                    />
+                    <strong>{quotePdfName}</strong>
+                  </label>
+                </div>
+                {sendStatus ? <p className="form-success">{sendStatus}</p> : null}
+              </section>
+              <section className="quote-send-preview" aria-label="Vista previa del PDF adjunto">
+                <div className="quote-pdf-toolbar">
+                  <span>Vista previa del PDF</span>
+                  <div>
+                    <button type="button" title="Descargar próximamente"><Download size={17} /></button>
+                    <button type="button" title="Imprimir próximamente">PDF</button>
+                    <button type="button" title="Más opciones"><MoreVertical size={17} /></button>
+                  </div>
+                </div>
+                <div className="quote-pdf-page">
+                  <div className="quote-pdf-brand">
+                    <strong>DOINGLIGHT</strong>
+                    <span>Presupuesto {quoteNumberLabel}</span>
+                  </div>
+                  <div className="quote-pdf-meta">
+                    <span>Cliente</span>
+                    <strong>{selectedLead?.fullName || selectedLead?.companyName || "Cliente sin asignar"}</strong>
+                    <span>Fecha</span>
+                    <strong>{dateOnly(quoteDate)}</strong>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Código</th>
+                        <th>Concepto</th>
+                        <th>Cantidad</th>
+                        <th>Precio</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lines.map((line) => {
+                        const selectedProduct = productForLine(line);
+                        const quantity = Number(line.quantity || 0);
+                        const lineAmount = lineTotal(line);
+                        const unitPrice = quantity ? lineAmount / quantity : lineAmount;
+                        return (
+                          <tr key={line.id}>
+                            <td>{line.skuQuery || line.sku || "-"}</td>
+                            <td>{selectedProduct?.title || selectedProduct?.shortDescription || "Producto pendiente"}</td>
+                            <td>{quantity}</td>
+                            <td>{tableMoney(unitPrice)}</td>
+                            <td>{tableMoney(lineAmount)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="quote-pdf-totals">
+                    <span>Subtotal</span>
+                    <strong>{money(subtotal)}</strong>
+                    <span>IVA {taxRate}%</span>
+                    <strong>{money(taxTotal)}</strong>
+                    <span>Total (EUR)</span>
+                    <strong>{money(total)}</strong>
+                  </div>
+                  <div className="quote-pdf-notes">
+                    <strong>Válido hasta</strong>
+                    <span>{dateOnly(validUntil)}</span>
+                    <p>{notes || "Notas visibles para el cliente."}</p>
+                  </div>
+                  <footer>PROTECCIÓN DE DATOS · DOINGLIGHT TECHNOLOGIES, S.L.U.</footer>
+                </div>
+              </section>
+            </div>
+            <footer className="quote-send-actions">
+              <button className="secondary-button" type="button" onClick={() => setSendModalOpen(false)}>Cancelar</button>
+              <button className="primary-button send-quote-button" type="submit">Enviar</button>
+            </footer>
+          </form>
+        </div>
+      ) : null}
       {documentPicker ? (
         <DocumentAttachmentPicker
           category={documentPicker}

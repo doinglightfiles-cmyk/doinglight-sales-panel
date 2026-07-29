@@ -4028,6 +4028,266 @@ th {
   gap: 10px;
 }
 
+.send-quote-button {
+  background: var(--green-dark);
+}
+
+.quote-send-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(14, 19, 12, 0.58);
+}
+
+.quote-send-dialog {
+  width: min(1380px, 94vw);
+  max-height: min(900px, 92vh);
+  overflow: hidden;
+  border: 1px solid rgba(154, 188, 63, 0.22);
+  border-radius: 10px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--white);
+  box-shadow: 0 30px 90px rgba(21, 28, 18, 0.34);
+}
+
+.quote-send-header {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 28px;
+}
+
+.quote-send-header h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 25px;
+}
+
+.quote-send-header button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+  background: var(--white);
+  padding: 0;
+}
+
+.quote-send-content {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(370px, 0.9fr) minmax(460px, 1fr);
+  gap: 26px;
+  padding: 26px 28px;
+}
+
+.quote-send-fields {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.quote-send-fields label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.quote-send-fields input,
+.quote-send-fields select,
+.quote-send-fields textarea {
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+}
+
+.quote-send-fields textarea {
+  min-height: 260px;
+  padding: 15px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.quote-send-attachments {
+  display: grid;
+  gap: 12px;
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.quote-send-attachments label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+}
+
+.quote-send-attachments input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--green-dark);
+}
+
+.quote-send-preview {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f1f3ed;
+}
+
+.quote-pdf-toolbar {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 14px;
+  color: var(--white);
+  background: rgba(70, 70, 70, 0.92);
+}
+
+.quote-pdf-toolbar div {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.quote-pdf-toolbar button {
+  min-width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--white);
+  background: transparent;
+  font-weight: 850;
+}
+
+.quote-pdf-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.quote-pdf-page {
+  width: min(520px, calc(100% - 44px));
+  min-height: 680px;
+  margin: 22px auto;
+  padding: 24px 26px;
+  color: #1d2616;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+  font-size: 10px;
+}
+
+.quote-pdf-brand {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 3px solid var(--green);
+  padding-bottom: 11px;
+  color: var(--green-dark);
+}
+
+.quote-pdf-brand strong {
+  font-size: 18px;
+}
+
+.quote-pdf-meta {
+  display: grid;
+  grid-template-columns: 90px 1fr 60px auto;
+  gap: 5px 10px;
+  margin: 18px 0;
+}
+
+.quote-pdf-meta span {
+  color: #6f7768;
+  font-weight: 800;
+}
+
+.quote-pdf-page table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.quote-pdf-page th {
+  padding: 7px 6px;
+  color: #fff;
+  background: var(--green);
+  text-align: left;
+}
+
+.quote-pdf-page td {
+  border-bottom: 1px solid #e5e8df;
+  padding: 7px 6px;
+  vertical-align: top;
+}
+
+.quote-pdf-page th:nth-child(n+3),
+.quote-pdf-page td:nth-child(n+3) {
+  text-align: right;
+}
+
+.quote-pdf-totals {
+  width: 46%;
+  margin: 18px 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px 12px;
+}
+
+.quote-pdf-totals strong {
+  text-align: right;
+}
+
+.quote-pdf-notes {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  border-top: 3px solid var(--green);
+  margin-top: 34px;
+  padding-top: 10px;
+}
+
+.quote-pdf-notes p {
+  grid-column: 1 / -1;
+  margin: 7px 0 0;
+  white-space: pre-wrap;
+}
+
+.quote-pdf-page footer {
+  margin-top: 120px;
+  border-top: 1px solid #e0e5d8;
+  padding-top: 8px;
+  color: #606858;
+  font-size: 8px;
+}
+
+.quote-send-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding: 18px 28px;
+}
+
 .inline-form .form-error {
   grid-column: 1 / -1;
 }
