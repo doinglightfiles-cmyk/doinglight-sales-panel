@@ -4578,7 +4578,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
   const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const [clientMode, setClientMode] = useState("existing");
-  const [leadQuery, setLeadQuery] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
@@ -4624,6 +4623,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   });
   const [notes, setNotes] = useState(initialQuote?.notes || "");
   const [quoteStatus, setQuoteStatus] = useState(initialQuote?.status || "draft");
+  const [quoteDate, setQuoteDate] = useState(inputDate(initialQuote?.createdAt || new Date()));
+  const [validUntil, setValidUntil] = useState(addDaysInput(initialQuote?.createdAt || new Date(), 30));
+  const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
+  const [internalNotes, setInternalNotes] = useState(initialQuote?.internalNotes || "");
   const [error, setError] = useState("");
   const lineReferenceRefs = useRef({});
   const fileInputRef = useRef(null);
@@ -4634,15 +4637,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = leadsList.find((lead) => lead.id === selectedLeadId) || null;
-  const filteredLeads = useMemo(() => {
-    const needle = leadQuery.trim().toLowerCase();
-    if (!needle) return leadsList;
-    return leadsList.filter((lead) =>
-      [lead.fullName, lead.companyName, lead.email, lead.phone, lead.taxId].some((value) =>
-        String(value || "").toLowerCase().includes(needle)
-      )
-    );
-  }, [leadsList, leadQuery]);
+  const billingData = selectedLead
+    ? [
+        selectedLead.fullName || selectedLead.companyName,
+        [selectedLead.address, selectedLead.postalCode, selectedLead.city || selectedLead.town, selectedLead.province].filter(Boolean).join(" "),
+        selectedLead.country
+      ].filter(Boolean).join("\n")
+    : "Sin datos de facturación";
+  const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || "Pendiente";
 
   useEffect(() => {
     if (!selectedLead || lastDiscountLeadId.current === selectedLead.id) return;
@@ -4661,11 +4663,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
       })
     );
   }, [selectedLead]);
-
-  useEffect(() => {
-    if (!initialQuote?.leadId || leadQuery || !selectedLead) return;
-    setLeadQuery(leadOptionLabel(selectedLead));
-  }, [initialQuote, leadQuery, selectedLead]);
 
   function productForLine(line) {
     return products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku) || null;
@@ -4808,9 +4805,23 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
 
   return (
     <div className="modal-form quote-modal-form">
-      <section className="form-section">
-        <header className="form-section-header">
-          <h4>Cliente</h4>
+      <section className="quote-fd-header">
+        <div className="quote-fd-toolbar">
+          <span>Operación: <strong>Empresa nacional</strong></span>
+          <span>Plantilla: <strong>Tubo Solar</strong></span>
+          <span>Responsable: <strong>-</strong> <button type="button">Cambiar</button></span>
+        </div>
+        <div className="quote-fd-title-row">
+          <h4>Presupuesto</h4>
+          <div className="quote-fd-total">
+            <span>Total</span>
+            <strong>{money(total)}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="quote-fd-fields">
+        <div className="quote-fd-actions">
           <div className="quote-client-header-actions">
             <div className="segmented-control">
               <button type="button" className={clientMode === "existing" ? "active" : ""} onClick={() => setClientMode("existing")}>
@@ -4843,29 +4854,68 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
               <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
             </div>
           </div>
-        </header>
+        </div>
 
         {clientMode === "existing" ? (
-          <div className="quote-client-tools">
-            <input
-              list="quote-client-suggestions"
-              placeholder="Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF"
-              value={leadQuery}
-              onChange={(event) => {
-                const value = event.target.value;
-                setLeadQuery(value);
-                const exactLead = leadsList.find((lead) => leadOptionLabel(lead) === value);
-                setSelectedLeadId(exactLead?.id || "");
-              }}
-            />
-            <datalist id="quote-client-suggestions">
-              {filteredLeads.map((lead) => (
-                <option key={lead.id} value={leadOptionLabel(lead)} />
-              ))}
-            </datalist>
-            <p className="selected-client">
-              {selectedLead ? `${selectedLead.email || "Sin email"} · ${selectedLead.phone || "Sin teléfono"}` : "Sin cliente asignado"}
-            </p>
+          <div className="quote-fd-grid">
+            <label>
+              <span>Cliente</span>
+              <select value={selectedLeadId} onChange={(event) => setSelectedLeadId(event.target.value)} disabled={leads.loading}>
+                <option value="">{leads.loading ? "Cargando clientes..." : "Selecciona cliente"}</option>
+                {leadsList.map((lead) => (
+                  <option key={lead.id} value={lead.id}>{leadOptionLabel(lead)}</option>
+                ))}
+              </select>
+              {selectedLead ? <small>{selectedLead.email || "Sin email"} · {selectedLead.phone || "Sin teléfono"}</small> : null}
+            </label>
+            <label>
+              <span>Fecha</span>
+              <input type="date" value={quoteDate} onChange={(event) => setQuoteDate(event.target.value)} />
+            </label>
+            <label>
+              <span>Número de documento</span>
+              <input value={initialQuote?.quoteNumber || ""} placeholder="Se generará automáticamente" readOnly />
+            </label>
+            <label>
+              <span>Correo electrónico de envío</span>
+              <input value={selectedLead?.email || ""} placeholder="Sin correo electrónico" readOnly />
+            </label>
+            <label>
+              <span>Válido hasta</span>
+              <input type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
+            </label>
+            <label>
+              <span>Método de pago</span>
+              <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+                <option value="">Sin definir</option>
+                <option value="card">Tarjeta</option>
+                <option value="transfer">Transferencia</option>
+                <option value="receipt">Recibo</option>
+              </select>
+            </label>
+            <label>
+              <span>Estado del presupuesto</span>
+              <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
+                {QUOTE_STATUS_OPTIONS.map((status) => (
+                  <option key={status.value} value={status.value}>{status.label}</option>
+                ))}
+              </select>
+              <small>{selectedStatusLabel}</small>
+            </label>
+            <label className="quote-fd-textarea">
+              <span>Datos de facturación</span>
+              <textarea value={billingData} readOnly />
+            </label>
+            <label className="quote-fd-textarea">
+              <span>Notas</span>
+              <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+              <small>Notas visibles para el cliente</small>
+            </label>
+            <label className="quote-fd-textarea internal-notes">
+              <span>Notas internas</span>
+              <textarea value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} />
+              <small>Notas no visibles para el cliente</small>
+            </label>
           </div>
         ) : (
           <LeadFormFields
@@ -4875,22 +4925,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
             onDone={(result) => {
               leads.reload();
               setSelectedLeadId(result.item.id);
-              setLeadQuery(leadOptionLabel(result.item));
               setClientMode("existing");
             }}
           />
         )}
-      </section>
-
-      <section className="form-section quote-status-section">
-        <label className="quote-status-field">
-          <span>Estado del presupuesto</span>
-          <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
-            {QUOTE_STATUS_OPTIONS.map((status) => (
-              <option key={status.value} value={status.value}>{status.label}</option>
-            ))}
-          </select>
-        </label>
       </section>
 
       <section className="form-section">
@@ -5029,8 +5067,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
           <strong>{money(total)}</strong>
         </div>
       </section>
-
-      <textarea placeholder="Notas" value={notes} onChange={(event) => setNotes(event.target.value)} />
       <section className="quote-attachments">
         {attachments.length ? (
           <div className="attachment-chip-list">

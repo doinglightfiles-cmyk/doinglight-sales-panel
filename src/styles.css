@@ -3305,6 +3305,133 @@ th {
   padding: 22px 24px;
 }
 
+.quote-fd-header {
+  display: grid;
+  gap: 30px;
+  padding: 10px 4px 2px;
+}
+
+.quote-fd-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.quote-fd-toolbar strong {
+  color: var(--ink);
+}
+
+.quote-fd-toolbar button {
+  border: 0;
+  padding: 0;
+  color: var(--green-dark);
+  background: transparent;
+  font-weight: 800;
+}
+
+.quote-fd-title-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: start;
+}
+
+.quote-fd-title-row h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 650;
+}
+
+.quote-fd-total {
+  min-width: 180px;
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.quote-fd-total strong {
+  color: var(--ink);
+  font-size: 28px;
+  font-weight: 650;
+}
+
+.quote-fd-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.quote-fd-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.quote-fd-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.quote-fd-grid label {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.quote-fd-grid label > span {
+  color: var(--muted);
+}
+
+.quote-fd-grid input,
+.quote-fd-grid select,
+.quote-fd-grid textarea {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+}
+
+.quote-fd-grid textarea {
+  min-height: 126px;
+  padding: 14px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.quote-fd-grid input[readonly],
+.quote-fd-grid textarea[readonly] {
+  background: #fbfcf8;
+}
+
+.quote-fd-grid small {
+  min-height: 18px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-fd-textarea {
+  grid-row: span 2;
+}
+
+.quote-fd-textarea.internal-notes textarea {
+  border-color: rgba(143, 115, 55, 0.45);
+  background: #fff8ea;
+}
+
 .quote-client-header-actions {
   display: inline-flex;
   align-items: center;
