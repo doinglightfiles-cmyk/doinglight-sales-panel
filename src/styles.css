@@ -4307,6 +4307,196 @@ th {
   font-size: 8px;
 }
 
+.quote-pdf-page-template {
+  width: min(570px, calc(100% - 44px));
+  min-height: 805px;
+  padding: 30px 28px 22px;
+  position: relative;
+  color: #111;
+  font-size: 9.5px;
+}
+
+.quote-pdf-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 30px;
+  align-items: start;
+}
+
+.quote-pdf-issuer {
+  display: grid;
+  gap: 2px;
+  line-height: 1.18;
+  color: #111;
+}
+
+.quote-pdf-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: #6f7768;
+}
+
+.quote-pdf-logo-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 5px rgba(156, 195, 27, 0.16);
+}
+
+.quote-pdf-logo div {
+  display: grid;
+  gap: 1px;
+  line-height: 1;
+}
+
+.quote-pdf-logo strong {
+  color: #6b6f65;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.quote-pdf-logo small {
+  color: #8a8f83;
+  font-size: 6.5px;
+  letter-spacing: 4px;
+}
+
+.quote-pdf-document-head {
+  display: grid;
+  justify-items: end;
+  gap: 18px;
+}
+
+.quote-pdf-document-head h2 {
+  margin: 4px 0 0;
+  color: #111;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.quote-pdf-number-table {
+  width: 150px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-left: 1px solid #fff;
+}
+
+.quote-pdf-number-table strong,
+.quote-pdf-number-table span {
+  padding: 7px 6px;
+  text-align: center;
+}
+
+.quote-pdf-number-table strong {
+  color: #fff;
+  background: var(--green);
+  border-right: 1px solid #fff;
+}
+
+.quote-pdf-number-table span {
+  background: #ececec;
+  border-right: 1px solid #fff;
+}
+
+.quote-pdf-client-box {
+  width: 260px;
+  min-height: 60px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 12px;
+  background: #eeeeee;
+  color: #111;
+  line-height: 1.25;
+}
+
+.quote-pdf-lines-table {
+  margin-top: 32px;
+}
+
+.quote-pdf-page .quote-pdf-lines-table th {
+  padding: 6px;
+  font-size: 8.5px;
+}
+
+.quote-pdf-page .quote-pdf-lines-table td {
+  background: #f3f3f3;
+  border-bottom: 2px solid #fff;
+  padding: 6px;
+}
+
+.quote-pdf-page .quote-pdf-lines-table th:first-child,
+.quote-pdf-page .quote-pdf-lines-table td:first-child {
+  width: 72px;
+}
+
+.quote-pdf-summary {
+  width: 44%;
+  margin-top: 10px;
+  gap: 8px 18px;
+}
+
+.quote-pdf-summary span,
+.quote-pdf-summary strong {
+  color: #111;
+}
+
+.quote-pdf-validity-table {
+  margin-top: 52px;
+}
+
+.quote-pdf-page .quote-pdf-validity-table th {
+  padding: 6px;
+  font-size: 8.5px;
+}
+
+.quote-pdf-page .quote-pdf-validity-table td {
+  background: #f0f0f0;
+  border-right: 2px solid #fff;
+  padding: 7px 6px;
+  min-height: 22px;
+}
+
+.quote-pdf-page .quote-pdf-validity-table th:nth-child(n+3),
+.quote-pdf-page .quote-pdf-validity-table td:nth-child(n+3) {
+  width: 36px;
+}
+
+.quote-pdf-long-notes {
+  display: block;
+  border-top: 0;
+  margin-top: 12px;
+  padding-top: 0;
+  color: #111;
+  line-height: 1.25;
+}
+
+.quote-pdf-long-notes p {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+}
+
+.quote-pdf-page .quote-pdf-privacy {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 18px;
+  margin: 0;
+  border-top: 0;
+  padding: 0;
+  display: block;
+  color: #111;
+  font-size: 6.4px;
+  line-height: 1.18;
+}
+
+.quote-pdf-privacy strong {
+  display: block;
+}
+
 .quote-send-actions {
   display: flex;
   align-items: center;

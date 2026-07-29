@@ -1161,6 +1161,135 @@ function quoteLanguageForCountry(country) {
   return matchedLanguage?.value || "es";
 }
 
+const QUOTE_PDF_TEXT = {
+  es: {
+    title: "Presupuesto",
+    issuedBy: "Documento emitido por:",
+    number: "Número",
+    date: "Fecha",
+    code: "Código",
+    concept: "Concepto",
+    quantity: "Cantidad",
+    price: "Precio",
+    total: "Total",
+    subtotal: "Subtotal",
+    vat: "IVA",
+    totalCurrency: "Total (EUR)",
+    validUntil: "Válido hasta",
+    paymentMethod: "Método de pago",
+    privacyTitle: "PROTECCIÓN DE DATOS",
+    privacyText: "Responsable: DOINGLIGHT TECHNOLOGIES, S.L.U. Finalidad: Prestar los servicios solicitados. Derechos: Tiene derecho a acceder, rectificar y suprimir los datos, así como otros derechos, indicados en la información adicional, que puede ejercer dirigiéndose a la dirección del responsable del tratamiento. Información adicional: En un impreso a disposición de los interesados, en PARQUE EMPRESARIAL CAMPOLLANO C/ E, 24 - 02007 ALBACETE."
+  },
+  en: {
+    title: "Quotation",
+    issuedBy: "Document issued by:",
+    number: "Number",
+    date: "Date",
+    code: "Code",
+    concept: "Description",
+    quantity: "Quantity",
+    price: "Price",
+    total: "Total",
+    subtotal: "Subtotal",
+    vat: "VAT",
+    totalCurrency: "Total (EUR)",
+    validUntil: "Valid until",
+    paymentMethod: "Payment method",
+    privacyTitle: "DATA PROTECTION",
+    privacyText: "Controller: DOINGLIGHT TECHNOLOGIES, S.L.U. Purpose: To provide the requested services. Rights: You may exercise your data protection rights by contacting the controller at the stated address."
+  },
+  nl: {
+    title: "Offerte",
+    issuedBy: "Document uitgegeven door:",
+    number: "Nummer",
+    date: "Datum",
+    code: "Code",
+    concept: "Omschrijving",
+    quantity: "Aantal",
+    price: "Prijs",
+    total: "Totaal",
+    subtotal: "Subtotaal",
+    vat: "BTW",
+    totalCurrency: "Totaal (EUR)",
+    validUntil: "Geldig tot",
+    paymentMethod: "Betaalmethode",
+    privacyTitle: "GEGEVENSBESCHERMING",
+    privacyText: "Verwerkingsverantwoordelijke: DOINGLIGHT TECHNOLOGIES, S.L.U. Doel: het leveren van de gevraagde diensten. Rechten: u kunt uw rechten uitoefenen door contact op te nemen met de verwerkingsverantwoordelijke."
+  },
+  de: {
+    title: "Angebot",
+    issuedBy: "Dokument ausgestellt von:",
+    number: "Nummer",
+    date: "Datum",
+    code: "Code",
+    concept: "Beschreibung",
+    quantity: "Menge",
+    price: "Preis",
+    total: "Gesamt",
+    subtotal: "Zwischensumme",
+    vat: "MwSt.",
+    totalCurrency: "Gesamt (EUR)",
+    validUntil: "Gültig bis",
+    paymentMethod: "Zahlungsmethode",
+    privacyTitle: "DATENSCHUTZ",
+    privacyText: "Verantwortlicher: DOINGLIGHT TECHNOLOGIES, S.L.U. Zweck: Erbringung der angeforderten Dienstleistungen. Rechte: Sie können Ihre Rechte ausüben, indem Sie sich an den Verantwortlichen wenden."
+  },
+  fr: {
+    title: "Devis",
+    issuedBy: "Document émis par :",
+    number: "Numéro",
+    date: "Date",
+    code: "Code",
+    concept: "Description",
+    quantity: "Quantité",
+    price: "Prix",
+    total: "Total",
+    subtotal: "Sous-total",
+    vat: "TVA",
+    totalCurrency: "Total (EUR)",
+    validUntil: "Valable jusqu'au",
+    paymentMethod: "Mode de paiement",
+    privacyTitle: "PROTECTION DES DONNÉES",
+    privacyText: "Responsable : DOINGLIGHT TECHNOLOGIES, S.L.U. Finalité : fournir les services demandés. Droits : vous pouvez exercer vos droits en contactant le responsable du traitement."
+  },
+  it: {
+    title: "Preventivo",
+    issuedBy: "Documento emesso da:",
+    number: "Numero",
+    date: "Data",
+    code: "Codice",
+    concept: "Descrizione",
+    quantity: "Quantità",
+    price: "Prezzo",
+    total: "Totale",
+    subtotal: "Subtotale",
+    vat: "IVA",
+    totalCurrency: "Totale (EUR)",
+    validUntil: "Valido fino al",
+    paymentMethod: "Metodo di pagamento",
+    privacyTitle: "PROTEZIONE DEI DATI",
+    privacyText: "Titolare: DOINGLIGHT TECHNOLOGIES, S.L.U. Finalità: fornire i servizi richiesti. Diritti: è possibile esercitare i propri diritti contattando il titolare del trattamento."
+  },
+  pt: {
+    title: "Orçamento",
+    issuedBy: "Documento emitido por:",
+    number: "Número",
+    date: "Data",
+    code: "Código",
+    concept: "Descrição",
+    quantity: "Quantidade",
+    price: "Preço",
+    total: "Total",
+    subtotal: "Subtotal",
+    vat: "IVA",
+    totalCurrency: "Total (EUR)",
+    validUntil: "Válido até",
+    paymentMethod: "Método de pagamento",
+    privacyTitle: "PROTEÇÃO DE DADOS",
+    privacyText: "Responsável: DOINGLIGHT TECHNOLOGIES, S.L.U. Finalidade: prestar os serviços solicitados. Direitos: pode exercer os seus direitos contactando o responsável pelo tratamento."
+  }
+};
+
 function serializeSalesQuote(quote, leadsById) {
   const status = quoteStatusState(quote.status);
   const lead = leadsById.get(quote.leadId) || {};
@@ -4699,6 +4828,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     : "Sin datos de facturación";
   const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || "Pendiente";
   const selectedQuoteLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((language) => language.value === quoteLanguage)?.label || "Español";
+  const quotePdfText = QUOTE_PDF_TEXT[quoteLanguage] || QUOTE_PDF_TEXT.es;
+  const quoteClientBlock = selectedLead
+    ? [
+        leadBillingSource.fullName || leadBillingSource.companyName,
+        [leadBillingSource.address, leadBillingSource.postalCode, leadBillingSource.population || leadBillingSource.city, leadBillingSource.province].filter(Boolean).join(" "),
+        countryLabel(leadBillingSource.country)
+      ].filter(Boolean)
+    : ["Cliente sin asignar"];
 
   useEffect(() => {
     if (!selectedLead || lastDiscountLeadId.current === selectedLead.id) return;
@@ -5422,25 +5559,49 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                     <button type="button" title="Más opciones"><MoreVertical size={17} /></button>
                   </div>
                 </div>
-                <div className="quote-pdf-page">
-                  <div className="quote-pdf-brand">
-                    <strong>DOINGLIGHT</strong>
-                    <span>Presupuesto {quoteNumberLabel}</span>
-                  </div>
-                  <div className="quote-pdf-meta">
-                    <span>Cliente</span>
-                    <strong>{selectedLead?.fullName || selectedLead?.companyName || "Cliente sin asignar"}</strong>
-                    <span>Fecha</span>
-                    <strong>{dateOnly(quoteDate)}</strong>
-                  </div>
-                  <table>
+                <div className="quote-pdf-page quote-pdf-page-template">
+                  <section className="quote-pdf-top">
+                    <div className="quote-pdf-issuer">
+                      <div className="quote-pdf-logo">
+                        <span className="quote-pdf-logo-dot" />
+                        <div>
+                          <strong>DOINGLIGHT</strong>
+                          <small>SKYLIGHTS</small>
+                        </div>
+                      </div>
+                      <strong>{quotePdfText.issuedBy}</strong>
+                      <span>DOINGLIGHT TECHNOLOGIES, SLU</span>
+                      <span>B02555001</span>
+                      <span>Polígono Industrial Campollano, Calle E nº 24</span>
+                      <span>02007 ALBACETE</span>
+                      <span>España</span>
+                      <span>info@doinglight.es</span>
+                      <span>www.doinglight.es</span>
+                      <span>658856869</span>
+                    </div>
+                    <div className="quote-pdf-document-head">
+                      <h2>{quotePdfText.title}</h2>
+                      <div className="quote-pdf-number-table">
+                        <strong>{quotePdfText.number}</strong>
+                        <strong>{quotePdfText.date}</strong>
+                        <span>{quoteNumberLabel}</span>
+                        <span>{dateOnly(quoteDate)}</span>
+                      </div>
+                      <div className="quote-pdf-client-box">
+                        {quoteClientBlock.map((line) => (
+                          <span key={line}>{line}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                  <table className="quote-pdf-lines-table">
                     <thead>
                       <tr>
-                        <th>Código</th>
-                        <th>Concepto</th>
-                        <th>Cantidad</th>
-                        <th>Precio</th>
-                        <th>Total</th>
+                        <th>{quotePdfText.code}</th>
+                        <th>{quotePdfText.concept}</th>
+                        <th>{quotePdfText.quantity}</th>
+                        <th>{quotePdfText.price}</th>
+                        <th>{quotePdfText.total}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -5461,20 +5622,38 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                       })}
                     </tbody>
                   </table>
-                  <div className="quote-pdf-totals">
-                    <span>Subtotal</span>
-                    <strong>{money(subtotal)}</strong>
-                    <span>IVA {taxRate}%</span>
-                    <strong>{money(taxTotal)}</strong>
-                    <span>Total (EUR)</span>
+                  <div className="quote-pdf-totals quote-pdf-summary">
+                    <span>{quotePdfText.subtotal}</span>
+                    <strong>{tableMoney(subtotal)}</strong>
+                    <span>{quotePdfText.vat} {taxRate}% (Base: {tableMoney(subtotal)})</span>
+                    <strong>{tableMoney(taxTotal)}</strong>
+                    <span>{quotePdfText.totalCurrency}</span>
                     <strong>{money(total)}</strong>
                   </div>
-                  <div className="quote-pdf-notes">
-                    <strong>Válido hasta</strong>
-                    <span>{dateOnly(validUntil)}</span>
-                    <p>{notes || "Notas visibles para el cliente."}</p>
+                  <table className="quote-pdf-validity-table">
+                    <thead>
+                      <tr>
+                        <th>{quotePdfText.validUntil}</th>
+                        <th>{quotePdfText.paymentMethod}</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{dateOnly(validUntil)}</td>
+                        <td>{paymentMethod || ""}</td>
+                        <td />
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div className="quote-pdf-notes quote-pdf-long-notes">
+                    <p>{notes || "**Para pagar con tarjeta por favor haga click en el siguiente enlace:**\n\nhttps://sis.redsys.es/sis/p2f?..."}</p>
+                    <p>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</p>
                   </div>
-                  <footer>PROTECCIÓN DE DATOS · DOINGLIGHT TECHNOLOGIES, S.L.U.</footer>
+                  <footer className="quote-pdf-privacy">
+                    <strong>{quotePdfText.privacyTitle}</strong>
+                    <span>{quotePdfText.privacyText}</span>
+                  </footer>
                 </div>
               </section>
             </div>
