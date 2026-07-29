@@ -4914,14 +4914,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                   onChange={(event) => updateLeadSearch(event.target.value)}
                   onFocus={() => setLeadSearchOpen(true)}
                   onBlur={() => window.setTimeout(() => setLeadSearchOpen(false), 140)}
-                  placeholder={leads.loading ? "Cargando clientes..." : "Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF"}
-                  disabled={leads.loading}
+                  placeholder="Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF"
                   autoComplete="off"
                 />
                 <Search className="quote-client-search-icon" size={17} />
-                {leadSearchOpen && !leads.loading ? (
+                {leadSearchOpen ? (
                   <div className="quote-client-suggestions" role="listbox">
-                    {filteredLeadSuggestions.length ? (
+                    {leads.loading ? (
+                      <div className="quote-client-suggestion empty">
+                        <span>Buscando clientes...</span>
+                      </div>
+                    ) : filteredLeadSuggestions.length ? (
                       filteredLeadSuggestions.map((lead) => (
                         <button
                           type="button"
