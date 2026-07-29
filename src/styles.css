@@ -3423,6 +3423,98 @@ th {
   white-space: nowrap;
 }
 
+.quote-client-search-field {
+  position: relative;
+}
+
+.quote-client-search-wrap {
+  position: relative;
+}
+
+.quote-client-search-wrap input {
+  padding-right: 42px;
+}
+
+.quote-client-search-icon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: var(--muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.quote-client-suggestions {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  max-height: 292px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 18px 46px rgba(29, 38, 22, 0.16);
+}
+
+.quote-client-suggestion {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgba(154, 188, 63, 0.14);
+  padding: 11px 13px;
+  background: var(--white);
+  color: var(--ink);
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quote-client-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.quote-client-suggestion:hover,
+.quote-client-suggestion.active {
+  background: #f4f9e7;
+}
+
+.quote-client-suggestion strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-client-suggestion span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-client-suggestion.empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: default;
+}
+
+.quote-client-suggestion.empty button {
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 11px;
+  background: var(--green-dark);
+  color: var(--white);
+  font-weight: 850;
+  cursor: pointer;
+}
+
 .quote-fd-textarea {
   grid-row: span 2;
 }

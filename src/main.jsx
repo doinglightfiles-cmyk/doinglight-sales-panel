@@ -4575,10 +4575,13 @@ function DownloadsView() {
 }
 
 function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
-  const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
+  const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
   const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const [clientMode, setClientMode] = useState("existing");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
+  const [leadSearchQuery, setLeadSearchQuery] = useState("");
+  const [leadSearchOpen, setLeadSearchOpen] = useState(false);
+  const [leadSearchTouched, setLeadSearchTouched] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
   const [attachments, setAttachments] = useState(() =>
@@ -4637,6 +4640,24 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = leadsList.find((lead) => lead.id === selectedLeadId) || null;
+  const filteredLeadSuggestions = useMemo(() => {
+    const needle = leadSearchQuery.trim().toLowerCase();
+    const source = needle
+      ? leadsList.filter((lead) =>
+          [
+            lead.fullName,
+            lead.companyName,
+            lead.email,
+            lead.phone,
+            lead.mobilePhone,
+            lead.taxId,
+            lead.country
+          ].some((value) => String(value || "").toLowerCase().includes(needle))
+        )
+      : leadsList;
+
+    return source.slice(0, 12);
+  }, [leadsList, leadSearchQuery]);
   const billingData = selectedLead
     ? [
         selectedLead.fullName || selectedLead.companyName,
@@ -4663,6 +4684,26 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
       })
     );
   }, [selectedLead]);
+
+  useEffect(() => {
+    if (!selectedLead || leadSearchTouched) return;
+    setLeadSearchQuery(leadOptionLabel(selectedLead));
+  }, [selectedLead, leadSearchTouched]);
+
+  function chooseLead(lead) {
+    setSelectedLeadId(lead.id);
+    setLeadSearchQuery(leadOptionLabel(lead));
+    setLeadSearchTouched(false);
+    setLeadSearchOpen(false);
+  }
+
+  function updateLeadSearch(value) {
+    setLeadSearchQuery(value);
+    setLeadSearchTouched(true);
+    setLeadSearchOpen(true);
+    const exactLead = leadsList.find((lead) => leadOptionLabel(lead).toLowerCase() === value.trim().toLowerCase());
+    setSelectedLeadId(exactLead?.id || "");
+  }
 
   function productForLine(line) {
     return products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku) || null;
@@ -4858,14 +4899,54 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
 
         {clientMode === "existing" ? (
           <div className="quote-fd-grid">
-            <label>
+            <label className="quote-client-search-field">
               <span>Cliente</span>
-              <select value={selectedLeadId} onChange={(event) => setSelectedLeadId(event.target.value)} disabled={leads.loading}>
-                <option value="">{leads.loading ? "Cargando clientes..." : "Selecciona cliente"}</option>
-                {leadsList.map((lead) => (
-                  <option key={lead.id} value={lead.id}>{leadOptionLabel(lead)}</option>
-                ))}
-              </select>
+              <div className="quote-client-search-wrap">
+                <input
+                  value={leadSearchQuery}
+                  onChange={(event) => updateLeadSearch(event.target.value)}
+                  onFocus={() => setLeadSearchOpen(true)}
+                  onBlur={() => window.setTimeout(() => setLeadSearchOpen(false), 140)}
+                  placeholder={leads.loading ? "Cargando clientes..." : "Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF"}
+                  disabled={leads.loading}
+                  autoComplete="off"
+                />
+                <Search className="quote-client-search-icon" size={17} />
+                {leadSearchOpen && !leads.loading ? (
+                  <div className="quote-client-suggestions" role="listbox">
+                    {filteredLeadSuggestions.length ? (
+                      filteredLeadSuggestions.map((lead) => (
+                        <button
+                          type="button"
+                          className={`quote-client-suggestion ${lead.id === selectedLeadId ? "active" : ""}`}
+                          key={lead.id}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => chooseLead(lead)}
+                          role="option"
+                          aria-selected={lead.id === selectedLeadId}
+                        >
+                          <strong>{lead.fullName || lead.companyName || "Cliente sin nombre"}</strong>
+                          <span>{[lead.companyName, lead.email, lead.phone || lead.mobilePhone, lead.taxId].filter(Boolean).join(" · ") || "Sin datos adicionales"}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="quote-client-suggestion empty">
+                        <span>No hay clientes con ese texto.</span>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setClientMode("new");
+                            setLeadSearchOpen(false);
+                          }}
+                        >
+                          Crear cliente
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
               {selectedLead ? <small>{selectedLead.email || "Sin email"} · {selectedLead.phone || "Sin teléfono"}</small> : null}
             </label>
             <label>
