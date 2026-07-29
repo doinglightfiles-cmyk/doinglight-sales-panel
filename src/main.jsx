@@ -4119,9 +4119,32 @@ function QuotesView({ token }) {
 
 function QuoteDetailModal({ token, quote, lead, onClose }) {
   const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
+  const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const item = detail.data?.item || null;
   const lines = item?.items || [];
   const status = quoteStatusState(item?.status || quote.status);
+  const productsBySku = useMemo(() => {
+    const map = new Map();
+    (catalog.data?.products || []).forEach((product) => map.set(product.sku, product));
+    return map;
+  }, [catalog.data]);
+
+  function productForQuoteLine(line) {
+    const catalogProduct = productsBySku.get(line.sku);
+    const snapshot = line.productSnapshot || {};
+    if (!catalogProduct) return Object.keys(snapshot).length ? snapshot : { sku: line.sku, title: line.title };
+
+    return {
+      ...catalogProduct,
+      ...snapshot,
+      sku: line.sku,
+      title: snapshot.title || line.title || catalogProduct.title,
+      mainImageUrl: snapshot.mainImageUrl || catalogProduct.mainImageUrl,
+      media: snapshot.media || catalogProduct.media,
+      shortDescription: snapshot.shortDescription || catalogProduct.shortDescription,
+      slug: snapshot.slug || catalogProduct.slug
+    };
+  }
 
   return (
     <ModalShell
@@ -4132,6 +4155,7 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
     >
       <div className="quote-record-body">
         {detail.error ? <p className="form-error">{detail.error}</p> : null}
+        {catalog.error ? <p className="form-error">{catalog.error}</p> : null}
         {detail.loading ? <p className="muted-text">Cargando presupuesto...</p> : null}
         {item ? (
           <>
@@ -4162,14 +4186,16 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {lines.map((line) => (
+                    {lines.map((line) => {
+                      const product = productForQuoteLine(line);
+                      return (
                       <tr key={line.id}>
-                        <td><ProductThumbnail product={line.productSnapshot || { sku: line.sku, title: line.title }} /></td>
+                        <td><ProductThumbnail product={product} /></td>
                         <td>{line.sku}</td>
                         <td>
                           <div className="quote-record-description">
                             <strong>{line.title}</strong>
-                            <span>{line.productSnapshot?.shortDescription || line.productSnapshot?.slug || ""}</span>
+                            <span>{product.shortDescription || product.slug || ""}</span>
                           </div>
                         </td>
                         <td>{tableMoney(line.quantity)}</td>
@@ -4177,7 +4203,8 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
                         <td>{tableMoney(line.discountPercent)}</td>
                         <td>{money(line.lineTotal)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
