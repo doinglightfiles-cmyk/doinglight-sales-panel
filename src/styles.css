@@ -1354,6 +1354,35 @@ select:focus {
   font-size: 14px;
 }
 
+.invoice-filter-select {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--muted);
+  border-radius: 999px;
+  padding: 0 12px 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.invoice-filter-select span {
+  font-weight: 750;
+}
+
+.invoice-filter-select select {
+  min-height: 30px;
+  border: 0;
+  padding: 0 26px 0 0;
+  color: var(--ink);
+  background: transparent;
+}
+
+.invoice-filter-select select:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 .invoice-add-filter {
   display: inline-flex;
   align-items: center;
@@ -1436,6 +1465,10 @@ select:focus {
 }
 
 .invoice-payment-status.paid {
+  color: #1b7b2a;
+}
+
+.invoice-payment-status.accepted {
   color: #1b7b2a;
 }
 
@@ -3276,6 +3309,32 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.quote-status-section {
+  padding: 14px;
+}
+
+.quote-status-field {
+  display: grid;
+  gap: 8px;
+}
+
+.quote-status-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.quote-status-field select {
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: var(--white);
+  font-weight: 750;
 }
 
 .quote-record-body {

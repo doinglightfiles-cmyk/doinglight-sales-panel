@@ -1122,8 +1122,8 @@ function quoteStatusState(status = "") {
     draft: "pending",
     pending: "pending",
     sent: "pending",
-    accepted: "paid",
-    approved: "paid",
+    accepted: "accepted",
+    approved: "accepted",
     closed: "voided",
     rejected: "overdue",
     cancelled: "voided",
@@ -1135,6 +1135,13 @@ function quoteStatusState(status = "") {
     label: labels[normalized] || status || "Pendiente"
   };
 }
+
+const QUOTE_STATUS_OPTIONS = [
+  { value: "draft", filterKey: "pending", label: "Pendiente" },
+  { value: "accepted", filterKey: "accepted", label: "Aceptado" },
+  { value: "closed", filterKey: "voided", label: "Cerrado" },
+  { value: "rejected", filterKey: "overdue", label: "Rechazado" }
+];
 
 function serializeSalesQuote(quote, leadsById) {
   const status = quoteStatusState(quote.status);
@@ -4229,6 +4236,7 @@ function QuotesView({ token }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
   const leadsById = useMemo(() => {
@@ -4239,7 +4247,9 @@ function QuotesView({ token }) {
   const quoteRows = (quotes.data?.items || []).map((quote) => serializeSalesQuote(quote, leadsById));
   const filteredQuotes = quoteRows.filter((quote) => {
     const haystack = `${quote.number} ${quote.contact} ${quote.status} ${quote.total} ${quote.detail}`.toLowerCase();
-    return haystack.includes(query.trim().toLowerCase());
+    const matchesQuery = haystack.includes(query.trim().toLowerCase());
+    const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
+    return matchesQuery && matchesStatus;
   });
 
   function openEmptyQuote() {
@@ -4298,12 +4308,15 @@ function QuotesView({ token }) {
           </button>
         </div>
         <div className="module-filters invoice-filter-row">
-          <button className="invoice-filter-chip" type="button">Estado <MoreVertical size={14} /></button>
-          <button className="invoice-filter-chip" type="button">Cliente <MoreVertical size={14} /></button>
-          <button className="invoice-add-filter" type="button">
-            <Plus size={18} />
-            Añadir filtro
-          </button>
+          <label className="invoice-filter-select">
+            <span>Estado</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="all">Todos los estados</option>
+              {QUOTE_STATUS_OPTIONS.map((status) => (
+                <option key={status.filterKey} value={status.filterKey}>{status.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="table-wrap invoice-table-wrap">
           <table className="module-table invoice-table quotes-table">
@@ -4610,6 +4623,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     return Math.round((Number(initialQuote.taxTotal || 0) / Number(initialQuote.subtotal || 1)) * 100);
   });
   const [notes, setNotes] = useState(initialQuote?.notes || "");
+  const [quoteStatus, setQuoteStatus] = useState(initialQuote?.status || "draft");
   const [error, setError] = useState("");
   const lineReferenceRefs = useRef({});
   const fileInputRef = useRef(null);
@@ -4745,6 +4759,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
         body: {
           locale: "es",
           leadId,
+          status: quoteStatus,
           notes,
           taxTotal,
           attachments: attachments.map((attachment) => ({
@@ -4865,6 +4880,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
             }}
           />
         )}
+      </section>
+
+      <section className="form-section quote-status-section">
+        <label className="quote-status-field">
+          <span>Estado del presupuesto</span>
+          <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
+            {QUOTE_STATUS_OPTIONS.map((status) => (
+              <option key={status.value} value={status.value}>{status.label}</option>
+            ))}
+          </select>
+        </label>
       </section>
 
       <section className="form-section">
