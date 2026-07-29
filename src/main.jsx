@@ -22,8 +22,10 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Send,
   Settings,
   Share2,
+  Printer,
   Truck,
   History,
   UsersRound,
@@ -5440,7 +5442,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
             </div>
             <footer className="quote-send-actions">
               <button className="secondary-button" type="button" onClick={() => setSendModalOpen(false)}>Cancelar</button>
-              <button className="primary-button send-quote-button" type="submit">Enviar</button>
+              <button className="quote-send-icon-button" type="button" aria-label="Descargar PDF" title="Descargar PDF">
+                <Download size={20} />
+              </button>
+              <button className="quote-send-icon-button" type="button" aria-label="Imprimir PDF" title="Imprimir PDF">
+                <Printer size={20} />
+              </button>
+              <button className="primary-button send-quote-button" type="submit">
+                <Send size={18} />
+                Enviar
+              </button>
             </footer>
           </form>
         </div>

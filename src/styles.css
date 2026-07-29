@@ -4029,6 +4029,9 @@ th {
 }
 
 .send-quote-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: var(--green-dark);
 }
 
@@ -4282,10 +4285,29 @@ th {
 
 .quote-send-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 12px;
   border-top: 1px solid var(--line);
   padding: 18px 28px;
+}
+
+.quote-send-icon-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(80, 116, 23, 0.28);
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  padding: 0;
+  cursor: pointer;
+}
+
+.quote-send-icon-button:hover {
+  border-color: rgba(80, 116, 23, 0.42);
+  background: rgba(154, 188, 63, 0.2);
 }
 
 .inline-form .form-error {
