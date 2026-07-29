@@ -4156,6 +4156,30 @@ th {
   background: #f1f3ed;
 }
 
+.quote-pdf-language-row {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 1fr minmax(170px, 220px);
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 0 14px;
+  color: var(--muted);
+  background: var(--white);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.quote-pdf-language-row select {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 11px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+}
+
 .quote-pdf-toolbar {
   min-height: 52px;
   display: flex;

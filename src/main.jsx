@@ -1145,6 +1145,22 @@ const QUOTE_STATUS_OPTIONS = [
   { value: "rejected", filterKey: "overdue", label: "Rechazado" }
 ];
 
+const QUOTE_LANGUAGE_OPTIONS = [
+  { value: "es", label: "Español", countryCode: "ES" },
+  { value: "en", label: "Inglés", countryCode: "GB" },
+  { value: "nl", label: "Holandés", countryCode: "NL" },
+  { value: "de", label: "Alemán", countryCode: "DE" },
+  { value: "fr", label: "Francés", countryCode: "FR" },
+  { value: "it", label: "Italiano", countryCode: "IT" },
+  { value: "pt", label: "Portugués", countryCode: "PT" }
+];
+
+function quoteLanguageForCountry(country) {
+  const normalizedCountry = String(country || "").toUpperCase();
+  const matchedLanguage = QUOTE_LANGUAGE_OPTIONS.find((language) => language.countryCode === normalizedCountry);
+  return matchedLanguage?.value || "es";
+}
+
 function serializeSalesQuote(quote, leadsById) {
   const status = quoteStatusState(quote.status);
   const lead = leadsById.get(quote.leadId) || {};
@@ -4640,6 +4656,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const [validUntil, setValidUntil] = useState(addDaysInput(initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
   const [internalNotes, setInternalNotes] = useState(initialQuote?.internalNotes || "");
+  const [quoteLanguage, setQuoteLanguage] = useState("es");
+  const [quoteLanguageTouched, setQuoteLanguageTouched] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendDraft, setSendDraft] = useState(null);
   const [sendStatus, setSendStatus] = useState("");
@@ -4680,6 +4698,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
       ].filter(Boolean).join("\n")
     : "Sin datos de facturación";
   const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || "Pendiente";
+  const selectedQuoteLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((language) => language.value === quoteLanguage)?.label || "Español";
 
   useEffect(() => {
     if (!selectedLead || lastDiscountLeadId.current === selectedLead.id) return;
@@ -4727,6 +4746,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     });
     setLeadSaveStatus("");
   }, [selectedLead?.id]);
+
+  useEffect(() => {
+    if (!selectedLead || quoteLanguageTouched) return;
+    setQuoteLanguage(quoteLanguageForCountry(selectedLead.country));
+  }, [selectedLead?.country, quoteLanguageTouched]);
 
   function chooseLead(lead) {
     setSelectedLeadId(lead.id);
@@ -5376,8 +5400,22 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                 {sendStatus ? <p className="form-success">{sendStatus}</p> : null}
               </section>
               <section className="quote-send-preview" aria-label="Vista previa del PDF adjunto">
+                <label className="quote-pdf-language-row">
+                  <span>Idioma del presupuesto</span>
+                  <select
+                    value={quoteLanguage}
+                    onChange={(event) => {
+                      setQuoteLanguage(event.target.value);
+                      setQuoteLanguageTouched(true);
+                    }}
+                  >
+                    {QUOTE_LANGUAGE_OPTIONS.map((language) => (
+                      <option key={language.value} value={language.value}>{language.label}</option>
+                    ))}
+                  </select>
+                </label>
                 <div className="quote-pdf-toolbar">
-                  <span>Vista previa del PDF</span>
+                  <span>Vista previa del PDF · {selectedQuoteLanguageLabel}</span>
                   <div>
                     <button type="button" title="Descargar próximamente"><Download size={17} /></button>
                     <button type="button" title="Imprimir próximamente">PDF</button>
