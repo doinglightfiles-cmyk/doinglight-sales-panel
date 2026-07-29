@@ -1062,6 +1062,7 @@ function serializeSalesQuote(quote, leadsById) {
 
   return {
     id: quote.id,
+    leadId: quote.leadId,
     number: quote.quoteNumber || "-",
     contact: lead.fullName || lead.companyName || "Cliente sin asignar",
     detail,
@@ -3940,6 +3941,7 @@ const QUOTE_TEMPLATES = [
 function QuotesView({ token }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedQuote, setSelectedQuote] = useState(null);
   const [query, setQuery] = useState("");
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
@@ -4044,8 +4046,27 @@ function QuotesView({ token }) {
                 </tr>
               ) : null}
               {filteredQuotes.map((quote) => (
-                <tr key={quote.id}>
-                  <td className="select-column"><input type="checkbox" aria-label={`Seleccionar presupuesto ${quote.number}`} /></td>
+                <tr
+                  className="clickable-table-row"
+                  key={quote.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedQuote(quote)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedQuote(quote);
+                    }
+                  }}
+                >
+                  <td className="select-column">
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar presupuesto ${quote.number}`}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    />
+                  </td>
                   <td className="invoice-kind-column"><span className="invoice-kind-badge quote-badge">P</span></td>
                   <td>{dateOnly(quote.date)}</td>
                   <td><span className={`invoice-payment-status ${quote.statusKey}`}>{quote.status}</span></td>
@@ -4084,7 +4105,94 @@ function QuotesView({ token }) {
           />
         </ModalShell>
       ) : null}
+      {selectedQuote ? (
+        <QuoteDetailModal
+          token={token}
+          quote={selectedQuote}
+          lead={leadsById.get(selectedQuote.leadId)}
+          onClose={() => setSelectedQuote(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function QuoteDetailModal({ token, quote, lead, onClose }) {
+  const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
+  const item = detail.data?.item || null;
+  const lines = item?.items || [];
+  const status = quoteStatusState(item?.status || quote.status);
+
+  return (
+    <ModalShell
+      title={`Presupuesto ${quote.number}`}
+      eyebrow="Ficha de presupuesto"
+      size="wide-modal quote-record-modal"
+      onClose={onClose}
+    >
+      <div className="quote-record-body">
+        {detail.error ? <p className="form-error">{detail.error}</p> : null}
+        {detail.loading ? <p className="muted-text">Cargando presupuesto...</p> : null}
+        {item ? (
+          <>
+            <div className="detail-grid quote-detail-grid">
+              <DetailItem label="Cliente" value={lead?.companyName || lead?.fullName || quote.contact} />
+              <DetailItem label="Fecha" value={dateOnly(item.createdAt)} />
+              <DetailItem label="Estado" value={status.label} />
+              <DetailItem label="Serie / Núm." value={item.quoteNumber} />
+              <DetailItem label="Subtotal" value={money(item.subtotal)} />
+              <DetailItem label="Total" value={money(item.total)} />
+            </div>
+
+            <section className="quote-record-section">
+              <header>
+                <h4>Líneas del presupuesto</h4>
+              </header>
+              <div className="table-wrap quote-record-lines">
+                <table className="module-table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Referencia</th>
+                      <th>Descripción</th>
+                      <th>Cantidad</th>
+                      <th>Precio</th>
+                      <th>Dto (%)</th>
+                      <th>Importe</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line) => (
+                      <tr key={line.id}>
+                        <td><ProductThumbnail product={line.productSnapshot || { sku: line.sku, title: line.title }} /></td>
+                        <td>{line.sku}</td>
+                        <td>
+                          <div className="quote-record-description">
+                            <strong>{line.title}</strong>
+                            <span>{line.productSnapshot?.shortDescription || line.productSnapshot?.slug || ""}</span>
+                          </div>
+                        </td>
+                        <td>{tableMoney(line.quantity)}</td>
+                        <td>{money(line.unitPrice)}</td>
+                        <td>{tableMoney(line.discountPercent)}</td>
+                        <td>{money(line.lineTotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="quote-record-section">
+              <header>
+                <h4>Notas</h4>
+              </header>
+              <p className="quote-record-notes">{item.notes || "Sin notas."}</p>
+            </section>
+          </>
+        ) : null}
+      </div>
+    </ModalShell>
   );
 }
 

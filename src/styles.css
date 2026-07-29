@@ -1383,6 +1383,19 @@ select:focus {
   white-space: nowrap;
 }
 
+.clickable-table-row {
+  cursor: pointer;
+}
+
+.clickable-table-row:hover td {
+  background: #f8fbef;
+}
+
+.clickable-table-row:focus {
+  outline: 2px solid rgba(143, 188, 19, 0.55);
+  outline-offset: -2px;
+}
+
 .select-column {
   width: 48px;
   text-align: center;
@@ -2323,6 +2336,10 @@ th {
   max-height: min(960px, calc(100vh - 48px));
 }
 
+.quote-record-modal {
+  width: min(1500px, calc(100vw - 48px));
+}
+
 .invoice-create-modal {
   width: min(1680px, calc(100vw - 48px));
 }
@@ -3237,6 +3254,77 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.quote-record-body {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  overflow: auto;
+  padding: 20px 22px;
+}
+
+.quote-detail-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.quote-record-section {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcf8;
+}
+
+.quote-record-section header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quote-record-section h4 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.quote-record-lines {
+  overflow-x: auto;
+}
+
+.quote-record-lines table {
+  min-width: 980px;
+}
+
+.quote-record-lines td,
+.quote-record-lines th {
+  vertical-align: middle;
+}
+
+.quote-record-description {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.quote-record-description strong {
+  font-weight: 650;
+}
+
+.quote-record-description span {
+  max-width: 620px;
+  overflow: hidden;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.quote-record-notes {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .quote-line-card {
