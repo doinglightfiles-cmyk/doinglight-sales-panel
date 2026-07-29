@@ -3575,6 +3575,18 @@ th {
   min-height: 44px;
 }
 
+.quote-vies-quick-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.quote-vies-quick-field .secondary-button {
+  min-height: 44px;
+  white-space: nowrap;
+  padding-inline: 14px;
+}
+
 .form-success {
   margin: 0;
   color: var(--green-dark);

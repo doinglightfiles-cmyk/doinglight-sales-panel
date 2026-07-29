@@ -1156,8 +1156,12 @@ const QUOTE_LANGUAGE_OPTIONS = [
 ];
 
 function quoteLanguageForCountry(country) {
-  const normalizedCountry = String(country || "").toUpperCase();
-  const matchedLanguage = QUOTE_LANGUAGE_OPTIONS.find((language) => language.countryCode === normalizedCountry);
+  const normalizedCountry = String(country || "").trim().toUpperCase();
+  const countryRecord = EUROPEAN_COUNTRIES.find(
+    (item) => item.code === normalizedCountry || item.label.toUpperCase() === normalizedCountry
+  );
+  const countryCode = countryRecord?.code || normalizedCountry;
+  const matchedLanguage = QUOTE_LANGUAGE_OPTIONS.find((language) => language.countryCode === countryCode);
   return matchedLanguage?.value || "es";
 }
 
@@ -4594,8 +4598,12 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
 
 function QuoteDetailModal({ token, quote, lead, onClose }) {
   const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
-  const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const item = detail.data?.item || null;
+  const catalogLocale = item?.locale || quote.locale || "es";
+  const catalog = useResource(
+    () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(catalogLocale)}&channel=sales_app`, { token }),
+    [token, catalogLocale]
+  );
   const lines = item?.items || [];
   const status = quoteStatusState(item?.status || quote.status);
   const productsBySku = useMemo(() => {
@@ -4613,11 +4621,11 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
       ...catalogProduct,
       ...snapshot,
       sku: line.sku,
-      title: snapshot.title || line.title || catalogProduct.title,
-      mainImageUrl: snapshot.mainImageUrl || catalogProduct.mainImageUrl,
-      media: snapshot.media || catalogProduct.media,
-      shortDescription: snapshot.shortDescription || catalogProduct.shortDescription,
-      slug: snapshot.slug || catalogProduct.slug
+      title: catalogProduct.title || snapshot.title || line.title,
+      mainImageUrl: catalogProduct.mainImageUrl || snapshot.mainImageUrl,
+      media: catalogProduct.media || snapshot.media,
+      shortDescription: catalogProduct.shortDescription || snapshot.shortDescription,
+      slug: catalogProduct.slug || snapshot.slug
     };
   }
 
@@ -4731,12 +4739,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const [leadDraft, setLeadDraft] = useState(null);
   const [leadSaveStatus, setLeadSaveStatus] = useState("");
   const [leadSaving, setLeadSaving] = useState(false);
+  const [quoteViesMessage, setQuoteViesMessage] = useState("");
+  const [quoteViesChecking, setQuoteViesChecking] = useState(false);
   const normalizedLeadSearch = leadSearchQuery.trim();
   const leads = useResource(
     () => apiRequest(`/api/sales/leads?limit=25&contactKind=client&q=${encodeURIComponent(normalizedLeadSearch)}`, { token }),
     [token, normalizedLeadSearch]
   );
-  const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
   const [attachments, setAttachments] = useState(() =>
@@ -4785,8 +4794,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const [validUntil, setValidUntil] = useState(addDaysInput(initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
   const [internalNotes, setInternalNotes] = useState(initialQuote?.internalNotes || "");
-  const [quoteLanguage, setQuoteLanguage] = useState("es");
+  const [quoteLanguage, setQuoteLanguage] = useState(initialQuote?.locale || "es");
   const [quoteLanguageTouched, setQuoteLanguageTouched] = useState(false);
+  const catalog = useResource(
+    () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(quoteLanguage || "es")}&channel=sales_app`, { token }),
+    [token, quoteLanguage]
+  );
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendDraft, setSendDraft] = useState(null);
   const [sendStatus, setSendStatus] = useState("");
@@ -4842,7 +4855,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
 
     lastDiscountLeadId.current = selectedLead.id;
     const defaultDiscount = Number(selectedLead.defaultDiscountPercent || 0);
-    if (selectedLead.defaultTaxRate !== null && selectedLead.defaultTaxRate !== undefined) {
+    if (selectedLead.viesValid || selectedLead.taxIdentifierType === "sujeto_pasivo") {
+      setTaxRate(0);
+    } else if (selectedLead.defaultTaxRate !== null && selectedLead.defaultTaxRate !== undefined) {
       setTaxRate(Number(selectedLead.defaultTaxRate));
     }
     if (defaultDiscount <= 0) return;
@@ -4879,15 +4894,25 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
       population: selectedLead.population || "",
       city: selectedLead.city || "",
       province: selectedLead.province || "",
-      country: selectedLead.country || "ES"
+      country: selectedLead.country || "ES",
+      taxIdentifierType: selectedLead.taxIdentifierType || (selectedLead.taxId ? "cif" : "nif"),
+      viesEnabled: Boolean(selectedLead.viesEnabled),
+      viesValid: Boolean(selectedLead.viesValid),
+      defaultTaxRate: selectedLead.defaultTaxRate ?? 21
     });
     setLeadSaveStatus("");
+    setQuoteViesMessage("");
   }, [selectedLead?.id]);
 
   useEffect(() => {
     if (!selectedLead || quoteLanguageTouched) return;
     setQuoteLanguage(quoteLanguageForCountry(selectedLead.country));
   }, [selectedLead?.country, quoteLanguageTouched]);
+
+  useEffect(() => {
+    if (!leadDraft?.country || quoteLanguageTouched) return;
+    setQuoteLanguage(quoteLanguageForCountry(leadDraft.country));
+  }, [leadDraft?.country, quoteLanguageTouched]);
 
   function chooseLead(lead) {
     setSelectedLeadId(lead.id);
@@ -4909,6 +4934,66 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   function updateLeadDraft(patch) {
     setLeadDraft((current) => ({ ...(current || {}), ...patch }));
     setLeadSaveStatus("");
+    if (patch.taxId !== undefined || patch.country !== undefined || patch.taxIdentifierType !== undefined) {
+      setQuoteViesMessage("");
+    }
+  }
+
+  async function validateQuoteLeadVies() {
+    if (!selectedLead || !leadDraft?.taxId || !leadDraft?.country) return;
+
+    setQuoteViesChecking(true);
+    setQuoteViesMessage("");
+    setLeadSaveStatus("");
+    try {
+      const payload = await apiRequest("/api/sales/vies/validate", {
+        token,
+        method: "POST",
+        body: { countryCode: leadDraft.country, vatNumber: leadDraft.taxId }
+      });
+      const result = payload?.result;
+      const isValid = Boolean(result?.valid);
+      const patchedLead = {
+        ...selectedLead,
+        ...leadDraft,
+        contactKind: "client",
+        fullName: leadDraft.fullName || selectedLead.fullName || selectedLead.companyName || "Cliente",
+        customerType: selectedLead.customerType || "particular",
+        customerLevel: selectedLead.customerLevel || "level_1",
+        defaultDiscountPercent: selectedLead.defaultDiscountPercent || 0,
+        defaultDiscountMaxPercent: selectedLead.defaultDiscountMaxPercent ?? selectedLead.defaultDiscountPercent ?? 0,
+        taxIdentifierType: leadDraft.taxIdentifierType || selectedLead.taxIdentifierType || "cif",
+        viesEnabled: true,
+        viesValid: isValid,
+        defaultTaxRate: isValid ? 0 : (selectedLead.defaultTaxRate ?? 21),
+        additionalAddresses: selectedLead.additionalAddresses || [],
+        communicationContacts: selectedLead.communicationContacts || [],
+        preferredPaymentMethod: selectedLead.preferredPaymentMethod || "",
+        paymentTermDays: selectedLead.paymentTermDays || null,
+        paymentNotificationsEnabled: Boolean(selectedLead.paymentNotificationsEnabled)
+      };
+      const saveResult = await apiRequest(`/api/sales/leads/${selectedLead.id}`, {
+        token,
+        method: "PATCH",
+        body: patchedLead
+      });
+      setSelectedLeadSnapshot(saveResult.item);
+      setLeadDraft((current) => ({
+        ...(current || {}),
+        viesEnabled: true,
+        viesValid: isValid,
+        defaultTaxRate: isValid ? 0 : (current?.defaultTaxRate ?? 21)
+      }));
+      if (isValid) {
+        setTaxRate(0);
+      }
+      setQuoteViesMessage(isValid ? `VIES validado${result?.name ? ` · ${result.name}` : ""}. IVA 0%.` : "No consta como válido en VIES.");
+      leads.reload();
+    } catch (err) {
+      setQuoteViesMessage(err.message);
+    } finally {
+      setQuoteViesChecking(false);
+    }
   }
 
   async function saveSelectedLeadDraft() {
@@ -4931,7 +5016,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
         communicationContacts: selectedLead.communicationContacts || [],
         preferredPaymentMethod: selectedLead.preferredPaymentMethod || "",
         paymentTermDays: selectedLead.paymentTermDays || null,
-        paymentNotificationsEnabled: Boolean(selectedLead.paymentNotificationsEnabled)
+        paymentNotificationsEnabled: Boolean(selectedLead.paymentNotificationsEnabled),
+        viesEnabled: Boolean(leadDraft.viesEnabled || selectedLead.viesEnabled),
+        viesValid: Boolean(leadDraft.viesValid || selectedLead.viesValid),
+        defaultTaxRate: leadDraft.viesValid || leadDraft.taxIdentifierType === "sujeto_pasivo"
+          ? 0
+          : (leadDraft.defaultTaxRate ?? selectedLead.defaultTaxRate ?? 21)
       };
       const result = await apiRequest(`/api/sales/leads/${selectedLead.id}`, { token, method: "PATCH", body: payload });
       setSelectedLeadSnapshot(result.item);
@@ -5078,7 +5168,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
         token,
         method: initialQuote ? "PATCH" : "POST",
         body: {
-          locale: "es",
+          locale: quoteLanguage || "es",
           leadId,
           status: quoteStatus,
           notes,
@@ -5250,7 +5340,27 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                   <input value={leadDraft.email} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder="Correo electrónico" />
                   <input value={leadDraft.phone} onChange={(event) => updateLeadDraft({ phone: event.target.value })} placeholder="Teléfono" />
                   <input value={leadDraft.mobilePhone} onChange={(event) => updateLeadDraft({ mobilePhone: event.target.value })} placeholder="Teléfono móvil" />
-                  <input value={leadDraft.taxId} onChange={(event) => updateLeadDraft({ taxId: event.target.value })} placeholder="NIF / CIF" />
+                  <select value={leadDraft.taxIdentifierType || "cif"} onChange={(event) => updateLeadDraft({ taxIdentifierType: event.target.value, viesValid: false })}>
+                    <option value="nif">NIF</option>
+                    <option value="cif">CIF</option>
+                    <option value="sujeto_pasivo">Sujeto pasivo</option>
+                  </select>
+                  <div className="quote-vies-quick-field">
+                    <input value={leadDraft.taxId} onChange={(event) => updateLeadDraft({ taxId: event.target.value.toUpperCase(), viesValid: false })} placeholder="NIF / CIF intracomunitario" />
+                    <button
+                      className={[
+                        "secondary-button",
+                        leadDraft.viesValid ? "vies-validated-button" : "",
+                        quoteViesMessage && !leadDraft.viesValid ? "vies-invalid-button" : ""
+                      ].filter(Boolean).join(" ")}
+                      type="button"
+                      onClick={validateQuoteLeadVies}
+                      disabled={!leadDraft.country || !leadDraft.taxId || quoteViesChecking}
+                    >
+                      {leadDraft.viesValid ? <CheckCircle2 size={15} /> : null}
+                      {quoteViesChecking ? "Validando..." : leadDraft.viesValid ? "VIES validado" : quoteViesMessage && !leadDraft.viesValid ? "VIES no válido" : "Validar VIES"}
+                    </button>
+                  </div>
                   <input value={leadDraft.companyName} onChange={(event) => updateLeadDraft({ companyName: event.target.value })} placeholder="Empresa" />
                   <input value={leadDraft.address} onChange={(event) => updateLeadDraft({ address: event.target.value })} placeholder="Dirección" />
                   <input value={leadDraft.postalCode} onChange={(event) => updateLeadDraft({ postalCode: event.target.value })} placeholder="C.P." />
@@ -5264,6 +5374,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                   </select>
                 </div>
                 {leadSaveStatus ? <p className={leadSaveStatus.includes("guardados") ? "form-success" : "form-error"}>{leadSaveStatus}</p> : null}
+                {quoteViesMessage ? <p className={leadDraft.viesValid ? "form-success" : "form-error"}>{quoteViesMessage}</p> : null}
               </div>
             ) : null}
             <label>
