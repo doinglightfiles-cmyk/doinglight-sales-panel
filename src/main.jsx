@@ -903,6 +903,22 @@ function formatInvoiceNumber(docNumber = {}) {
   return [series, paddedNumber].filter(Boolean).join(" ") || "-";
 }
 
+const DEFAULT_INVOICE_SERIES = ["AL", "AM", "AMS", "DE", "FR", "IT", "PA", "PT", "R1", "R100", "SZ"];
+
+function invoiceSeriesLabel(series) {
+  return series ? series : "Sin serie";
+}
+
+function nextInvoiceSequence(series, invoices = []) {
+  const numbers = invoices
+    .filter((invoice) => String(invoice.series || "") === String(series || ""))
+    .map((invoice) => Number(invoice.rawNumber))
+    .filter((number) => Number.isFinite(number));
+  const nextNumber = numbers.length ? Math.max(...numbers) + 1 : 1;
+
+  return String(nextNumber).padStart(5, "0");
+}
+
 function invoicePaymentState(main, total, fdState = "") {
   const normalizedFdState = String(fdState || "").trim().toLowerCase();
   const fdStateLabels = {
@@ -1325,6 +1341,10 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
   const today = inputDate();
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
   const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
+  const invoicesResource = useResource(
+    () => apiRequest("/api/facturadirecta/invoices?limit=500", { token }),
+    [token]
+  );
   const [form, setForm] = useState({
     operation: "Empresa nacional",
     template: "Principal",
@@ -1333,13 +1353,16 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
     leadId: "",
     date: today,
     dueDate: today,
-    documentNumber: "",
+    invoiceSeries: "",
+    invoiceSequence: "",
     sendEmail: "",
     paymentMethod: "",
     billingData: "España",
     notes: "",
     internalNotes: ""
   });
+  const [newSeriesValue, setNewSeriesValue] = useState("");
+  const [customSeries, setCustomSeries] = useState([]);
   const [lines, setLines] = useState([
     {
       id: crypto.randomUUID(),
@@ -1355,6 +1378,27 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 
   const products = catalog.data?.products || [];
   const clients = leads.data?.items || [];
+  const importedInvoices = useMemo(
+    () => (invoicesResource.data?.items || []).map(serializeFacturaDirectaInvoice),
+    [invoicesResource.data]
+  );
+  const invoiceSeriesOptions = useMemo(() => {
+    const importedSeries = importedInvoices.map((invoice) => invoice.series || "");
+    return Array.from(new Set(["", ...DEFAULT_INVOICE_SERIES, ...importedSeries, ...customSeries]))
+      .map((series) => String(series || "").trim())
+      .filter((series, index, list) => list.indexOf(series) === index)
+      .sort((a, b) => {
+        if (a === "") return -1;
+        if (b === "") return 1;
+        return a.localeCompare(b, "es");
+      });
+  }, [customSeries, importedInvoices]);
+  const nextSequence = useMemo(
+    () => nextInvoiceSequence(form.invoiceSeries, importedInvoices),
+    [form.invoiceSeries, importedInvoices]
+  );
+  const resolvedInvoiceSequence = form.invoiceSequence || nextSequence;
+  const resolvedDocumentNumber = [form.invoiceSeries, resolvedInvoiceSequence].filter(Boolean).join(" ");
   const clientOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedClient = clients.find((lead) => lead.id === form.leadId) || null;
@@ -1398,6 +1442,18 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 
   function removeInvoiceLine(lineId) {
     setLines((current) => (current.length === 1 ? current : current.filter((line) => line.id !== lineId)));
+  }
+
+  function addNewSeries() {
+    const normalized = newSeriesValue.trim().toUpperCase();
+    if (!normalized) return;
+    setCustomSeries((current) => (current.includes(normalized) ? current : [...current, normalized]));
+    setForm((current) => ({
+      ...current,
+      invoiceSeries: normalized,
+      invoiceSequence: ""
+    }));
+    setNewSeriesValue("");
   }
 
   const subtotal = lines.reduce((sum, line) => sum + lineSubtotal(line), 0);
@@ -1466,14 +1522,39 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
             }}
           />
         </label>
-        <div className="invoice-field invoice-number-field">
-          <span className="invoice-field-spacer" aria-hidden="true" />
-          <input
-            placeholder="Número de documento"
-            value={form.documentNumber}
-            onChange={(event) => setForm({ ...form, documentNumber: event.target.value })}
-          />
-          <small>El número se generará automáticamente</small>
+        <div className="invoice-number-group">
+          <label className="invoice-field">
+            <span>Serie</span>
+            <select
+              value={form.invoiceSeries}
+              onChange={(event) => setForm({ ...form, invoiceSeries: event.target.value, invoiceSequence: "" })}
+            >
+              {invoiceSeriesOptions.map((series) => (
+                <option key={series || "no-series"} value={series}>
+                  {invoiceSeriesLabel(series)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="invoice-field invoice-number-field">
+            <span>Número</span>
+            <input value={resolvedInvoiceSequence} readOnly />
+          </label>
+          <small>
+            {resolvedDocumentNumber ? `Se generará ${resolvedDocumentNumber}` : "El número se generará automáticamente"}
+          </small>
+          <div className="invoice-new-series-row">
+            <input
+              value={newSeriesValue}
+              onChange={(event) => setNewSeriesValue(event.target.value.toUpperCase())}
+              placeholder="Nueva serie"
+              aria-label="Nueva serie de factura"
+            />
+            <button type="button" onClick={addNewSeries}>
+              <Plus size={16} />
+              Añadir
+            </button>
+          </div>
         </div>
         <div className="invoice-field invoice-client-field">
           <span className="invoice-field-spacer" aria-hidden="true" />

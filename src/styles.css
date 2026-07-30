@@ -1773,6 +1773,7 @@ select:focus {
 .invoice-field input,
 .invoice-field select,
 .invoice-field textarea,
+.invoice-new-series-row input,
 .invoice-line-row input,
 .invoice-line-row select {
   min-height: 52px;
@@ -1799,6 +1800,55 @@ select:focus {
   color: var(--muted);
   font-size: 12px;
   font-weight: 650;
+}
+
+.invoice-number-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.75fr);
+  gap: 8px 10px;
+}
+
+.invoice-number-group > small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.invoice-number-field input[readonly] {
+  color: var(--ink);
+  background: #f7f9f3;
+  font-weight: 750;
+}
+
+.invoice-new-series-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.invoice-new-series-row input {
+  min-width: 0;
+  border-radius: 7px;
+  padding: 0 14px;
+}
+
+.invoice-new-series-row button {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 14px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  font-weight: 750;
+}
+
+.invoice-new-series-row button:hover {
+  background: #dcebbb;
 }
 
 .invoice-billing-field {
