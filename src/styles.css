@@ -3352,6 +3352,21 @@ th {
   letter-spacing: 0;
 }
 
+.quote-transfer-lines-button {
+  min-height: 34px;
+  border: 1px solid rgba(82, 116, 11, 0.18);
+  border-radius: 7px;
+  padding: 0 14px;
+  color: var(--green-dark);
+  background: #eef7d7;
+  font-weight: 800;
+}
+
+.quote-transfer-lines-button:hover {
+  color: var(--white);
+  background: var(--green-dark);
+}
+
 .form-section-note {
   color: var(--muted);
   font-size: 13px;
@@ -4230,6 +4245,69 @@ th {
   display: flex;
   justify-content: flex-end;
   gap: 5px;
+}
+
+.transfer-lines-modal {
+  width: min(760px, calc(100vw - 44px));
+}
+
+.transfer-lines-content {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.transfer-lines-content > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.transfer-lines-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(420px, 52vh);
+  overflow: auto;
+}
+
+.transfer-line-option {
+  display: grid;
+  grid-template-columns: 22px 46px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--white);
+}
+
+.transfer-line-option.active {
+  border-color: rgba(143, 188, 19, 0.55);
+  background: #f7fbec;
+}
+
+.transfer-line-option input {
+  width: 18px;
+  height: 18px;
+}
+
+.transfer-line-option > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.transfer-line-option strong,
+.transfer-line-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-line-option small {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .tiny-icon-button {

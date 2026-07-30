@@ -5754,6 +5754,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   );
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
+  const [transferLinesOpen, setTransferLinesOpen] = useState(false);
+  const [transferLineIds, setTransferLineIds] = useState([]);
   const [attachments, setAttachments] = useState(() =>
     (initialQuote?.attachments || []).map((attachment) => ({
       id: attachment.id || crypto.randomUUID(),
@@ -6109,6 +6111,29 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     if (focus) {
       window.setTimeout(() => lineReferenceRefs.current[nextLine.id]?.focus(), 0);
     }
+  }
+
+  function openTransferLines() {
+    setTransferLineIds(lines.filter((line) => line.sku).map((line) => line.id));
+    setTransferLinesOpen(true);
+  }
+
+  function toggleTransferLine(lineId) {
+    setTransferLineIds((current) => (
+      current.includes(lineId)
+        ? current.filter((idValue) => idValue !== lineId)
+        : [...current, lineId]
+    ));
+  }
+
+  function confirmTransferLines() {
+    if (!transferLineIds.length) {
+      window.alert("Selecciona al menos una línea para traspasar.");
+      return;
+    }
+
+    window.alert("Selección preparada. El siguiente paso es activar albaranes internos para crear el albarán y bloquear estas líneas sin tocar FacturaDirecta.");
+    setTransferLinesOpen(false);
   }
 
   function removeLine(lineId) {
@@ -6527,6 +6552,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <section className="form-section">
         <header className="form-section-header">
           <h4>Líneas del presupuesto</h4>
+          {initialQuote ? (
+            <button className="quote-transfer-lines-button" type="button" onClick={openTransferLines}>
+              Traspasar líneas a albarán
+            </button>
+          ) : null}
         </header>
         {lines.map((line, index) => {
           const selectedProduct = productForLine(line);
@@ -6696,6 +6726,38 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           Enviar
         </button>
       </div>
+      {transferLinesOpen ? (
+        <ModalShell
+          title="Traspasar líneas a albarán"
+          eyebrow="Presupuesto"
+          size="transfer-lines-modal"
+          onClose={() => setTransferLinesOpen(false)}
+        >
+          <div className="transfer-lines-content">
+            <p>Selecciona las líneas que quieres servir ahora. Cuando activemos albaranes internos, estas líneas quedarán enlazadas y bloqueadas en el presupuesto.</p>
+            <div className="transfer-lines-list">
+              {lines.map((line) => {
+                const selectedProduct = productForLine(line);
+                const checked = transferLineIds.includes(line.id);
+                return (
+                  <label className={`transfer-line-option ${checked ? "active" : ""}`} key={line.id}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleTransferLine(line.id)} />
+                    <ProductThumbnail product={selectedProduct || { sku: line.sku }} />
+                    <span>
+                      <strong>{line.sku || "Sin referencia"} · {selectedProduct?.title || "Producto no seleccionado"}</strong>
+                      <small>Cantidad {tableMoney(line.quantity)} · Importe {money(lineTotal(line))}</small>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setTransferLinesOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="button" onClick={confirmTransferLines}>Crear albarán con estas líneas</button>
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
       {sendModalOpen && sendDraft ? (
         <div className="quote-send-overlay" role="dialog" aria-modal="true" aria-label="Enviar por correo electrónico">
           <form className="quote-send-dialog" onSubmit={prepareSend}>
