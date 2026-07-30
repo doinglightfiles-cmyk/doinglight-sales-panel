@@ -1367,7 +1367,7 @@ select:focus {
   display: grid;
   place-items: start center;
   padding-top: 72px;
-  background: rgba(6, 9, 7, 0.28);
+  background: rgba(23, 32, 20, 0.22);
 }
 
 .document-actions-backdrop.stacked {
@@ -1381,12 +1381,13 @@ select:focus {
   width: min(980px, calc(100vw - 56px));
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 72px;
+  gap: 42px;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 52px 58px 44px;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(43, 48, 52, 0.96);
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+  padding: 46px 52px 38px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 28px 90px rgba(29, 38, 22, 0.18);
 }
 
 .document-actions-close {
@@ -1397,48 +1398,54 @@ select:focus {
   height: 42px;
   display: grid;
   place-items: center;
-  border: 0;
-  color: rgba(255, 255, 255, 0.78);
-  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--white);
 }
 
 .document-actions-close:hover {
-  color: #fff;
+  color: var(--green-dark);
+  border-color: var(--green);
+  background: #f4f9e7;
 }
 
 .document-actions-column {
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 10px;
 }
 
 .document-actions-column h4 {
   margin: 0 0 10px;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 18px;
+  color: var(--green-dark);
+  font-size: 15px;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .document-actions-column button {
   width: 100%;
-  min-height: 42px;
+  min-height: 40px;
   border: 0;
-  border-radius: 4px;
-  padding: 6px 0;
-  color: rgba(255, 255, 255, 0.72);
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: var(--ink);
   background: transparent;
   font: inherit;
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 700;
   text-align: left;
 }
 
 .document-actions-column button:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--green-dark);
+  background: #f4f9e7;
 }
 
 .document-actions-column button.danger:hover {
-  color: #ffe1e1;
-  background: rgba(180, 37, 37, 0.22);
+  color: var(--danger);
+  background: #fff1ef;
 }
 
 .duplicate-document-modal {
