@@ -6319,14 +6319,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <section className="quote-fd-fields">
         <div className="quote-fd-actions">
           <div className="quote-client-header-actions">
-            <div className="segmented-control">
-              <button type="button" className={clientMode === "existing" ? "active" : ""} onClick={() => setClientMode("existing")}>
-                Buscar
-              </button>
-              <button type="button" className={clientMode === "new" ? "active" : ""} onClick={() => setClientMode("new")}>
-                Crear
-              </button>
-            </div>
+            <button type="button" className={`quote-client-create-button ${clientMode === "new" ? "active" : ""}`} onClick={() => setClientMode("new")}>
+              Crear
+            </button>
             <div className="attachment-menu-wrap">
               <button
                 className="attachment-trigger icon-only-attachment"
