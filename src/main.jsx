@@ -402,6 +402,16 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     setGlobalInvoiceOpen(true);
   }
 
+  useEffect(() => {
+    function handleCreateInvoice() {
+      setCreateDrawerOpen(false);
+      setGlobalInvoiceOpen(true);
+    }
+
+    window.addEventListener("doinglight:create-invoice", handleCreateInvoice);
+    return () => window.removeEventListener("doinglight:create-invoice", handleCreateInvoice);
+  }, []);
+
   function openGlobalContactPicker() {
     setCreateDrawerOpen(false);
     setGlobalContactPickerOpen(true);
@@ -2554,6 +2564,7 @@ function DeliveryNoteDetailModal({ token, deliveryNote, onClose }) {
               onSend={() => setSendOpen(true)}
               onDownload={() => renderDocumentElementAsPdf(pdfId, pdfFilename)}
               onPrint={() => printDocumentElement(pdfId, pdfFilename)}
+              onCreateInvoice={() => window.dispatchEvent(new CustomEvent("doinglight:create-invoice", { detail: { deliveryNoteId: deliveryNote.id } }))}
               onClose={() => setActionsOpen(false)}
             />
           ) : null}
@@ -4309,7 +4320,16 @@ function ModalShell({ title, eyebrow, children, onClose, size = "", actions = nu
   );
 }
 
-function DuplicateAsDocumentModal({ onClose }) {
+function DuplicateAsDocumentModal({ onClose, onDuplicateAsQuote, onDuplicateAsDeliveryNote }) {
+  async function run(action) {
+    try {
+      if (action) await action();
+      onClose();
+    } catch (err) {
+      window.alert(err.message || "No se ha podido duplicar el documento.");
+    }
+  }
+
   return (
     <div className="document-actions-backdrop stacked" role="presentation" onMouseDown={onClose}>
       <article className="duplicate-document-modal" role="dialog" aria-modal="true" aria-label="Duplicar como" onMouseDown={(event) => event.stopPropagation()}>
@@ -4319,11 +4339,11 @@ function DuplicateAsDocumentModal({ onClose }) {
             <X size={24} />
           </button>
         </header>
-        <button type="button" onClick={onClose}>
+        <button type="button" onClick={() => run(onDuplicateAsQuote)}>
           <span>Presupuesto</span>
           <ChevronRight size={22} />
         </button>
-        <button type="button" onClick={onClose}>
+        <button type="button" onClick={() => run(onDuplicateAsDeliveryNote)}>
           <span>Albarán</span>
           <ChevronRight size={22} />
         </button>
@@ -4332,42 +4352,65 @@ function DuplicateAsDocumentModal({ onClose }) {
   );
 }
 
-function DocumentActionsMenu({ type, onClose, onSend, onPrint, onDownload }) {
+function DocumentActionsMenu({
+  type,
+  onClose,
+  onSend,
+  onPrint,
+  onDownload,
+  onModify,
+  onDuplicate,
+  onDuplicateAsQuote,
+  onDuplicateAsDeliveryNote,
+  onCreateInvoice,
+  onDownloadFacturae,
+  onRegisterIncome,
+  onRegisterPayment,
+  onVoid,
+  onDelete
+}) {
   const [duplicateAsOpen, setDuplicateAsOpen] = useState(false);
   const isInvoice = type === "invoice";
+  const unavailable = (label) => () => {
+    window.alert(`${label} quedará activo cuando este documento esté importado como documento interno del panel.`);
+  };
   const exportActions = [
     { label: "Imprimir", action: onPrint || (() => window.print()) },
-    { label: "Descargar PDF", action: onDownload },
-    ...(isInvoice ? [{ label: "Descargar Facturae" }] : [])
+    { label: "Descargar PDF", action: onDownload || unavailable("Descargar PDF") },
+    ...(isInvoice ? [{ label: "Descargar Facturae", action: onDownloadFacturae || unavailable("Descargar Facturae") }] : [])
   ];
   const convertActions = isInvoice
     ? [
-        { label: "Duplicar" },
+        { label: "Duplicar", action: onDuplicate || unavailable("Duplicar") },
         { label: "Duplicar como...", action: () => { setDuplicateAsOpen(true); return false; } }
       ]
     : [
-        { label: "Duplicar" },
-        { label: "Duplicar como presupuesto" },
-        { label: "Crear factura" }
+        { label: "Duplicar", action: onDuplicate || unavailable("Duplicar") },
+        { label: "Duplicar como presupuesto", action: onDuplicateAsQuote || onDuplicate || unavailable("Duplicar como presupuesto") },
+        { label: "Crear factura", action: onCreateInvoice || unavailable("Crear factura") }
       ];
   const documentActions = isInvoice
     ? [
-        { label: "Modificar" },
-        { label: "Enviar", action: onSend },
-        { label: "Registrar ingreso" },
-        { label: "Registrar pago" },
-        { label: "Anular" },
-        { label: "Borrar", danger: true }
+        { label: "Modificar", action: onModify || unavailable("Modificar") },
+        { label: "Enviar", action: onSend || unavailable("Enviar") },
+        { label: "Registrar ingreso", action: onRegisterIncome || unavailable("Registrar ingreso") },
+        { label: "Registrar pago", action: onRegisterPayment || unavailable("Registrar pago") },
+        { label: "Anular", action: onVoid || unavailable("Anular") },
+        { label: "Borrar", action: onDelete || unavailable("Borrar"), danger: true }
       ]
     : [
-        { label: "Modificar" },
-        { label: "Enviar", action: onSend },
-        { label: "Borrar", danger: true }
+        { label: "Modificar", action: onModify || unavailable("Modificar") },
+        { label: "Enviar", action: onSend || unavailable("Enviar") },
+        { label: "Borrar", action: onDelete || unavailable("Borrar"), danger: true }
       ];
 
-  function runAction(action) {
-    const result = action ? action() : undefined;
-    if (result !== false) onClose();
+  async function runAction(action) {
+    try {
+      const result = action ? await action() : undefined;
+      if (result !== false) onClose();
+    } catch (err) {
+      window.alert(err.message || "No se ha podido completar la acción.");
+    }
   }
 
   function renderColumn(title, actions) {
@@ -4400,7 +4443,13 @@ function DocumentActionsMenu({ type, onClose, onSend, onPrint, onDownload }) {
           {renderColumn("Acciones", documentActions)}
         </article>
       </div>
-      {duplicateAsOpen ? <DuplicateAsDocumentModal onClose={() => setDuplicateAsOpen(false)} /> : null}
+      {duplicateAsOpen ? (
+        <DuplicateAsDocumentModal
+          onClose={() => setDuplicateAsOpen(false)}
+          onDuplicateAsQuote={onDuplicateAsQuote || onDuplicate || unavailable("Duplicar como presupuesto")}
+          onDuplicateAsDeliveryNote={onDuplicateAsDeliveryNote || unavailable("Duplicar como albarán")}
+        />
+      ) : null}
     </>
   );
 }
@@ -5422,11 +5471,51 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
   const item = detail.data?.item || null;
+  const quoteActionsRef = useRef({});
 
   function openQuoteSendFromMenu() {
-    window.setTimeout(() => {
-      document.querySelector(".quote-work-modal .send-quote-button")?.click();
-    }, 0);
+    if (!quoteActionsRef.current.openSend) throw new Error("Todavía no se ha cargado el presupuesto.");
+    quoteActionsRef.current.openSend();
+  }
+
+  function modifyQuoteFromMenu() {
+    if (!quoteActionsRef.current.focusForEdit) throw new Error("Todavía no se ha cargado el presupuesto.");
+    quoteActionsRef.current.focusForEdit();
+  }
+
+  function downloadQuoteFromMenu() {
+    if (!quoteActionsRef.current.downloadPdf) throw new Error("Todavía no se ha cargado el PDF del presupuesto.");
+    return quoteActionsRef.current.downloadPdf();
+  }
+
+  function printQuoteFromMenu() {
+    if (!quoteActionsRef.current.printPdf) throw new Error("Todavía no se ha cargado el PDF del presupuesto.");
+    quoteActionsRef.current.printPdf();
+  }
+
+  async function duplicateQuoteFromMenu() {
+    const buildPayload = quoteActionsRef.current.buildPayload;
+    if (!buildPayload) throw new Error("Todavía no se ha cargado el presupuesto.");
+
+    await apiRequest("/api/sales/quotes", {
+      token,
+      method: "POST",
+      body: buildPayload({ status: "draft" })
+    });
+    onDone();
+  }
+
+  function createInvoiceFromQuote() {
+    window.dispatchEvent(new CustomEvent("doinglight:create-invoice", { detail: { quoteId: quote.id } }));
+  }
+
+  async function deleteQuoteFromMenu() {
+    if (!window.confirm(`¿Borrar el presupuesto ${quote.number}? Esta acción no se puede deshacer.`)) {
+      return false;
+    }
+
+    await apiRequest(`/api/sales/quotes/${quote.id}`, { token, method: "DELETE" });
+    onDone();
   }
 
   return (
@@ -5445,6 +5534,13 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
               type="quote"
               onClose={() => setActionsOpen(false)}
               onSend={openQuoteSendFromMenu}
+              onPrint={printQuoteFromMenu}
+              onDownload={downloadQuoteFromMenu}
+              onModify={modifyQuoteFromMenu}
+              onDuplicate={duplicateQuoteFromMenu}
+              onDuplicateAsQuote={duplicateQuoteFromMenu}
+              onCreateInvoice={createInvoiceFromQuote}
+              onDelete={deleteQuoteFromMenu}
             />
           ) : null}
         </>
@@ -5459,6 +5555,7 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
           initialQuote={item}
           onCancel={onClose}
           onDone={onDone}
+          actionsRef={quoteActionsRef}
         />
       ) : null}
     </ModalShell>
@@ -5598,7 +5695,7 @@ function DownloadsView() {
   );
 }
 
-function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
+function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef }) {
   const [clientMode, setClientMode] = useState("existing");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
@@ -6084,11 +6181,53 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     }
   }
 
+  function buildQuotePayload(overrides = {}) {
+    return {
+      locale: quoteLanguage || "es",
+      leadId: selectedLeadId || null,
+      status: quoteStatus,
+      notes,
+      taxTotal,
+      attachments: attachments.map((attachment) => ({
+        name: attachment.name,
+        type: attachment.type,
+        source: attachment.source,
+        url: attachment.url
+      })),
+      items: lines
+        .map((line) => ({
+          sku: line.sku || line.skuQuery.trim(),
+          quantity: Number(line.quantity),
+          discountPercent: Number(line.discountPercent),
+          unitPrice: unitPriceForSubmit(line)
+        }))
+        .filter((line) => line.sku),
+      ...overrides
+    };
+  }
+
+  useEffect(() => {
+    if (!actionsRef) return undefined;
+
+    actionsRef.current = {
+      downloadPdf: downloadQuotePdf,
+      printPdf: printQuotePdf,
+      openSend: openSendModal,
+      buildPayload: buildQuotePayload,
+      focusForEdit: () => {
+        lineReferenceRefs.current[lines[0]?.id]?.focus();
+      }
+    };
+
+    return () => {
+      actionsRef.current = {};
+    };
+  });
+
   async function submit(event) {
     event?.preventDefault();
     setError("");
     try {
-      let leadId = selectedLeadId || null;
       if (clientMode === "new") {
         setError("Guarda primero el cliente nuevo desde el bloque de cliente.");
         return;
@@ -6097,27 +6236,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
       await apiRequest(initialQuote ? `/api/sales/quotes/${initialQuote.id}` : "/api/sales/quotes", {
         token,
         method: initialQuote ? "PATCH" : "POST",
-        body: {
-          locale: quoteLanguage || "es",
-          leadId,
-          status: quoteStatus,
-          notes,
-          taxTotal,
-          attachments: attachments.map((attachment) => ({
-            name: attachment.name,
-            type: attachment.type,
-            source: attachment.source,
-            url: attachment.url
-          })),
-          items: lines
-            .map((line) => ({
-              sku: line.sku || line.skuQuery.trim(),
-              quantity: Number(line.quantity),
-              discountPercent: Number(line.discountPercent),
-              unitPrice: unitPriceForSubmit(line)
-            }))
-            .filter((line) => line.sku)
-        }
+        body: buildQuotePayload()
       });
       onDone();
     } catch (err) {
