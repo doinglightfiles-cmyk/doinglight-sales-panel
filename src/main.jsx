@@ -2508,6 +2508,34 @@ function DeliveryNoteDetailModal({ token, deliveryNote, onClose }) {
   const [sendOpen, setSendOpen] = useState(false);
   const pdfId = `delivery-note-menu-pdf-${safeFilePart(deliveryNote.id || deliveryNote.number)}`;
   const pdfFilename = `Albaran-${safeFilePart(dateOnly(deliveryNote.date))}-${safeFilePart(deliveryNote.number)}.pdf`;
+  const main = deliveryNote.raw?.main || {};
+  const counterpart = main.counterpart || {};
+  const clientBlock = documentCounterpartBlock(deliveryNote);
+  const lineRows = documentLinesForPdf(deliveryNote.lines).map((line, index) => {
+    const rawLine = deliveryNote.lines[index] || {};
+    const productName = firstValue(rawLine, [
+      "product.name",
+      "product.title",
+      "product.description",
+      "title",
+      "name"
+    ], "");
+    return {
+      ...line,
+      product: [line.code, productName].filter(Boolean).join(" ") || line.code || productName || "-"
+    };
+  });
+  const subtotal = Number(deliveryNote.subtotal || 0);
+  const total = Number(deliveryNote.total || 0);
+  const taxTotal = Math.max(total - subtotal, 0);
+  const taxRate = subtotal ? Math.round((taxTotal / subtotal) * 100) : 21;
+  const deliveryDate = firstValue(main, ["expectedDeliveryDate", "deliveryDate", "dueDate"], addDays(deliveryNote.date, 0));
+  const billingBlock = clientBlock.length ? clientBlock : [deliveryNote.contact, countryLabel(counterpart.countryCode || counterpart.country)];
+  const linkedDocuments = Array.isArray(main.linkedDocuments)
+    ? main.linkedDocuments.length
+    : Array.isArray(main.relatedDocuments)
+      ? main.relatedDocuments.length
+      : 0;
 
   return (
     <ModalShell
@@ -2532,46 +2560,101 @@ function DeliveryNoteDetailModal({ token, deliveryNote, onClose }) {
         </>
       )}
     >
-      <div className="quote-record-body">
-        <section className="quote-detail-grid">
-          <DetailItem label="Cliente" value={deliveryNote.contact} />
-          <DetailItem label="Fecha" value={dateOnly(deliveryNote.date)} />
-          <DetailItem label="Estado" value={deliveryNote.status} />
-          <DetailItem label="Subtotal" value={`${tableMoney(deliveryNote.subtotal)} ${deliveryNote.currency}`} />
-          <DetailItem label="Total" value={`${tableMoney(deliveryNote.total)} ${deliveryNote.currency}`} />
+      <div className="quote-record-body document-record-body">
+        <section className="document-record-hero">
+          <div className="document-record-meta">
+            <span>Operación: <strong>{firstValue(main, ["operation.name", "operation", "taxOperation"], "Empresa intracomunitaria (no VIES)")}</strong></span>
+            <span>Plantilla: <strong>{firstValue(main, ["template.name", "template"], "Principal")}</strong></span>
+            <span>Responsable: <strong>{deliveryNote.responsible || firstValue(main, ["responsible.name", "owner.name"], "-")}</strong></span>
+          </div>
+          <div className="document-record-title-row">
+            <div>
+              <h3>Albarán</h3>
+              {linkedDocuments ? (
+                <span className="linked-document-indicator">
+                  <Share2 size={17} />
+                  {linkedDocuments} documento{linkedDocuments === 1 ? "" : "s"} enlazado{linkedDocuments === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </div>
+            <div className="document-record-total">
+              <span>Total</span>
+              <strong>{tableMoney(total)} <small>{deliveryNote.currency}</small></strong>
+            </div>
+          </div>
         </section>
 
-        <section className="quote-record-section">
-          <header>
-            <h4>Líneas del albarán</h4>
-          </header>
-          <div className="quote-record-lines">
-            <table>
+        <section className="document-record-fields">
+          <DetailItem label="Cliente" value={deliveryNote.contact} />
+          <DetailItem label="Fecha" value={dateOnly(deliveryNote.date)} />
+          <DetailItem label="Número de documento" value={deliveryNote.number} />
+          <DetailItem label="Correo electrónico de envío" value={counterpart.email || counterpart.emailAddress || ""} />
+          <DetailItem label="Fecha entrega prevista" value={dateOnly(deliveryDate)} />
+          <DetailItem label="Método de pago" value={firstValue(main, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")} />
+          <DetailItem label="Estado del albarán" value={deliveryNote.status} />
+          <div className="detail-item document-record-billing">
+            <span>Datos de facturación</span>
+            <strong>{billingBlock.map((line, index) => <React.Fragment key={`${line}-${index}`}>{line}<br /></React.Fragment>)}</strong>
+          </div>
+          <DetailItem label="Notas" value={firstValue(main, ["notes", "observations", "publicNotes"], "")} />
+          <DetailItem label="Notas internas" value={firstValue(main, ["internalNotes", "privateNotes"], "")} />
+        </section>
+
+        <section className="document-record-lines">
+          <div className="table-wrap">
+            <table className="document-record-lines-table">
               <thead>
                 <tr>
+                  <th>Producto</th>
                   <th>Descripción</th>
                   <th>Cantidad</th>
-                  <th>Precio</th>
+                  <th>Precio de venta</th>
+                  <th>Impuestos</th>
+                  <th>Dto (%)</th>
                   <th>Importe</th>
                 </tr>
               </thead>
               <tbody>
-                {deliveryNote.lines.length ? deliveryNote.lines.map((line, index) => (
+                {lineRows.length ? lineRows.map((line, index) => (
                   <tr key={`${deliveryNote.id}-line-${index}`}>
-                    <td>{line.text || line.description || line.title || "-"}</td>
-                    <td>{tableMoney(line.quantity || line.units || 0)}</td>
-                    <td>{tableMoney(line.unitPrice || line.price || 0)}</td>
-                    <td>{tableMoney(line.total || line.amount || 0)}</td>
+                    <td>{line.product}</td>
+                    <td>{line.concept || "-"}</td>
+                    <td>{tableMoney(line.quantity || 0)}</td>
+                    <td>{tableMoney(line.price || 0)}</td>
+                    <td>IVA {taxRate}%</td>
+                    <td>{tableMoney(line.discount || 0)}</td>
+                    <td>{tableMoney(line.total || 0)}</td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={4}>Este albarán no trae líneas detalladas en la respuesta actual.</td>
+                    <td colSpan={7}>Este albarán no trae líneas detalladas en la respuesta actual.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+          <div className="document-record-summary">
+            <div>
+              <span>Subtotal</span>
+              <strong>{tableMoney(subtotal)}</strong>
+            </div>
+            <div>
+              <span>Impuesto</span>
+              <span>Base imponible</span>
+              <span>Cuota</span>
+            </div>
+            <div>
+              <span>IVA {taxRate}%</span>
+              <span>{tableMoney(subtotal)}</span>
+              <span>{tableMoney(taxTotal)}</span>
+            </div>
+            <div>
+              <span>Total</span>
+              <strong>{tableMoney(total)}</strong>
+            </div>
+          </div>
         </section>
+
         <div className="hidden-pdf-source" aria-hidden="true">
           <DocumentPdfPage
             id={pdfId}

@@ -3909,6 +3909,166 @@ th {
   line-height: 1.5;
 }
 
+.document-record-body {
+  gap: 42px;
+  padding: 56px 62px;
+  background: #1b1f23;
+  color: #dce1e5;
+}
+
+.document-record-hero {
+  display: grid;
+  gap: 42px;
+}
+
+.document-record-meta,
+.document-record-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.document-record-meta {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  color: #9ca4ad;
+  font-size: 15px;
+}
+
+.document-record-meta strong {
+  color: #dce1e5;
+  font-weight: 650;
+}
+
+.document-record-title-row h3 {
+  margin: 0 0 14px;
+  font-size: 32px;
+  font-weight: 500;
+}
+
+.linked-document-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #58aeea;
+  font-weight: 650;
+}
+
+.document-record-total {
+  min-width: 230px;
+  display: grid;
+  gap: 4px;
+  color: #9ca4ad;
+}
+
+.document-record-total strong {
+  color: #dce1e5;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.document-record-total small {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.document-record-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 44px 64px;
+}
+
+.document-record-fields .detail-item {
+  min-height: 58px;
+}
+
+.document-record-fields .detail-item span {
+  color: #8f98a3;
+  font-size: 14px;
+}
+
+.document-record-fields .detail-item strong {
+  color: #dce1e5;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.document-record-billing {
+  grid-row: span 2;
+}
+
+.document-record-lines {
+  display: grid;
+  gap: 30px;
+}
+
+.document-record-lines-table {
+  min-width: 1180px;
+  border-collapse: collapse;
+}
+
+.document-record-lines-table th,
+.document-record-lines-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 22px 12px;
+  color: #dce1e5;
+  text-align: left;
+  vertical-align: top;
+}
+
+.document-record-lines-table th {
+  color: #8f98a3;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.document-record-lines-table th:nth-child(n+3),
+.document-record-lines-table td:nth-child(n+3) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.document-record-lines-table td:first-child {
+  width: 190px;
+}
+
+.document-record-lines-table td:nth-child(2) {
+  max-width: 470px;
+  line-height: 1.45;
+}
+
+.document-record-summary {
+  width: min(620px, 100%);
+  margin-left: auto;
+  display: grid;
+  gap: 0;
+}
+
+.document-record-summary > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 18px 0;
+  color: #dce1e5;
+}
+
+.document-record-summary > div:first-child,
+.document-record-summary > div:last-child {
+  grid-template-columns: 1fr auto;
+}
+
+.document-record-summary > div:nth-child(2) {
+  color: #9ca4ad;
+}
+
+.document-record-summary strong {
+  font-size: 18px;
+  text-align: right;
+}
+
 .quote-line-card {
   display: grid;
   grid-template-columns: 24px 54px 150px minmax(260px, 1fr) 92px 112px 120px 30px;
