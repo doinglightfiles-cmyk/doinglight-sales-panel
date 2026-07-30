@@ -1424,20 +1424,24 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
     return Number(line.quantity || 0) * Number(line.unitPrice || 0) * (1 - Number(line.discountPercent || 0) / 100);
   }
 
-  function addInvoiceLine() {
-    setLines((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        skuQuery: "",
-        sku: "",
-        description: "",
-        quantity: 1,
-        unitPrice: 0,
-        taxRate: 21,
-        discountPercent: 0
-      }
-    ]);
+  function addInvoiceLine(afterLineId = null) {
+    const nextLine = {
+      id: crypto.randomUUID(),
+      skuQuery: "",
+      sku: "",
+      description: "",
+      quantity: 1,
+      unitPrice: 0,
+      taxRate: 21,
+      discountPercent: 0
+    };
+
+    setLines((current) => {
+      if (!afterLineId) return [...current, nextLine];
+      const index = current.findIndex((line) => line.id === afterLineId);
+      if (index < 0) return [...current, nextLine];
+      return [...current.slice(0, index + 1), nextLine, ...current.slice(index + 1)];
+    });
   }
 
   function removeInvoiceLine(lineId) {
@@ -1644,9 +1648,14 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
               </select>
               <input type="number" min="0" max="100" value={line.discountPercent} onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })} />
               <strong>{tableMoney(lineSubtotal(line))}</strong>
-              <button className="tiny-icon-button danger" type="button" onClick={() => removeInvoiceLine(line.id)} disabled={lines.length === 1} aria-label="Eliminar línea">
-                <X size={14} />
-              </button>
+              <div className="line-action-buttons">
+                <button className="tiny-icon-button" type="button" onClick={() => addInvoiceLine(line.id)} aria-label="Añadir línea" title="Añadir línea">
+                  <Plus size={14} />
+                </button>
+                <button className="tiny-icon-button danger" type="button" onClick={() => removeInvoiceLine(line.id)} disabled={lines.length === 1} aria-label="Eliminar línea">
+                  <X size={14} />
+                </button>
+              </div>
             </div>
           );
         })}
@@ -5395,9 +5404,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     return { id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null };
   }
 
-  function addLine(focus = false) {
+  function addLine(focus = false, afterLineId = null) {
     const nextLine = createEmptyLine();
-    setLines((current) => [...current, nextLine]);
+    setLines((current) => {
+      if (!afterLineId) return [...current, nextLine];
+      const index = current.findIndex((line) => line.id === afterLineId);
+      if (index < 0) return [...current, nextLine];
+      return [...current.slice(0, index + 1), nextLine, ...current.slice(index + 1)];
+    });
     if (focus) {
       window.setTimeout(() => lineReferenceRefs.current[nextLine.id]?.focus(), 0);
     }
@@ -5831,6 +5845,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                 />
               </div>
               <div className="quote-line-actions">
+                <button
+                  type="button"
+                  className="tiny-icon-button"
+                  onClick={() => addLine(false, line.id)}
+                  aria-label="Añadir línea"
+                  title="Añadir línea"
+                >
+                  <Plus size={14} />
+                </button>
                 <button
                   type="button"
                   className="tiny-icon-button danger"

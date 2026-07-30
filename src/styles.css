@@ -1916,7 +1916,14 @@ select:focus {
   font-size: 14px;
 }
 
-.invoice-line-row .tiny-icon-button {
+.line-action-buttons {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.invoice-line-row .line-action-buttons {
   margin: 0 auto;
 }
 
