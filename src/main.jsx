@@ -342,6 +342,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [globalInvoiceOpen, setGlobalInvoiceOpen] = useState(false);
   const [globalQuoteOpen, setGlobalQuoteOpen] = useState(false);
   const [globalProformaOpen, setGlobalProformaOpen] = useState(false);
+  const [globalDeliveryNoteOpen, setGlobalDeliveryNoteOpen] = useState(false);
   const [globalContactPickerOpen, setGlobalContactPickerOpen] = useState(false);
   const [globalContactForm, setGlobalContactForm] = useState(null);
   const primaryNav = [
@@ -416,6 +417,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   function openGlobalProforma() {
     setCreateDrawerOpen(false);
     setGlobalProformaOpen(true);
+  }
+
+  function openGlobalDeliveryNote() {
+    setCreateDrawerOpen(false);
+    setGlobalDeliveryNoteOpen(true);
   }
 
   function openGlobalInvoice() {
@@ -585,8 +591,8 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
           {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
-          {activeView === "delivery-notes" ? <DeliveryNotesView token={session.token} /> : null}
-          {activeView === "proformas" ? <ModuleWorkspace moduleId="proformas" /> : null}
+          {activeView === "delivery-notes" ? <DeliveryNotesView token={session.token} onCreateDeliveryNote={openGlobalDeliveryNote} /> : null}
+          {activeView === "proformas" ? <ProformasView token={session.token} onCreateProforma={openGlobalProforma} /> : null}
           {activeView === "all-sales" ? <ModuleWorkspace moduleId="all-sales" /> : null}
           {activeView === "payroll" ? <ModuleWorkspace moduleId="payroll" /> : null}
           {activeView === "purchase-scan" ? <ModuleWorkspace moduleId="purchase-scan" /> : null}
@@ -614,6 +620,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           onCreateInvoice={openGlobalInvoice}
           onCreateQuote={openGlobalQuote}
           onCreateProforma={openGlobalProforma}
+          onCreateDeliveryNote={openGlobalDeliveryNote}
           onCreateContact={openGlobalContactPicker}
         />
       ) : null}
@@ -624,12 +631,13 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           size="invoice-create-modal"
           onClose={() => setGlobalInvoiceOpen(false)}
         >
-          <InvoiceCreateForm
+          <QuoteForm
             token={session.token}
+            documentType="invoice"
             onCancel={() => setGlobalInvoiceOpen(false)}
-            onNavigateSettings={() => {
+            onDone={() => {
               setGlobalInvoiceOpen(false);
-              navigate("settings");
+              navigate("invoices");
             }}
           />
         </ModalShell>
@@ -647,6 +655,24 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
             onDone={() => {
               setGlobalQuoteOpen(false);
               navigate("quotes");
+            }}
+          />
+        </ModalShell>
+      ) : null}
+      {globalDeliveryNoteOpen ? (
+        <ModalShell
+          title="Nuevo albarán"
+          eyebrow="Albarán"
+          size="wide-modal quote-work-modal"
+          onClose={() => setGlobalDeliveryNoteOpen(false)}
+        >
+          <QuoteForm
+            token={session.token}
+            documentType="delivery_note"
+            onCancel={() => setGlobalDeliveryNoteOpen(false)}
+            onDone={() => {
+              setGlobalDeliveryNoteOpen(false);
+              navigate("delivery-notes");
             }}
           />
         </ModalShell>
@@ -704,13 +730,13 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   );
 }
 
-function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateProforma, onCreateContact }) {
+function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateProforma, onCreateDeliveryNote, onCreateContact }) {
   const [isClosing, setIsClosing] = useState(false);
   const actions = [
     { label: "Factura de venta", action: onCreateInvoice },
     { label: "Presupuesto", action: onCreateQuote },
     { label: "Proforma", action: onCreateProforma },
-    { label: "Albarán", action: () => onNavigate("delivery-notes") },
+    { label: "Albarán", action: onCreateDeliveryNote },
     { label: "Factura de compra", action: () => onNavigate("purchases") },
     { label: "Gasto/Tiquet", action: () => onNavigate("purchases") },
     { label: "Nómina", action: () => onNavigate("payroll") },
@@ -1594,12 +1620,97 @@ function serializeSalesQuote(quote, leadsById) {
   };
 }
 
+function internalDocumentState(status = "", documentType = "invoice") {
+  if (documentType === "delivery_note") {
+    return deliveryNoteState({ status });
+  }
+  if (documentType === "proforma") {
+    return quoteStatusState(status);
+  }
+  return invoicePaymentState({ status }, 0, status);
+}
+
+function serializeInternalSalesDocument(item) {
+  const status = internalDocumentState(item.status, item.documentType);
+  const date = item.issueDate || item.createdAt;
+  const firstLine = Array.isArray(item.items) ? item.items[0] : null;
+  const numberLabel = item.documentNumber || item.number || "-";
+  const labels = {
+    invoice: "Factura",
+    delivery_note: "Albarán",
+    proforma: "Proforma"
+  };
+  const documentLabel = labels[item.documentType] || "Documento";
+  const detail = [
+    `${documentLabel} ${numberLabel}${date ? ` ${dateOnly(date)}` : ""}`,
+    firstLine?.title || firstLine?.description || ""
+  ].filter(Boolean).join("  ");
+  const rawLines = (item.items || []).map((line) => ({
+    code: line.sku,
+    sku: line.sku,
+    title: line.title,
+    text: line.description || line.title,
+    description: line.description || line.title,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    discountPercent: line.discountPercent,
+    total: line.lineTotal,
+    amount: line.lineTotal,
+    product: {
+      code: line.sku,
+      name: line.title,
+      title: line.title
+    }
+  }));
+
+  return {
+    id: item.id,
+    leadId: item.leadId,
+    documentType: item.documentType,
+    number: numberLabel,
+    series: item.documentSeries || "",
+    detail,
+    contact: item.contact || "Sin cliente",
+    date,
+    dueDate: item.dueDate,
+    status: status.label,
+    statusKey: status.key,
+    verifactuStatus: "",
+    pendingBalance: status.key === "pending" ? Number(item.total || 0) : 0,
+    subtotal: Number(item.subtotal || 0),
+    taxTotal: Number(item.taxTotal || 0),
+    total: Number(item.total || 0),
+    currency: item.currency || "EUR",
+    sent: false,
+    hasAttachment: Boolean(item.attachments?.length),
+    responsible: "",
+    lines: rawLines,
+    attachments: item.attachments || [],
+    raw: {
+      item,
+      main: {
+        counterpart: {
+          name: item.contact || "Sin cliente",
+          email: item.contactEmail || "",
+          countryCode: item.contactCountry || ""
+        },
+        lines: rawLines,
+        docNumber: { formattedSeries: item.documentSeries || "", number: item.documentNumber || "" },
+        paymentMethod: item.paymentMethod || "",
+        notes: item.notes || "",
+        internalNotes: item.internalNotes || "",
+        linkedDocuments: [item.sourceQuoteId, item.sourceDocumentId].filter(Boolean)
+      }
+    }
+  };
+}
+
 function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
   const today = inputDate();
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
   const catalog = useResource(() => apiRequest("/api/catalog/products?locale=es&channel=sales_app", { token }), [token]);
   const invoicesResource = useResource(
-    () => apiRequest("/api/facturadirecta/invoices?limit=500", { token }),
+    () => apiRequest("/api/sales/documents/invoice?limit=300", { token }),
     [token]
   );
   const [form, setForm] = useState({
@@ -1635,12 +1746,12 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 
   const products = catalog.data?.products || [];
   const clients = leads.data?.items || [];
-  const importedInvoices = useMemo(
-    () => (invoicesResource.data?.items || []).map(serializeFacturaDirectaInvoice),
+  const internalInvoices = useMemo(
+    () => (invoicesResource.data?.items || []).map(serializeInternalSalesDocument),
     [invoicesResource.data]
   );
   const invoiceSeriesOptions = useMemo(() => {
-    const importedSeries = importedInvoices.map((invoice) => invoice.series || "");
+    const importedSeries = internalInvoices.map((invoice) => invoice.series || "");
     return Array.from(new Set(["", ...DEFAULT_INVOICE_SERIES, ...importedSeries, ...customSeries]))
       .map((series) => String(series || "").trim())
       .filter((series, index, list) => list.indexOf(series) === index)
@@ -1649,10 +1760,10 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
         if (b === "") return 1;
         return a.localeCompare(b, "es");
       });
-  }, [customSeries, importedInvoices]);
+  }, [customSeries, internalInvoices]);
   const nextSequence = useMemo(
-    () => nextInvoiceSequence(form.invoiceSeries, importedInvoices),
-    [form.invoiceSeries, importedInvoices]
+    () => nextInvoiceSequence(form.invoiceSeries, internalInvoices),
+    [form.invoiceSeries, internalInvoices]
   );
   const resolvedInvoiceSequence = form.invoiceSequence || nextSequence;
   const resolvedDocumentNumber = [form.invoiceSeries, resolvedInvoiceSequence].filter(Boolean).join(" ");
@@ -1949,16 +2060,11 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [query, setQuery] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const statusResource = useResource(
-    () => apiRequest("/api/facturadirecta/status", { token }),
-    [token]
-  );
   const invoicesResource = useResource(
-    () => apiRequest("/api/facturadirecta/invoices?limit=100", { token }),
+    () => apiRequest("/api/sales/documents/invoice?limit=200", { token }),
     [token]
   );
-  const fdStatus = statusResource.data?.status || {};
-  const invoices = (invoicesResource.data?.items || []).map(serializeFacturaDirectaInvoice);
+  const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredInvoices = invoices.filter((invoice) => {
     return textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query);
   });
@@ -1975,17 +2081,10 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
         </div>
       </header>
 
-      {fdStatus.configured === false || invoicesResource.error ? (
+      {invoicesResource.error ? (
         <div className="integration-warning">
-          <strong>FacturaDirecta todavía no está disponible online.</strong>
-          <p>{invoicesResource.error || "La integración no está configurada en Railway."}</p>
-          {fdStatus.configured === false ? (
-            <span>
-              Estado Railway: FD_API_KEY {fdStatus.hasApiKey ? "detectada" : "falta"} · FD_COMPANY_ID {fdStatus.hasCompanyId ? "detectado" : "falta"}.
-            </span>
-          ) : (
-            <span>Cuando configuremos las variables `FD_API_KEY` y `FD_COMPANY_ID` en Railway, esta tabla cargará facturas reales.</span>
-          )}
+          <strong>No se han podido cargar las facturas internas.</strong>
+          <p>{invoicesResource.error}</p>
         </div>
       ) : null}
 
@@ -2034,12 +2133,12 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
             <tbody>
               {invoicesResource.loading ? (
                 <tr className="empty-table-row">
-                  <td colSpan={11}>Cargando facturas desde FacturaDirecta...</td>
+                  <td colSpan={11}>Cargando facturas internas...</td>
                 </tr>
               ) : null}
               {!invoicesResource.loading && !filteredInvoices.length ? (
                 <tr className="empty-table-row">
-                  <td colSpan={11}>No hay facturas para mostrar todavía.</td>
+                  <td colSpan={11}>No hay facturas internas de prueba todavía.</td>
                 </tr>
               ) : null}
               {filteredInvoices.map((invoice) => (
@@ -2090,10 +2189,34 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
         </div>
       </section>
       {selectedInvoice ? (
-        <InvoiceDetailModal
+        <QuoteEditorModal
           token={token}
-          invoice={selectedInvoice}
+          documentType="invoice"
+          quote={{
+            id: selectedInvoice.id,
+            leadId: selectedInvoice.leadId,
+            quoteNumber: selectedInvoice.number,
+            documentNumber: selectedInvoice.number,
+            number: selectedInvoice.number,
+            status: selectedInvoice.raw?.item?.status || "draft",
+            locale: selectedInvoice.raw?.item?.locale || "es",
+            currency: selectedInvoice.currency,
+            subtotal: selectedInvoice.subtotal,
+            taxTotal: selectedInvoice.taxTotal,
+            total: selectedInvoice.total,
+            notes: selectedInvoice.raw?.item?.notes || "",
+            internalNotes: selectedInvoice.raw?.item?.internalNotes || "",
+            paymentMethod: selectedInvoice.raw?.item?.paymentMethod || "",
+            issueDate: selectedInvoice.raw?.item?.issueDate || selectedInvoice.date,
+            dueDate: selectedInvoice.raw?.item?.dueDate || selectedInvoice.dueDate,
+            items: selectedInvoice.raw?.item?.items || [],
+            attachments: selectedInvoice.raw?.item?.attachments || []
+          }}
           onClose={() => setSelectedInvoice(null)}
+          onDone={() => {
+            setSelectedInvoice(null);
+            invoicesResource.reload();
+          }}
         />
       ) : null}
     </div>
@@ -2403,14 +2526,14 @@ function InvoiceDetailModal({ token, invoice, onClose }) {
   );
 }
 
-function DeliveryNotesView({ token }) {
+function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   const [query, setQuery] = useState("");
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
   const deliveryNotesResource = useResource(
-    () => apiRequest("/api/facturadirecta/deliveryNotes?limit=100", { token }),
+    () => apiRequest("/api/sales/documents/delivery_note?limit=200", { token }),
     [token]
   );
-  const deliveryNotes = (deliveryNotesResource.data?.items || []).map(serializeFacturaDirectaDeliveryNote);
+  const deliveryNotes = (deliveryNotesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredDeliveryNotes = deliveryNotes.filter((deliveryNote) => {
     return textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
   });
@@ -2430,12 +2553,12 @@ function DeliveryNotesView({ token }) {
     <div className="module-page invoices-mirror-page">
       <header className="module-page-header invoices-page-header">
         <h3>Albaranes de venta</h3>
-        <button className="primary-button" type="button">Nuevo albarán</button>
+        <button className="primary-button" type="button" onClick={onCreateDeliveryNote}>Nuevo albarán</button>
       </header>
 
       {deliveryNotesResource.error ? (
         <div className="integration-warning">
-          <strong>No se han podido cargar los albaranes de FacturaDirecta.</strong>
+          <strong>No se han podido cargar los albaranes internos.</strong>
           <p>{deliveryNotesResource.error}</p>
         </div>
       ) : null}
@@ -2484,12 +2607,12 @@ function DeliveryNotesView({ token }) {
             <tbody>
               {deliveryNotesResource.loading ? (
                 <tr className="empty-table-row">
-                  <td colSpan={10}>Cargando albaranes desde FacturaDirecta...</td>
+                  <td colSpan={10}>Cargando albaranes internos...</td>
                 </tr>
               ) : null}
               {!deliveryNotesResource.loading && !filteredDeliveryNotes.length ? (
                 <tr className="empty-table-row">
-                  <td colSpan={10}>No hay albaranes para mostrar todavía.</td>
+                  <td colSpan={10}>No hay albaranes internos de prueba todavía.</td>
                 </tr>
               ) : null}
               {filteredDeliveryNotes.map((deliveryNote) => (
@@ -2537,10 +2660,175 @@ function DeliveryNotesView({ token }) {
       </section>
 
       {selectedDeliveryNote ? (
-        <DeliveryNoteDetailModal
+        <QuoteEditorModal
           token={token}
-          deliveryNote={selectedDeliveryNote}
+          documentType="delivery_note"
+          quote={{
+            id: selectedDeliveryNote.id,
+            leadId: selectedDeliveryNote.leadId,
+            quoteNumber: selectedDeliveryNote.number,
+            documentNumber: selectedDeliveryNote.number,
+            number: selectedDeliveryNote.number,
+            status: selectedDeliveryNote.raw?.item?.status || "draft",
+            locale: selectedDeliveryNote.raw?.item?.locale || "es",
+            currency: selectedDeliveryNote.currency,
+            subtotal: selectedDeliveryNote.subtotal,
+            taxTotal: selectedDeliveryNote.taxTotal,
+            total: selectedDeliveryNote.total,
+            notes: selectedDeliveryNote.raw?.item?.notes || "",
+            internalNotes: selectedDeliveryNote.raw?.item?.internalNotes || "",
+            paymentMethod: selectedDeliveryNote.raw?.item?.paymentMethod || "",
+            issueDate: selectedDeliveryNote.raw?.item?.issueDate || selectedDeliveryNote.date,
+            dueDate: selectedDeliveryNote.raw?.item?.dueDate || selectedDeliveryNote.dueDate,
+            items: selectedDeliveryNote.raw?.item?.items || [],
+            attachments: selectedDeliveryNote.raw?.item?.attachments || []
+          }}
           onClose={() => setSelectedDeliveryNote(null)}
+          onDone={() => {
+            setSelectedDeliveryNote(null);
+            deliveryNotesResource.reload();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ProformasView({ token, onCreateProforma }) {
+  const [query, setQuery] = useState("");
+  const [selectedProforma, setSelectedProforma] = useState(null);
+  const proformasResource = useResource(
+    () => apiRequest("/api/sales/documents/proforma?limit=200", { token }),
+    [token]
+  );
+  const proformas = (proformasResource.data?.items || []).map(serializeInternalSalesDocument);
+  const filteredProformas = proformas.filter((proforma) =>
+    textMatchesQuery([proforma.number, proforma.contact, proforma.status, proforma.total, proforma.detail], query)
+  );
+
+  return (
+    <div className="module-page invoices-mirror-page">
+      <header className="module-page-header invoices-page-header">
+        <h3>Facturas proforma</h3>
+        <button className="primary-button" type="button" onClick={onCreateProforma}>Nueva proforma</button>
+      </header>
+      {proformasResource.error ? (
+        <div className="integration-warning">
+          <strong>No se han podido cargar las proformas internas.</strong>
+          <p>{proformasResource.error}</p>
+        </div>
+      ) : null}
+      <section className="module-panel invoices-list-panel">
+        <div className="invoice-toolbar">
+          <button className="invoice-view-filter" type="button">
+            <FileText size={18} />
+            Todas las proformas
+            <ChevronDown size={16} />
+          </button>
+          <div className="module-search">
+            <Search size={18} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
+          </div>
+          <button className="invoice-date-filter" type="button">
+            <CalendarDays size={18} />
+            Todas las fechas
+            <ChevronDown size={16} />
+          </button>
+        </div>
+        <div className="table-wrap invoice-table-wrap">
+          <table className="module-table invoice-table">
+            <thead>
+              <tr>
+                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todas las proformas" /></th>
+                <th className="invoice-kind-column"></th>
+                <th>Fecha <span className="sort-arrow">↓</span></th>
+                <th>Estado</th>
+                <th>Serie / Núm.</th>
+                <th>Cliente / Detalle</th>
+                <th>Subtotal</th>
+                <th>Total</th>
+                <th>Moneda</th>
+              </tr>
+            </thead>
+            <tbody>
+              {proformasResource.loading ? (
+                <tr className="empty-table-row">
+                  <td colSpan={9}>Cargando proformas internas...</td>
+                </tr>
+              ) : null}
+              {!proformasResource.loading && !filteredProformas.length ? (
+                <tr className="empty-table-row">
+                  <td colSpan={9}>No hay proformas internas de prueba todavía.</td>
+                </tr>
+              ) : null}
+              {filteredProformas.map((proforma) => (
+                <tr
+                  key={proforma.id}
+                  className="clickable-table-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedProforma(proforma)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedProforma(proforma);
+                    }
+                  }}
+                >
+                  <td className="select-column">
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar proforma ${proforma.number}`}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    />
+                  </td>
+                  <td className="invoice-kind-column"><span className="invoice-kind-badge">P</span></td>
+                  <td>{dateOnly(proforma.date)}</td>
+                  <td><span className={`invoice-payment-status ${proforma.statusKey}`}>{proforma.status}</span></td>
+                  <td>{proforma.number}</td>
+                  <td>
+                    <div className="invoice-detail-cell">
+                      <strong>{proforma.contact}</strong>
+                      <span>{proforma.detail}</span>
+                    </div>
+                  </td>
+                  <td>{tableMoney(proforma.subtotal)}</td>
+                  <td>{tableMoney(proforma.total)}</td>
+                  <td>{proforma.currency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {selectedProforma ? (
+        <QuoteEditorModal
+          token={token}
+          quote={{
+            id: selectedProforma.id,
+            leadId: selectedProforma.leadId,
+            quoteNumber: selectedProforma.number,
+            number: selectedProforma.number,
+            status: selectedProforma.raw?.item?.status || "draft",
+            locale: selectedProforma.raw?.item?.locale || "es",
+            currency: selectedProforma.currency,
+            subtotal: selectedProforma.subtotal,
+            taxTotal: selectedProforma.taxTotal,
+            total: selectedProforma.total,
+            notes: selectedProforma.raw?.item?.notes || "",
+            internalNotes: selectedProforma.raw?.item?.internalNotes || "",
+            paymentMethod: selectedProforma.raw?.item?.paymentMethod || "",
+            createdAt: selectedProforma.date,
+            items: selectedProforma.raw?.item?.items || [],
+            attachments: selectedProforma.raw?.item?.attachments || []
+          }}
+          documentType="proforma"
+          onClose={() => setSelectedProforma(null)}
+          onUpdated={() => {
+            setSelectedProforma(null);
+            proformasResource.reload();
+          }}
         />
       ) : null}
     </div>
@@ -5529,11 +5817,68 @@ function QuotesView({ token }) {
   );
 }
 
-function QuoteEditorModal({ token, quote, onClose, onDone }) {
+const SALES_DOCUMENT_FORM_META = {
+  quote: {
+    type: "quote",
+    title: "Presupuesto",
+    eyebrow: "Presupuesto",
+    createLabel: "Crear presupuesto",
+    updateLabel: "Guardar cambios",
+    endpoint: "/api/sales/quotes",
+    listView: "quotes",
+    pdfPrefix: "Presupuesto",
+    subject: "Envío presupuesto",
+    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestro presupuesto.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+  },
+  proforma: {
+    type: "proforma",
+    title: "Factura Proforma",
+    eyebrow: "Factura Proforma",
+    createLabel: "Crear proforma",
+    updateLabel: "Guardar cambios",
+    endpoint: "/api/sales/documents/proforma",
+    listView: "proformas",
+    pdfPrefix: "Factura-Proforma",
+    subject: "Envío factura proforma",
+    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura proforma.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+  },
+  delivery_note: {
+    type: "delivery_note",
+    title: "Albarán",
+    eyebrow: "Albarán",
+    createLabel: "Crear albarán",
+    updateLabel: "Guardar cambios",
+    endpoint: "/api/sales/documents/delivery_note",
+    listView: "delivery-notes",
+    pdfPrefix: "Albaran",
+    subject: "Envío albarán",
+    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestro albarán.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+  },
+  invoice: {
+    type: "invoice",
+    title: "Factura simplificada",
+    eyebrow: "Factura de venta",
+    createLabel: "Crear factura",
+    updateLabel: "Guardar cambios",
+    endpoint: "/api/sales/documents/invoice",
+    listView: "invoices",
+    pdfPrefix: "Factura",
+    subject: "Envío factura",
+    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+  }
+};
+
+function documentFormMeta(documentType) {
+  return SALES_DOCUMENT_FORM_META[documentType] || SALES_DOCUMENT_FORM_META.quote;
+}
+
+function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDone, onUpdated }) {
   const [actionsOpen, setActionsOpen] = useState(false);
-  const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
+  const meta = documentFormMeta(documentType);
+  const detail = useResource(() => apiRequest(`${meta.endpoint}/${quote.id}`, { token }), [token, quote.id, meta.endpoint]);
   const item = detail.data?.item || null;
   const quoteActionsRef = useRef({});
+  const finish = onDone || onUpdated || onClose;
 
   function openQuoteSendFromMenu() {
     if (!quoteActionsRef.current.openSend) throw new Error("Todavía no se ha cargado el presupuesto.");
@@ -5557,54 +5902,83 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
 
   async function duplicateQuoteFromMenu() {
     const buildPayload = quoteActionsRef.current.buildPayload;
-    if (!buildPayload) throw new Error("Todavía no se ha cargado el presupuesto.");
+    if (!buildPayload) throw new Error("Todavía no se ha cargado el documento.");
+
+    await apiRequest(meta.endpoint, {
+      token,
+      method: "POST",
+      body: buildPayload({ status: "draft" })
+    });
+    finish();
+  }
+
+  async function duplicateAsQuoteFromMenu() {
+    const buildPayload = quoteActionsRef.current.buildPayload;
+    if (!buildPayload) throw new Error("Todavía no se ha cargado el documento.");
 
     await apiRequest("/api/sales/quotes", {
       token,
       method: "POST",
       body: buildPayload({ status: "draft" })
     });
-    onDone();
+    finish();
+  }
+
+  async function createDocumentFromCurrent(targetType) {
+    if (documentType === targetType) {
+      return duplicateQuoteFromMenu();
+    }
+
+    const endpoint = documentType === "quote"
+      ? `/api/sales/documents/${targetType}/from-quote/${quote.id}`
+      : `/api/sales/documents/${targetType}/from-document/${documentType}/${quote.id}`;
+    await apiRequest(endpoint, { token, method: "POST", body: {} });
+    finish();
   }
 
   function createInvoiceFromQuote() {
-    window.dispatchEvent(new CustomEvent("doinglight:create-invoice", { detail: { quoteId: quote.id } }));
+    return createDocumentFromCurrent("invoice");
   }
 
   function createDeliveryNoteFromQuote() {
-    window.alert("La creación de albaranes internos desde presupuestos será el siguiente paso: no se enviará nada a FacturaDirecta.");
+    return createDocumentFromCurrent("delivery_note");
+  }
+
+  function duplicateAsDeliveryNoteFromMenu() {
+    return createDocumentFromCurrent("delivery_note");
   }
 
   async function deleteQuoteFromMenu() {
-    if (!window.confirm(`¿Borrar el presupuesto ${quote.number}? Esta acción no se puede deshacer.`)) {
+    if (!window.confirm(`¿Borrar ${meta.title.toLowerCase()} ${quote.number}? Esta acción no se puede deshacer.`)) {
       return false;
     }
 
-    await apiRequest(`/api/sales/quotes/${quote.id}`, { token, method: "DELETE" });
-    onDone();
+    await apiRequest(`${meta.endpoint}/${quote.id}`, { token, method: "DELETE" });
+    finish();
   }
 
   return (
     <ModalShell
-      title={`Presupuesto ${quote.number}`}
-      eyebrow="Editar presupuesto"
+      title={`${meta.title} ${quote.number}`}
+      eyebrow={`Editar ${meta.title.toLowerCase()}`}
       size="wide-modal quote-work-modal"
       onClose={onClose}
       actions={(
         <>
-          <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label="Opciones de presupuesto">
+          <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label={`Opciones de ${meta.title.toLowerCase()}`}>
             <MoreVertical size={22} />
           </button>
           {actionsOpen ? (
             <DocumentActionsMenu
-              type="quote"
+              type={documentType === "delivery_note" ? "delivery_note" : documentType}
               onClose={() => setActionsOpen(false)}
               onSend={openQuoteSendFromMenu}
               onPrint={printQuoteFromMenu}
               onDownload={downloadQuoteFromMenu}
               onModify={modifyQuoteFromMenu}
               onDuplicate={duplicateQuoteFromMenu}
-              onDuplicateAsQuote={duplicateQuoteFromMenu}
+              onDuplicateAsQuote={duplicateAsQuoteFromMenu}
+              onDuplicateAsDeliveryNote={duplicateAsDeliveryNoteFromMenu}
               onCreateDeliveryNote={createDeliveryNoteFromQuote}
               onCreateInvoice={createInvoiceFromQuote}
               onDelete={deleteQuoteFromMenu}
@@ -5614,14 +5988,15 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
       )}
     >
       {detail.error ? <p className="form-error">{detail.error}</p> : null}
-      {detail.loading ? <p className="muted-text">Cargando presupuesto...</p> : null}
+      {detail.loading ? <p className="muted-text">Cargando documento...</p> : null}
       {item ? (
         <QuoteForm
           key={item.id}
           token={token}
+          documentType={documentType}
           initialQuote={item}
           onCancel={onClose}
-          onDone={onDone}
+          onDone={finish}
           actionsRef={quoteActionsRef}
         />
       ) : null}
@@ -5763,10 +6138,11 @@ function DownloadsView() {
 }
 
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote" }) {
-  const isProforma = documentType === "proforma";
-  const documentTitle = isProforma ? "Factura Proforma" : "Presupuesto";
-  const documentEyebrow = isProforma ? "Factura Proforma" : "Presupuesto";
-  const createButtonLabel = initialQuote ? "Guardar cambios" : isProforma ? "Crear proforma" : "Crear presupuesto";
+  const meta = documentFormMeta(documentType);
+  const isQuote = documentType === "quote";
+  const documentTitle = meta.title;
+  const documentEyebrow = meta.eyebrow;
+  const createButtonLabel = initialQuote ? meta.updateLabel : meta.createLabel;
   const [clientMode, setClientMode] = useState("existing");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
@@ -5829,8 +6205,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   });
   const [notes, setNotes] = useState(initialQuote?.notes || "");
   const [quoteStatus, setQuoteStatus] = useState(initialQuote?.status || "draft");
-  const [quoteDate, setQuoteDate] = useState(inputDate(initialQuote?.createdAt || new Date()));
-  const [validUntil, setValidUntil] = useState(addDaysInput(initialQuote?.createdAt || new Date(), 30));
+  const [quoteDate, setQuoteDate] = useState(inputDate(initialQuote?.issueDate || initialQuote?.createdAt || new Date()));
+  const [validUntil, setValidUntil] = useState(initialQuote?.dueDate ? inputDate(initialQuote.dueDate) : addDaysInput(initialQuote?.issueDate || initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
   const [internalNotes, setInternalNotes] = useState(initialQuote?.internalNotes || "");
   const [quoteLanguage, setQuoteLanguage] = useState(initialQuote?.locale || "es");
@@ -6157,14 +6533,32 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     ));
   }
 
-  function confirmTransferLines() {
+  async function confirmTransferLines() {
     if (!transferLineIds.length) {
       window.alert("Selecciona al menos una línea para traspasar.");
       return;
     }
 
-    window.alert("Selección preparada. El siguiente paso es activar albaranes internos para crear el albarán y bloquear estas líneas sin tocar FacturaDirecta.");
-    setTransferLinesOpen(false);
+    if (!isQuote || !initialQuote?.id) {
+      window.alert("Guarda primero el presupuesto para poder traspasar líneas con trazabilidad.");
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/sales/documents/delivery_note/from-quote/${initialQuote.id}`, {
+        token,
+        method: "POST",
+        body: {
+          lineIds: transferLineIds,
+          dueDate: validUntil,
+          paymentMethod
+        }
+      });
+      setTransferLinesOpen(false);
+      onDone();
+    } catch (err) {
+      window.alert(err.message || "No se ha podido crear el albarán.");
+    }
   }
 
   function removeLine(lineId) {
@@ -6192,8 +6586,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
   const taxTotal = subtotal * (Number(taxRate) / 100);
   const total = subtotal + taxTotal;
-  const quoteNumberLabel = initialQuote?.quoteNumber || initialQuote?.number || "borrador";
-  const quotePdfName = `${isProforma ? "Factura-Proforma" : "Presupuesto"}-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
+  const quoteNumberLabel = initialQuote?.quoteNumber || initialQuote?.documentNumber || initialQuote?.number || "borrador";
+  const quotePdfName = `${meta.pdfPrefix}-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
   const quotePdfElementId = `quote-pdf-${safeFilePart(quoteNumberLabel)}-${safeFilePart(quoteDate || "borrador")}`;
   const quotePdfLines = lines.map((line) => {
     const selectedProduct = productForLine(line);
@@ -6214,8 +6608,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return {
       to: leadDraft?.email || selectedLead?.email || "",
       from: "ADMINISTRACION <administracion@doinglight.es>",
-      subject: initialQuote?.quoteNumber ? `Envío presupuesto ${initialQuote.quoteNumber}` : "Envío presupuesto",
-      body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestro presupuesto.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.",
+      subject: quoteNumberLabel !== "borrador" ? `${meta.subject} ${quoteNumberLabel}` : meta.subject,
+      body: meta.body,
       attachPdf: true
     };
   }
@@ -6260,7 +6654,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         token,
         method: "POST",
         body: {
-          documentType: "quote",
+          documentType,
           documentNumber: quoteNumberLabel,
           language: quoteLanguage,
           to: sendDraft.to,
@@ -6282,8 +6676,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       locale: quoteLanguage || "es",
       leadId: selectedLeadId || null,
       status: quoteStatus,
+      issueDate: quoteDate,
+      dueDate: validUntil,
+      paymentMethod,
       notes,
+      internalNotes,
+      subtotal,
       taxTotal,
+      total,
+      taxRate,
       attachments: attachments.map((attachment) => ({
         name: attachment.name,
         type: attachment.type,
@@ -6329,12 +6730,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         return;
       }
 
-      if (isProforma) {
-        setError("La creación definitiva de facturas proforma se conectará cuando creemos el modelo interno de proformas.");
-        return;
-      }
-
-      await apiRequest(initialQuote ? `/api/sales/quotes/${initialQuote.id}` : "/api/sales/quotes", {
+      await apiRequest(initialQuote ? `${meta.endpoint}/${initialQuote.id}` : meta.endpoint, {
         token,
         method: initialQuote ? "PATCH" : "POST",
         body: buildQuotePayload()
@@ -6548,7 +6944,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </select>
             </label>
             <label>
-              <span>Estado del presupuesto</span>
+              <span>Estado del {documentTitle.toLowerCase()}</span>
               <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
                 {QUOTE_STATUS_OPTIONS.map((status) => (
                   <option key={status.value} value={status.value}>{status.label}</option>
@@ -6587,8 +6983,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
       <section className="form-section">
         <header className="form-section-header">
-          <h4>Líneas del presupuesto</h4>
-          {initialQuote ? (
+          <h4>Líneas del documento</h4>
+          {isQuote && initialQuote ? (
             <button className="quote-transfer-lines-button" type="button" onClick={openTransferLines}>
               Traspasar líneas a albarán
             </button>
