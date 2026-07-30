@@ -5279,6 +5279,39 @@ const QUOTE_TEMPLATES = [
       { sku: "T2401000", quantity: 1, discountPercent: 0 },
       { sku: "T240500", quantity: 1, discountPercent: 0 }
     ]
+  },
+  {
+    id: "k3-zp-1-5",
+    name: "K3+ZP+1,5",
+    description: "Kit 340, base plana y 1,5 m de tubo",
+    lines: [
+      { sku: "K340", quantity: 1, discountPercent: 0 },
+      { sku: "ZP340", quantity: 1, discountPercent: 0 },
+      { sku: "T3401000", quantity: 1, discountPercent: 0 },
+      { sku: "T340500", quantity: 1, discountPercent: 0 }
+    ]
+  },
+  {
+    id: "k2-zi-1-5",
+    name: "K2+ZI+1,5",
+    description: "Kit 240, base inclinada y 1,5 m de tubo",
+    lines: [
+      { sku: "K240", quantity: 1, discountPercent: 0 },
+      { sku: "ZI240", quantity: 1, discountPercent: 0 },
+      { sku: "T2401000", quantity: 1, discountPercent: 0 },
+      { sku: "T240500", quantity: 1, discountPercent: 0 }
+    ]
+  },
+  {
+    id: "k3-zi-1-5",
+    name: "K3+ZI+1,5",
+    description: "Kit 340, base inclinada y 1,5 m de tubo",
+    lines: [
+      { sku: "K340", quantity: 1, discountPercent: 0 },
+      { sku: "ZI340", quantity: 1, discountPercent: 0 },
+      { sku: "T3401000", quantity: 1, discountPercent: 0 },
+      { sku: "T340500", quantity: 1, discountPercent: 0 }
+    ]
   }
 ];
 
