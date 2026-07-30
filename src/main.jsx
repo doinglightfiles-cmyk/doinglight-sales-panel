@@ -4362,6 +4362,7 @@ function DocumentActionsMenu({
   onDuplicate,
   onDuplicateAsQuote,
   onDuplicateAsDeliveryNote,
+  onCreateDeliveryNote,
   onCreateInvoice,
   onDownloadFacturae,
   onRegisterIncome,
@@ -4387,6 +4388,7 @@ function DocumentActionsMenu({
     : [
         { label: "Duplicar", action: onDuplicate || unavailable("Duplicar") },
         { label: "Duplicar como presupuesto", action: onDuplicateAsQuote || onDuplicate || unavailable("Duplicar como presupuesto") },
+        ...(type === "quote" ? [{ label: "Crear albarán", action: onCreateDeliveryNote || unavailable("Crear albarán") }] : []),
         { label: "Crear factura", action: onCreateInvoice || unavailable("Crear factura") }
       ];
   const documentActions = isInvoice
@@ -5542,6 +5544,10 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
     window.dispatchEvent(new CustomEvent("doinglight:create-invoice", { detail: { quoteId: quote.id } }));
   }
 
+  function createDeliveryNoteFromQuote() {
+    window.alert("La creación de albaranes internos desde presupuestos será el siguiente paso: no se enviará nada a FacturaDirecta.");
+  }
+
   async function deleteQuoteFromMenu() {
     if (!window.confirm(`¿Borrar el presupuesto ${quote.number}? Esta acción no se puede deshacer.`)) {
       return false;
@@ -5572,6 +5578,7 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
               onModify={modifyQuoteFromMenu}
               onDuplicate={duplicateQuoteFromMenu}
               onDuplicateAsQuote={duplicateQuoteFromMenu}
+              onCreateDeliveryNote={createDeliveryNoteFromQuote}
               onCreateInvoice={createInvoiceFromQuote}
               onDelete={deleteQuoteFromMenu}
             />
