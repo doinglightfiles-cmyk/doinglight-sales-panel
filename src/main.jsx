@@ -45,6 +45,21 @@ function safeFilePart(value) {
     .replace(/^-+|-+$/g, "") || "documento";
 }
 
+function normalizeSearchText(value) {
+  return String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function textMatchesQuery(values, query) {
+  const needle = normalizeSearchText(query);
+  if (!needle) return true;
+  const haystack = Array.isArray(values) ? values.join(" ") : values;
+  return normalizeSearchText(haystack).includes(needle);
+}
+
 function printDocumentElement(elementId, title = "Documento Doinglight") {
   const element = document.getElementById(elementId);
   if (!element) throw new Error("No se ha encontrado la vista previa del documento.");
@@ -1620,12 +1635,8 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedClient = clients.find((lead) => lead.id === form.leadId) || null;
   const filteredClients = useMemo(() => {
-    const needle = form.clientQuery.trim().toLowerCase();
-    if (!needle) return clients;
     return clients.filter((lead) =>
-      [lead.fullName, lead.companyName, lead.email, lead.phone, lead.taxId].some((value) =>
-        String(value || "").toLowerCase().includes(needle)
-      )
+      textMatchesQuery([lead.fullName, lead.companyName, lead.email, lead.phone, lead.taxId], form.clientQuery)
     );
   }, [clients, form.clientQuery]);
 
@@ -1924,8 +1935,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
   const fdStatus = statusResource.data?.status || {};
   const invoices = (invoicesResource.data?.items || []).map(serializeFacturaDirectaInvoice);
   const filteredInvoices = invoices.filter((invoice) => {
-    const haystack = `${invoice.number} ${invoice.contact} ${invoice.status} ${invoice.total} ${invoice.detail}`.toLowerCase();
-    return haystack.includes(query.trim().toLowerCase());
+    return textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query);
   });
 
   return (
@@ -2377,8 +2387,7 @@ function DeliveryNotesView({ token }) {
   );
   const deliveryNotes = (deliveryNotesResource.data?.items || []).map(serializeFacturaDirectaDeliveryNote);
   const filteredDeliveryNotes = deliveryNotes.filter((deliveryNote) => {
-    const haystack = `${deliveryNote.number} ${deliveryNote.contact} ${deliveryNote.status} ${deliveryNote.total} ${deliveryNote.detail}`.toLowerCase();
-    return haystack.includes(query.trim().toLowerCase());
+    return textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
   });
 
   function openDeliveryNote(deliveryNote) {
@@ -3482,12 +3491,8 @@ function CatalogView({ token, locale = "es" }) {
   );
   const products = catalog.data?.products || [];
   const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return products;
     return products.filter((product) =>
-      [product.sku, product.title, product.family, product.subcategory].some((value) =>
-        String(value || "").toLowerCase().includes(needle)
-      )
+      textMatchesQuery([product.sku, product.title, product.family, product.subcategory], query)
     );
   }, [products, query]);
 
@@ -3846,7 +3851,6 @@ function ContactsView({ token, initialFilter = "all" }) {
     setContactFilter(initialFilter);
   }, [initialFilter]);
   const filteredContacts = useMemo(() => {
-    const needle = query.trim().toLowerCase();
     return contacts.filter((contact) => {
       const matchesLevel =
         contact.contactClass !== "client" ||
@@ -3856,9 +3860,8 @@ function ContactsView({ token, initialFilter = "all" }) {
           : contact.customerLevel === customerLevelFilter);
 
       if (!matchesLevel) return false;
-      if (!needle) return true;
 
-      return [
+      return textMatchesQuery([
         contact.fullName,
         contact.companyName,
         contact.taxId,
@@ -3868,7 +3871,7 @@ function ContactsView({ token, initialFilter = "all" }) {
         contact.city,
         contact.province,
         contact.country
-      ].some((value) => String(value || "").toLowerCase().includes(needle));
+      ], query);
     });
   }, [contacts, customerLevelFilter, query]);
 
@@ -5332,8 +5335,7 @@ function QuotesView({ token }) {
   }, [leads.data]);
   const quoteRows = (quotes.data?.items || []).map((quote) => serializeSalesQuote(quote, leadsById));
   const filteredQuotes = quoteRows.filter((quote) => {
-    const haystack = `${quote.number} ${quote.contact} ${quote.status} ${quote.total} ${quote.detail}`.toLowerCase();
-    const matchesQuery = haystack.includes(query.trim().toLowerCase());
+    const matchesQuery = textMatchesQuery([quote.number, quote.contact, quote.status, quote.total, quote.detail], query);
     const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
     return matchesQuery && matchesStatus;
   });
@@ -5822,10 +5824,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
   const filteredLeadSuggestions = useMemo(() => {
-    const needle = leadSearchQuery.trim().toLowerCase();
+    const needle = normalizeSearchText(leadSearchQuery);
     const source = needle
       ? leadsList.filter((lead) =>
-          [
+          textMatchesQuery([
             lead.fullName,
             lead.companyName,
             lead.email,
@@ -5833,7 +5835,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             lead.mobilePhone,
             lead.taxId,
             lead.country
-          ].some((value) => String(value || "").toLowerCase().includes(needle))
+          ], leadSearchQuery)
         )
       : leadsList;
 
