@@ -4553,6 +4553,13 @@ th {
   color: #6f7768;
 }
 
+.quote-pdf-logo-image {
+  width: 178px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
 .quote-pdf-logo-dot {
   width: 24px;
   height: 24px;
@@ -4710,6 +4717,21 @@ th {
 
 .quote-pdf-privacy strong {
   display: block;
+}
+
+.hidden-pdf-source {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 210mm;
+  pointer-events: none;
+}
+
+.hidden-pdf-source .quote-pdf-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0;
+  box-shadow: none;
 }
 
 .quote-send-actions {

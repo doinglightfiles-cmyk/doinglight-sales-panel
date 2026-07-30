@@ -36,6 +36,75 @@ import "./styles.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const SESSION_KEY = "doinglight_panel_session";
+const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
+
+function safeFilePart(value) {
+  return String(value || "documento")
+    .trim()
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "documento";
+}
+
+function printDocumentElement(elementId, title = "Documento Doinglight") {
+  const element = document.getElementById(elementId);
+  if (!element) throw new Error("No se ha encontrado la vista previa del documento.");
+
+  const printWindow = window.open("", "_blank", "width=900,height=1200");
+  if (!printWindow) throw new Error("El navegador ha bloqueado la ventana de impresión.");
+
+  const styles = Array.from(document.styleSheets)
+    .map((sheet) => {
+      try {
+        return Array.from(sheet.cssRules || []).map((rule) => rule.cssText).join("\n");
+      } catch {
+        return "";
+      }
+    })
+    .join("\n");
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          ${styles}
+          @page { size: A4; margin: 0; }
+          html, body { margin: 0; min-height: 100%; background: #fff; }
+          body { display: flex; justify-content: center; align-items: flex-start; }
+          .quote-pdf-page { width: 210mm !important; min-height: 297mm !important; margin: 0 !important; box-shadow: none !important; }
+        </style>
+      </head>
+      <body>${element.outerHTML}</body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  window.setTimeout(() => {
+    printWindow.print();
+  }, 400);
+}
+
+async function renderDocumentElementAsPdf(elementId, filename, { save = true } = {}) {
+  const element = document.getElementById(elementId);
+  if (!element) throw new Error("No se ha encontrado la vista previa del documento.");
+
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf")
+  ]);
+  const canvas = await html2canvas(element, {
+    scale: 2.4,
+    useCORS: true,
+    backgroundColor: "#ffffff"
+  });
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const imageHeight = Math.min(pageHeight, (canvas.height * pageWidth) / canvas.width);
+  pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, imageHeight);
+  if (save) pdf.save(filename);
+  return pdf.output("datauristring").split(",")[1];
+}
 
 function money(value) {
   if (value === null || value === undefined || value === "") return "-";
@@ -1310,6 +1379,144 @@ const QUOTE_PDF_TEXT = {
   }
 };
 
+function documentPdfText(language, type = "quote") {
+  const base = QUOTE_PDF_TEXT[language] || QUOTE_PDF_TEXT.es;
+  const titles = {
+    quote: base.title,
+    invoice: language === "en" ? "Invoice" : language === "fr" ? "Facture" : language === "it" ? "Fattura" : language === "pt" ? "Fatura" : language === "de" ? "Rechnung" : language === "nl" ? "Factuur" : "Factura",
+    "delivery-note": language === "en" ? "Delivery note" : language === "fr" ? "Bon de livraison" : language === "it" ? "Documento di trasporto" : language === "pt" ? "Guia de remessa" : language === "de" ? "Lieferschein" : language === "nl" ? "Leveringsbon" : "Albarán"
+  };
+
+  return {
+    ...base,
+    title: titles[type] || base.title,
+    discount: language === "en" ? "Discount" : language === "fr" ? "Remise" : language === "it" ? "Sconto" : language === "pt" ? "Desconto" : language === "de" ? "Rabatt" : language === "nl" ? "Korting" : "Descuento",
+    dueDate: language === "en" ? "Due date" : language === "fr" ? "Échéance" : language === "it" ? "Scadenza" : language === "pt" ? "Vencimento" : language === "de" ? "Fällig am" : language === "nl" ? "Vervaldatum" : "Vencimiento",
+    deliveryDate: language === "en" ? "Expected delivery date" : language === "fr" ? "Date de livraison prévue" : language === "it" ? "Data di consegna prevista" : language === "pt" ? "Data prevista de entrega" : language === "de" ? "Voraussichtliches Lieferdatum" : language === "nl" ? "Verwachte leverdatum" : "Fecha de entrega prevista"
+  };
+}
+
+function DocumentPdfPage({
+  id,
+  type = "quote",
+  language = "es",
+  number = "-",
+  date = "",
+  dueDate = "",
+  clientBlock = [],
+  lines = [],
+  subtotal = 0,
+  taxRate = 21,
+  taxTotal = 0,
+  total = 0,
+  currency = "EUR",
+  paymentMethod = "",
+  notes = ""
+}) {
+  const text = documentPdfText(language, type);
+  const isDeliveryNote = type === "delivery-note";
+  const validityLabel = isDeliveryNote ? text.deliveryDate : type === "invoice" ? text.dueDate : text.validUntil;
+
+  return (
+    <div id={id} className="quote-pdf-page quote-pdf-page-template">
+      <section className="quote-pdf-top">
+        <div className="quote-pdf-issuer">
+          <div className="quote-pdf-logo">
+            <img className="quote-pdf-logo-image" src={DOCUMENT_PDF_LOGO} alt="Doinglight Skylights" />
+          </div>
+          <strong>{text.issuedBy}</strong>
+          <span>DOINGLIGHT TECHNOLOGIES, SLU</span>
+          <span>ESB02555001</span>
+          <span>Polígono Industrial Campollano, Calle E nº 24</span>
+          <span>02007 ALBACETE</span>
+          <span>España</span>
+          <span>info@doinglight.es</span>
+          <span>www.doinglight.es</span>
+          <span>658856869</span>
+        </div>
+        <div className="quote-pdf-document-head">
+          <h2>{text.title}</h2>
+          <div className="quote-pdf-number-table">
+            <strong>{text.number}</strong>
+            <strong>{text.date}</strong>
+            <span>{number || "-"}</span>
+            <span>{dateOnly(date)}</span>
+          </div>
+          <div className="quote-pdf-client-box">
+            {(clientBlock.length ? clientBlock : ["Cliente sin asignar"]).map((line, index) => (
+              <span key={`${line}-${index}`}>{line}</span>
+            ))}
+          </div>
+        </div>
+      </section>
+      <table className={isDeliveryNote ? "quote-pdf-lines-table delivery-pdf-lines-table" : "quote-pdf-lines-table"}>
+        <thead>
+          <tr>
+            <th>{text.code}</th>
+            <th>{text.concept}</th>
+            <th>{text.quantity}</th>
+            {!isDeliveryNote ? <th>{text.price}</th> : null}
+            {!isDeliveryNote ? <th>{text.discount}</th> : null}
+            {!isDeliveryNote ? <th>{text.total}</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {lines.length ? lines.map((line, index) => (
+            <tr key={`${line.code || "line"}-${index}`}>
+              <td>{line.code || "-"}</td>
+              <td>{line.concept || "-"}</td>
+              <td>{tableMoney(line.quantity || 0)}</td>
+              {!isDeliveryNote ? <td>{tableMoney(line.price || 0)}</td> : null}
+              {!isDeliveryNote ? <td>{line.discount ? `${tableMoney(line.discount)}%` : ""}</td> : null}
+              {!isDeliveryNote ? <td>{tableMoney(line.total || 0)}</td> : null}
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={isDeliveryNote ? 3 : 6}>Sin líneas.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      {!isDeliveryNote ? (
+        <div className="quote-pdf-totals quote-pdf-summary">
+          <span>{text.subtotal}</span>
+          <strong>{tableMoney(subtotal)}</strong>
+          <span>{text.vat} {taxRate}% (Base: {tableMoney(subtotal)})</span>
+          <strong>{tableMoney(taxTotal)}</strong>
+          <span>{text.totalCurrency || `Total (${currency})`}</span>
+          <strong>{money(total)}</strong>
+        </div>
+      ) : null}
+      <table className="quote-pdf-validity-table">
+        <thead>
+          <tr>
+            <th>{validityLabel}</th>
+            <th>{text.paymentMethod}</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{dateOnly(dueDate)}</td>
+            <td>{paymentMethod || ""}</td>
+            <td />
+          </tr>
+        </tbody>
+      </table>
+      <div className="quote-pdf-notes quote-pdf-long-notes">
+        {notes ? <p>{notes}</p> : null}
+        {!isDeliveryNote ? (
+          <p>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</p>
+        ) : null}
+      </div>
+      <footer className="quote-pdf-privacy">
+        <strong>{text.privacyTitle}</strong>
+        <span>{text.privacyText}</span>
+      </footer>
+    </div>
+  );
+}
+
 function serializeSalesQuote(quote, leadsById) {
   const status = quoteStatusState(quote.status);
   const lead = leadsById.get(quote.leadId) || {};
@@ -1839,6 +2046,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
       </section>
       {selectedInvoice ? (
         <InvoiceDetailModal
+          token={token}
           invoice={selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
         />
@@ -1847,9 +2055,212 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
   );
 }
 
-function InvoiceDetailModal({ invoice, onClose }) {
+function documentCounterpartBlock(documentRecord) {
+  const main = documentRecord.raw?.main || {};
+  const counterpart = main.counterpart || {};
+  const name = [counterpart.name, counterpart.surname].filter(Boolean).join(" ").trim() || documentRecord.contact;
+  const address = [
+    counterpart.address,
+    counterpart.addressLine1,
+    counterpart.street,
+    [counterpart.postalCode, counterpart.city || counterpart.town, counterpart.province].filter(Boolean).join(" ")
+  ].filter(Boolean);
+  const taxId = counterpart.vatNumber || counterpart.taxId || counterpart.legalId || counterpart.fiscalId || "";
+  const country = counterpart.country || counterpart.countryCode || "";
+  return [name, taxId, ...address, countryLabel(country) || country].filter(Boolean);
+}
+
+function documentLinesForPdf(lines = []) {
+  return lines.map((line) => {
+    const quantity = normalizeMoneyValue(firstValue(line, ["quantity", "units", "amount"], 0));
+    const total = normalizeMoneyValue(firstValue(line, ["total", "totalAmount", "amountTotal", "amount"], 0));
+    const price = normalizeMoneyValue(firstValue(line, ["unitPrice", "price", "salePrice"], quantity ? total / quantity : total));
+    return {
+      code: firstValue(line, ["code", "productCode", "sku", "reference", "product.code"], ""),
+      concept: firstValue(line, ["text", "description", "title", "concept"], ""),
+      quantity,
+      price,
+      discount: normalizeMoneyValue(firstValue(line, ["discount", "discountPercent", "discountPercentage"], 0)),
+      total
+    };
+  });
+}
+
+function DocumentSendModal({ token, documentRecord, type, onClose }) {
+  const [language, setLanguage] = useState(quoteLanguageForCountry(documentRecord.raw?.main?.counterpart?.countryCode || documentRecord.raw?.main?.counterpart?.country || "ES"));
+  const [status, setStatus] = useState("");
+  const [draft, setDraft] = useState(() => {
+    const counterpart = documentRecord.raw?.main?.counterpart || {};
+    const typeLabel = type === "invoice" ? "factura" : "albarán";
+    return {
+      to: counterpart.email || counterpart.emailAddress || "",
+      from: "ADMINISTRACION <administracion@doinglight.es>",
+      subject: `Envío ${typeLabel} ${documentRecord.number}`,
+      body: `Estimado cliente:\n\nAdjunto a este correo encontrará nuestro ${typeLabel}.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.`,
+      attachPdf: true
+    };
+  });
+  const label = type === "invoice" ? "Factura" : "Albarán";
+  const filename = `${label}-${safeFilePart(dateOnly(documentRecord.date))}-${safeFilePart(documentRecord.number)}.pdf`;
+  const elementId = `${type}-pdf-${safeFilePart(documentRecord.id || documentRecord.number)}`;
+  const lines = documentLinesForPdf(type === "invoice" ? documentRecord.raw?.main?.lines || [] : documentRecord.lines || []);
+  const subtotal = Number(documentRecord.subtotal || 0);
+  const total = Number(documentRecord.total || 0);
+  const taxTotal = Math.max(total - subtotal, 0);
+  const taxRate = subtotal ? Math.round((taxTotal / subtotal) * 100) : 0;
+  const selectedLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((item) => item.value === language)?.label || "Español";
+
+  function updateDraft(patch) {
+    setDraft((current) => ({ ...current, ...patch }));
+    setStatus("");
+  }
+
+  async function downloadPdf() {
+    setStatus("Generando PDF...");
+    try {
+      await renderDocumentElementAsPdf(elementId, filename);
+      setStatus("");
+    } catch (err) {
+      setStatus(err.message);
+    }
+  }
+
+  function printPdf() {
+    try {
+      printDocumentElement(elementId, filename);
+    } catch (err) {
+      setStatus(err.message);
+    }
+  }
+
+  async function sendPdf(event) {
+    event.preventDefault();
+    setStatus("Generando y enviando PDF...");
+    try {
+      const pdfBase64 = draft.attachPdf
+        ? await renderDocumentElementAsPdf(elementId, filename, { save: false })
+        : "";
+      await apiRequest("/api/quotes/documents/send", {
+        token,
+        method: "POST",
+        body: {
+          documentType: type,
+          documentNumber: documentRecord.number,
+          language,
+          to: draft.to,
+          from: draft.from,
+          subject: draft.subject,
+          body: draft.body,
+          filename,
+          pdfBase64
+        }
+      });
+      setStatus("Correo enviado correctamente.");
+    } catch (err) {
+      setStatus(err.message);
+    }
+  }
+
+  return (
+    <div className="quote-send-overlay" role="dialog" aria-modal="true" aria-label="Enviar por correo electrónico">
+      <form className="quote-send-dialog" onSubmit={sendPdf}>
+        <header className="quote-send-header">
+          <h3>Enviar por correo electrónico</h3>
+          <button type="button" onClick={onClose} aria-label="Cerrar envío">
+            <X size={28} />
+          </button>
+        </header>
+        <div className="quote-send-content">
+          <section className="quote-send-fields">
+            <label>
+              <span>Envío a</span>
+              <input value={draft.to} onChange={(event) => updateDraft({ to: event.target.value })} placeholder="cliente@correo.com" />
+            </label>
+            <label>
+              <span>Remitente</span>
+              <select value={draft.from} onChange={(event) => updateDraft({ from: event.target.value })}>
+                <option value="ADMINISTRACION <administracion@doinglight.es>">ADMINISTRACION &lt;administracion@doinglight.es&gt;</option>
+                <option value="MARKETING <marketing@doinglight.es>">MARKETING &lt;marketing@doinglight.es&gt;</option>
+                <option value="DOINGLIGHT <info@doinglight.es>">DOINGLIGHT &lt;info@doinglight.es&gt;</option>
+              </select>
+            </label>
+            <label>
+              <span>Asunto</span>
+              <input value={draft.subject} onChange={(event) => updateDraft({ subject: event.target.value })} />
+            </label>
+            <label className="quote-send-body-field">
+              <span>Contenido</span>
+              <textarea value={draft.body} onChange={(event) => updateDraft({ body: event.target.value })} />
+            </label>
+            <div className="quote-send-attachments">
+              <span>Archivos adjuntos</span>
+              <label>
+                <input type="checkbox" checked={draft.attachPdf} onChange={(event) => updateDraft({ attachPdf: event.target.checked })} />
+                <strong>{filename}</strong>
+              </label>
+            </div>
+            {status ? <p className={status.includes("correctamente") ? "form-success" : "form-error"}>{status}</p> : null}
+          </section>
+          <section className="quote-send-preview" aria-label="Vista previa del PDF adjunto">
+            <label className="quote-pdf-language-row">
+              <span>Idioma del documento</span>
+              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+                {QUOTE_LANGUAGE_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="quote-pdf-toolbar">
+              <span>Vista previa del PDF · {selectedLanguageLabel}</span>
+              <div>
+                <button type="button" title="Descargar PDF" onClick={downloadPdf}><Download size={17} /></button>
+                <button type="button" title="Imprimir PDF" onClick={printPdf}><Printer size={17} /></button>
+                <button type="button" title="Más opciones"><MoreVertical size={17} /></button>
+              </div>
+            </div>
+            <DocumentPdfPage
+              id={elementId}
+              type={type}
+              language={language}
+              number={documentRecord.number}
+              date={documentRecord.date}
+              dueDate={documentRecord.dueDate || addDays(documentRecord.date, 30)}
+              clientBlock={documentCounterpartBlock(documentRecord)}
+              lines={lines}
+              subtotal={subtotal}
+              taxRate={taxRate}
+              taxTotal={taxTotal}
+              total={total}
+              currency={documentRecord.currency}
+              paymentMethod={firstValue(documentRecord.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
+              notes={type === "invoice" ? firstValue(documentRecord.raw?.main || {}, ["notes", "observations", "publicNotes"], "") : ""}
+            />
+          </section>
+        </div>
+        <footer className="quote-send-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="quote-send-icon-button" type="button" onClick={downloadPdf} aria-label="Descargar PDF" title="Descargar PDF">
+            <Download size={20} />
+          </button>
+          <button className="quote-send-icon-button" type="button" onClick={printPdf} aria-label="Imprimir PDF" title="Imprimir PDF">
+            <Printer size={20} />
+          </button>
+          <button className="primary-button send-quote-button" type="submit">
+            <Send size={18} />
+            Enviar
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
+function InvoiceDetailModal({ token, invoice, onClose }) {
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   const lines = Array.isArray(invoice.raw?.main?.lines) ? invoice.raw.main.lines : [];
+  const pdfId = `invoice-menu-pdf-${safeFilePart(invoice.id || invoice.number)}`;
+  const pdfFilename = `Factura-${safeFilePart(dateOnly(invoice.date))}-${safeFilePart(invoice.number)}.pdf`;
 
   return (
     <ModalShell
@@ -1865,6 +2276,9 @@ function InvoiceDetailModal({ invoice, onClose }) {
           {actionsOpen ? (
             <DocumentActionsMenu
               type="invoice"
+              onSend={() => setSendOpen(true)}
+              onDownload={() => renderDocumentElementAsPdf(pdfId, pdfFilename)}
+              onPrint={() => printDocumentElement(pdfId, pdfFilename)}
               onClose={() => setActionsOpen(false)}
             />
           ) : null}
@@ -1912,7 +2326,34 @@ function InvoiceDetailModal({ invoice, onClose }) {
             </table>
           </div>
         </section>
+        <div className="hidden-pdf-source" aria-hidden="true">
+          <DocumentPdfPage
+            id={pdfId}
+            type="invoice"
+            language="es"
+            number={invoice.number}
+            date={invoice.date}
+            dueDate={invoice.dueDate || addDays(invoice.date, 30)}
+            clientBlock={documentCounterpartBlock(invoice)}
+            lines={documentLinesForPdf(lines)}
+            subtotal={invoice.subtotal}
+            taxRate={invoice.subtotal ? Math.round(((invoice.total - invoice.subtotal) / invoice.subtotal) * 100) : 0}
+            taxTotal={Math.max(invoice.total - invoice.subtotal, 0)}
+            total={invoice.total}
+            currency={invoice.currency}
+            paymentMethod={firstValue(invoice.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
+            notes={firstValue(invoice.raw?.main || {}, ["notes", "observations", "publicNotes"], "")}
+          />
+        </div>
       </div>
+      {sendOpen ? (
+        <DocumentSendModal
+          token={token}
+          documentRecord={invoice}
+          type="invoice"
+          onClose={() => setSendOpen(false)}
+        />
+      ) : null}
     </ModalShell>
   );
 }
@@ -2053,6 +2494,7 @@ function DeliveryNotesView({ token }) {
 
       {selectedDeliveryNote ? (
         <DeliveryNoteDetailModal
+          token={token}
           deliveryNote={selectedDeliveryNote}
           onClose={() => setSelectedDeliveryNote(null)}
         />
@@ -2061,8 +2503,11 @@ function DeliveryNotesView({ token }) {
   );
 }
 
-function DeliveryNoteDetailModal({ deliveryNote, onClose }) {
+function DeliveryNoteDetailModal({ token, deliveryNote, onClose }) {
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const pdfId = `delivery-note-menu-pdf-${safeFilePart(deliveryNote.id || deliveryNote.number)}`;
+  const pdfFilename = `Albaran-${safeFilePart(dateOnly(deliveryNote.date))}-${safeFilePart(deliveryNote.number)}.pdf`;
 
   return (
     <ModalShell
@@ -2078,6 +2523,9 @@ function DeliveryNoteDetailModal({ deliveryNote, onClose }) {
           {actionsOpen ? (
             <DocumentActionsMenu
               type="delivery-note"
+              onSend={() => setSendOpen(true)}
+              onDownload={() => renderDocumentElementAsPdf(pdfId, pdfFilename)}
+              onPrint={() => printDocumentElement(pdfId, pdfFilename)}
               onClose={() => setActionsOpen(false)}
             />
           ) : null}
@@ -2124,7 +2572,33 @@ function DeliveryNoteDetailModal({ deliveryNote, onClose }) {
             </table>
           </div>
         </section>
+        <div className="hidden-pdf-source" aria-hidden="true">
+          <DocumentPdfPage
+            id={pdfId}
+            type="delivery-note"
+            language="es"
+            number={deliveryNote.number}
+            date={deliveryNote.date}
+            dueDate={addDays(deliveryNote.date, 30)}
+            clientBlock={documentCounterpartBlock(deliveryNote)}
+            lines={documentLinesForPdf(deliveryNote.lines)}
+            subtotal={deliveryNote.subtotal}
+            taxTotal={Math.max(deliveryNote.total - deliveryNote.subtotal, 0)}
+            total={deliveryNote.total}
+            currency={deliveryNote.currency}
+            paymentMethod={firstValue(deliveryNote.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
+            notes={firstValue(deliveryNote.raw?.main || {}, ["notes", "observations", "publicNotes"], "")}
+          />
+        </div>
       </div>
+      {sendOpen ? (
+        <DocumentSendModal
+          token={token}
+          documentRecord={deliveryNote}
+          type="delivery-note"
+          onClose={() => setSendOpen(false)}
+        />
+      ) : null}
     </ModalShell>
   );
 }
@@ -3775,12 +4249,12 @@ function DuplicateAsDocumentModal({ onClose }) {
   );
 }
 
-function DocumentActionsMenu({ type, onClose, onSend }) {
+function DocumentActionsMenu({ type, onClose, onSend, onPrint, onDownload }) {
   const [duplicateAsOpen, setDuplicateAsOpen] = useState(false);
   const isInvoice = type === "invoice";
   const exportActions = [
-    { label: "Imprimir", action: () => window.print() },
-    { label: "Descargar PDF" },
+    { label: "Imprimir", action: onPrint || (() => window.print()) },
+    { label: "Descargar PDF", action: onDownload },
     ...(isInvoice ? [{ label: "Descargar Facturae" }] : [])
   ];
   const convertActions = isInvoice
@@ -5443,7 +5917,22 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
   const taxTotal = subtotal * (Number(taxRate) / 100);
   const total = subtotal + taxTotal;
   const quoteNumberLabel = initialQuote?.quoteNumber || initialQuote?.number || "borrador";
-  const quotePdfName = `Presupuesto-${quoteDate || inputDate(new Date())}-${quoteNumberLabel}.pdf`;
+  const quotePdfName = `Presupuesto-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
+  const quotePdfElementId = `quote-pdf-${safeFilePart(quoteNumberLabel)}-${safeFilePart(quoteDate || "borrador")}`;
+  const quotePdfLines = lines.map((line) => {
+    const selectedProduct = productForLine(line);
+    const quantity = Number(line.quantity || 0);
+    const lineAmount = lineTotal(line);
+    const unitPrice = quantity ? lineAmount / quantity : lineAmount;
+    return {
+      code: line.skuQuery || line.sku || "-",
+      concept: selectedProduct?.title || selectedProduct?.shortDescription || "Producto pendiente",
+      quantity,
+      price: unitPrice,
+      discount: Number(line.discountPercent || 0),
+      total: lineAmount
+    };
+  });
 
   function buildDefaultSendDraft() {
     return {
@@ -5466,9 +5955,50 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
     setSendStatus("");
   }
 
-  function prepareSend(event) {
+  async function downloadQuotePdf() {
+    setSendStatus("Generando PDF...");
+    try {
+      await renderDocumentElementAsPdf(quotePdfElementId, quotePdfName);
+      setSendStatus("");
+    } catch (err) {
+      setSendStatus(err.message);
+    }
+  }
+
+  function printQuotePdf() {
+    try {
+      printDocumentElement(quotePdfElementId, quotePdfName);
+    } catch (err) {
+      setSendStatus(err.message);
+    }
+  }
+
+  async function prepareSend(event) {
     event.preventDefault();
-    setSendStatus("Envío preparado. Conectaremos el envío real cuando cerremos la plantilla PDF definitiva.");
+    setSendStatus("Generando y enviando PDF...");
+    try {
+      const pdfBase64 = sendDraft.attachPdf
+        ? await renderDocumentElementAsPdf(quotePdfElementId, quotePdfName, { save: false })
+        : "";
+      await apiRequest("/api/quotes/documents/send", {
+        token,
+        method: "POST",
+        body: {
+          documentType: "quote",
+          documentNumber: quoteNumberLabel,
+          language: quoteLanguage,
+          to: sendDraft.to,
+          from: sendDraft.from,
+          subject: sendDraft.subject,
+          body: sendDraft.body,
+          filename: quotePdfName,
+          pdfBase64
+        }
+      });
+      setSendStatus("Correo enviado correctamente.");
+    } catch (err) {
+      setSendStatus(err.message);
+    }
   }
 
   async function submit(event) {
@@ -5991,115 +6521,35 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote }) {
                 <div className="quote-pdf-toolbar">
                   <span>Vista previa del PDF · {selectedQuoteLanguageLabel}</span>
                   <div>
-                    <button type="button" title="Descargar próximamente"><Download size={17} /></button>
-                    <button type="button" title="Imprimir próximamente">PDF</button>
+                    <button type="button" title="Descargar PDF" onClick={downloadQuotePdf}><Download size={17} /></button>
+                    <button type="button" title="Imprimir PDF" onClick={printQuotePdf}><Printer size={17} /></button>
                     <button type="button" title="Más opciones"><MoreVertical size={17} /></button>
                   </div>
                 </div>
-                <div className="quote-pdf-page quote-pdf-page-template">
-                  <section className="quote-pdf-top">
-                    <div className="quote-pdf-issuer">
-                      <div className="quote-pdf-logo">
-                        <span className="quote-pdf-logo-dot" />
-                        <div>
-                          <strong>DOINGLIGHT</strong>
-                          <small>SKYLIGHTS</small>
-                        </div>
-                      </div>
-                      <strong>{quotePdfText.issuedBy}</strong>
-                      <span>DOINGLIGHT TECHNOLOGIES, SLU</span>
-                      <span>B02555001</span>
-                      <span>Polígono Industrial Campollano, Calle E nº 24</span>
-                      <span>02007 ALBACETE</span>
-                      <span>España</span>
-                      <span>info@doinglight.es</span>
-                      <span>www.doinglight.es</span>
-                      <span>658856869</span>
-                    </div>
-                    <div className="quote-pdf-document-head">
-                      <h2>{quotePdfText.title}</h2>
-                      <div className="quote-pdf-number-table">
-                        <strong>{quotePdfText.number}</strong>
-                        <strong>{quotePdfText.date}</strong>
-                        <span>{quoteNumberLabel}</span>
-                        <span>{dateOnly(quoteDate)}</span>
-                      </div>
-                      <div className="quote-pdf-client-box">
-                        {quoteClientBlock.map((line) => (
-                          <span key={line}>{line}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-                  <table className="quote-pdf-lines-table">
-                    <thead>
-                      <tr>
-                        <th>{quotePdfText.code}</th>
-                        <th>{quotePdfText.concept}</th>
-                        <th>{quotePdfText.quantity}</th>
-                        <th>{quotePdfText.price}</th>
-                        <th>{quotePdfText.total}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lines.map((line) => {
-                        const selectedProduct = productForLine(line);
-                        const quantity = Number(line.quantity || 0);
-                        const lineAmount = lineTotal(line);
-                        const unitPrice = quantity ? lineAmount / quantity : lineAmount;
-                        return (
-                          <tr key={line.id}>
-                            <td>{line.skuQuery || line.sku || "-"}</td>
-                            <td>{selectedProduct?.title || selectedProduct?.shortDescription || "Producto pendiente"}</td>
-                            <td>{quantity}</td>
-                            <td>{tableMoney(unitPrice)}</td>
-                            <td>{tableMoney(lineAmount)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  <div className="quote-pdf-totals quote-pdf-summary">
-                    <span>{quotePdfText.subtotal}</span>
-                    <strong>{tableMoney(subtotal)}</strong>
-                    <span>{quotePdfText.vat} {taxRate}% (Base: {tableMoney(subtotal)})</span>
-                    <strong>{tableMoney(taxTotal)}</strong>
-                    <span>{quotePdfText.totalCurrency}</span>
-                    <strong>{money(total)}</strong>
-                  </div>
-                  <table className="quote-pdf-validity-table">
-                    <thead>
-                      <tr>
-                        <th>{quotePdfText.validUntil}</th>
-                        <th>{quotePdfText.paymentMethod}</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>{dateOnly(validUntil)}</td>
-                        <td>{paymentMethod || ""}</td>
-                        <td />
-                      </tr>
-                    </tbody>
-                  </table>
-                  <div className="quote-pdf-notes quote-pdf-long-notes">
-                    <p>{notes || "**Para pagar con tarjeta por favor haga click en el siguiente enlace:**\n\nhttps://sis.redsys.es/sis/p2f?..."}</p>
-                    <p>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</p>
-                  </div>
-                  <footer className="quote-pdf-privacy">
-                    <strong>{quotePdfText.privacyTitle}</strong>
-                    <span>{quotePdfText.privacyText}</span>
-                  </footer>
-                </div>
+                <DocumentPdfPage
+                  id={quotePdfElementId}
+                  type="quote"
+                  language={quoteLanguage}
+                  number={quoteNumberLabel}
+                  date={quoteDate}
+                  dueDate={validUntil}
+                  clientBlock={quoteClientBlock}
+                  lines={quotePdfLines}
+                  subtotal={subtotal}
+                  taxRate={taxRate}
+                  taxTotal={taxTotal}
+                  total={total}
+                  paymentMethod={paymentMethod}
+                  notes={notes || "**Para pagar con tarjeta por favor haga click en el siguiente enlace:**\n\nhttps://sis.redsys.es/sis/p2f?..."}
+                />
               </section>
             </div>
             <footer className="quote-send-actions">
               <button className="secondary-button" type="button" onClick={() => setSendModalOpen(false)}>Cancelar</button>
-              <button className="quote-send-icon-button" type="button" aria-label="Descargar PDF" title="Descargar PDF">
+              <button className="quote-send-icon-button" type="button" onClick={downloadQuotePdf} aria-label="Descargar PDF" title="Descargar PDF">
                 <Download size={20} />
               </button>
-              <button className="quote-send-icon-button" type="button" aria-label="Imprimir PDF" title="Imprimir PDF">
+              <button className="quote-send-icon-button" type="button" onClick={printQuotePdf} aria-label="Imprimir PDF" title="Imprimir PDF">
                 <Printer size={20} />
               </button>
               <button className="primary-button send-quote-button" type="submit">
