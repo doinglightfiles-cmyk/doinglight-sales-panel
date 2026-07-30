@@ -341,6 +341,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [globalInvoiceOpen, setGlobalInvoiceOpen] = useState(false);
   const [globalQuoteOpen, setGlobalQuoteOpen] = useState(false);
+  const [globalProformaOpen, setGlobalProformaOpen] = useState(false);
   const [globalContactPickerOpen, setGlobalContactPickerOpen] = useState(false);
   const [globalContactForm, setGlobalContactForm] = useState(null);
   const primaryNav = [
@@ -410,6 +411,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   function openGlobalQuote() {
     setCreateDrawerOpen(false);
     setGlobalQuoteOpen(true);
+  }
+
+  function openGlobalProforma() {
+    setCreateDrawerOpen(false);
+    setGlobalProformaOpen(true);
   }
 
   function openGlobalInvoice() {
@@ -607,6 +613,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           onNavigate={navigate}
           onCreateInvoice={openGlobalInvoice}
           onCreateQuote={openGlobalQuote}
+          onCreateProforma={openGlobalProforma}
           onCreateContact={openGlobalContactPicker}
         />
       ) : null}
@@ -640,6 +647,24 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
             onDone={() => {
               setGlobalQuoteOpen(false);
               navigate("quotes");
+            }}
+          />
+        </ModalShell>
+      ) : null}
+      {globalProformaOpen ? (
+        <ModalShell
+          title="Nueva factura proforma"
+          eyebrow="Factura Proforma"
+          size="wide-modal quote-work-modal"
+          onClose={() => setGlobalProformaOpen(false)}
+        >
+          <QuoteForm
+            token={session.token}
+            documentType="proforma"
+            onCancel={() => setGlobalProformaOpen(false)}
+            onDone={() => {
+              setGlobalProformaOpen(false);
+              navigate("proformas");
             }}
           />
         </ModalShell>
@@ -679,12 +704,12 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   );
 }
 
-function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateContact }) {
+function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateProforma, onCreateContact }) {
   const [isClosing, setIsClosing] = useState(false);
   const actions = [
     { label: "Factura de venta", action: onCreateInvoice },
     { label: "Presupuesto", action: onCreateQuote },
-    { label: "Proforma", action: () => onNavigate("proformas") },
+    { label: "Proforma", action: onCreateProforma },
     { label: "Albarán", action: () => onNavigate("delivery-notes") },
     { label: "Factura de compra", action: () => onNavigate("purchases") },
     { label: "Gasto/Tiquet", action: () => onNavigate("purchases") },
@@ -5737,7 +5762,11 @@ function DownloadsView() {
   );
 }
 
-function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef }) {
+function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote" }) {
+  const isProforma = documentType === "proforma";
+  const documentTitle = isProforma ? "Factura Proforma" : "Presupuesto";
+  const documentEyebrow = isProforma ? "Factura Proforma" : "Presupuesto";
+  const createButtonLabel = initialQuote ? "Guardar cambios" : isProforma ? "Crear proforma" : "Crear presupuesto";
   const [clientMode, setClientMode] = useState("existing");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
@@ -6164,7 +6193,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const taxTotal = subtotal * (Number(taxRate) / 100);
   const total = subtotal + taxTotal;
   const quoteNumberLabel = initialQuote?.quoteNumber || initialQuote?.number || "borrador";
-  const quotePdfName = `Presupuesto-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
+  const quotePdfName = `${isProforma ? "Factura-Proforma" : "Presupuesto"}-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
   const quotePdfElementId = `quote-pdf-${safeFilePart(quoteNumberLabel)}-${safeFilePart(quoteDate || "borrador")}`;
   const quotePdfLines = lines.map((line) => {
     const selectedProduct = productForLine(line);
@@ -6300,6 +6329,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         return;
       }
 
+      if (isProforma) {
+        setError("La creación definitiva de facturas proforma se conectará cuando creemos el modelo interno de proformas.");
+        return;
+      }
+
       await apiRequest(initialQuote ? `/api/sales/quotes/${initialQuote.id}` : "/api/sales/quotes", {
         token,
         method: initialQuote ? "PATCH" : "POST",
@@ -6342,7 +6376,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <span>Responsable: <strong>-</strong> <button type="button">Cambiar</button></span>
         </div>
         <div className="quote-fd-title-row">
-          <h4>Presupuesto</h4>
+          <h4>{documentTitle}</h4>
           <div className="quote-fd-total">
             <span>Total</span>
             <strong>{money(total)}</strong>
@@ -6722,7 +6756,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <div className="form-actions">
         {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
         <button className="primary-button" type="button" onClick={submit}>
-          {initialQuote ? "Guardar cambios" : "Crear presupuesto"}
+          {createButtonLabel}
         </button>
         <button className="primary-button send-quote-button" type="button" onClick={openSendModal}>
           Enviar
@@ -6731,7 +6765,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       {transferLinesOpen ? (
         <ModalShell
           title="Traspasar líneas a albarán"
-          eyebrow="Presupuesto"
+          eyebrow={documentEyebrow}
           size="transfer-lines-modal"
           onClose={() => setTransferLinesOpen(false)}
         >
