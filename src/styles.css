@@ -1300,7 +1300,7 @@ select:focus {
 .invoice-toolbar {
   min-height: 116px;
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) minmax(260px, 390px) auto 44px;
+  grid-template-columns: minmax(210px, 1fr) minmax(260px, 390px) auto;
   gap: 18px;
   align-items: center;
   padding: 26px 36px 14px;
@@ -1336,6 +1336,152 @@ select:focus {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 999px;
+}
+
+.modal-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-actions-trigger {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--white);
+}
+
+.document-actions-trigger:hover {
+  color: var(--green-dark);
+  border-color: var(--green);
+}
+
+.document-actions-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: start center;
+  padding-top: 72px;
+  background: rgba(6, 9, 7, 0.28);
+}
+
+.document-actions-backdrop.stacked {
+  z-index: 90;
+  place-items: center;
+  padding: 24px;
+}
+
+.document-actions-menu {
+  position: relative;
+  width: min(980px, calc(100vw - 56px));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 72px;
+  border-radius: 8px;
+  padding: 52px 58px 44px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(43, 48, 52, 0.96);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+}
+
+.document-actions-close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: rgba(255, 255, 255, 0.78);
+  background: transparent;
+}
+
+.document-actions-close:hover {
+  color: #fff;
+}
+
+.document-actions-column {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.document-actions-column h4 {
+  margin: 0 0 10px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 18px;
+}
+
+.document-actions-column button {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 0;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+  text-align: left;
+}
+
+.document-actions-column button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.document-actions-column button.danger:hover {
+  color: #ffe1e1;
+  background: rgba(180, 37, 37, 0.22);
+}
+
+.duplicate-document-modal {
+  position: relative;
+  width: min(420px, calc(100vw - 40px));
+  display: grid;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 28px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(43, 48, 52, 0.98);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.32);
+}
+
+.duplicate-document-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.duplicate-document-modal h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.duplicate-document-modal button:not(.document-actions-close) {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 14px;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+}
+
+.duplicate-document-modal button:not(.document-actions-close):hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .invoice-filter-row {

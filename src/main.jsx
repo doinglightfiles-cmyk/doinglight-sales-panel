@@ -1605,6 +1605,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 
 function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [query, setQuery] = useState("");
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const statusResource = useResource(
     () => apiRequest("/api/facturadirecta/status", { token }),
     [token]
@@ -1662,9 +1663,6 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
             Todas las fechas
             <ChevronDown size={16} />
           </button>
-          <button className="invoice-more-button" type="button" aria-label="Más opciones">
-            <MoreVertical size={20} />
-          </button>
         </div>
         <div className="module-filters invoice-filter-row">
           <button className="invoice-filter-chip" type="button">Estado <MoreVertical size={14} /></button>
@@ -1703,8 +1701,27 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                 </tr>
               ) : null}
               {filteredInvoices.map((invoice) => (
-                <tr key={invoice.id}>
-                  <td className="select-column"><input type="checkbox" aria-label={`Seleccionar factura ${invoice.number}`} /></td>
+                <tr
+                  key={invoice.id}
+                  className="clickable-table-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedInvoice(invoice)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedInvoice(invoice);
+                    }
+                  }}
+                >
+                  <td className="select-column">
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar factura ${invoice.number}`}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    />
+                  </td>
                   <td className="invoice-kind-column"><span className="invoice-kind-badge">F</span></td>
                   <td>{dateOnly(invoice.date)}</td>
                   <td>{invoice.verifactuStatus || ""}</td>
@@ -1730,7 +1747,83 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
           </table>
         </div>
       </section>
+      {selectedInvoice ? (
+        <InvoiceDetailModal
+          invoice={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function InvoiceDetailModal({ invoice, onClose }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const lines = Array.isArray(invoice.raw?.main?.lines) ? invoice.raw.main.lines : [];
+
+  return (
+    <ModalShell
+      title={`Factura ${invoice.number}`}
+      eyebrow="Factura de venta"
+      size="wide-modal quote-record-modal"
+      onClose={onClose}
+      actions={(
+        <>
+          <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label="Opciones de factura">
+            <MoreVertical size={22} />
+          </button>
+          {actionsOpen ? (
+            <DocumentActionsMenu
+              type="invoice"
+              onClose={() => setActionsOpen(false)}
+            />
+          ) : null}
+        </>
+      )}
+    >
+      <div className="quote-record-body">
+        <section className="quote-detail-grid">
+          <DetailItem label="Cliente" value={invoice.contact} />
+          <DetailItem label="Fecha" value={dateOnly(invoice.date)} />
+          <DetailItem label="Vencimiento" value={dateOnly(invoice.dueDate)} />
+          <DetailItem label="Estado" value={invoice.status} />
+          <DetailItem label="Serie / Núm." value={invoice.number} />
+          <DetailItem label="Total" value={`${tableMoney(invoice.total)} ${invoice.currency}`} />
+        </section>
+
+        <section className="quote-record-section">
+          <header>
+            <h4>Líneas de factura</h4>
+          </header>
+          <div className="quote-record-lines">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Cantidad</th>
+                  <th>Precio</th>
+                  <th>Importe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.length ? lines.map((line, index) => (
+                  <tr key={`${invoice.id}-line-${index}`}>
+                    <td>{line.text || line.description || line.title || "-"}</td>
+                    <td>{tableMoney(line.quantity || line.units || 0)}</td>
+                    <td>{tableMoney(line.unitPrice || line.price || 0)}</td>
+                    <td>{tableMoney(line.total || line.amount || 0)}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4}>Esta factura no trae líneas detalladas en la respuesta actual.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </ModalShell>
   );
 }
 
@@ -1787,9 +1880,6 @@ function DeliveryNotesView({ token }) {
             <CalendarDays size={18} />
             Todas las fechas
             <ChevronDown size={16} />
-          </button>
-          <button className="invoice-more-button" type="button" aria-label="Más opciones">
-            <MoreVertical size={20} />
           </button>
         </div>
         <div className="module-filters invoice-filter-row">
@@ -1882,12 +1972,27 @@ function DeliveryNotesView({ token }) {
 }
 
 function DeliveryNoteDetailModal({ deliveryNote, onClose }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
+
   return (
     <ModalShell
       title={`Albarán ${deliveryNote.number}`}
       eyebrow="Albarán de venta"
       size="wide-modal quote-record-modal"
       onClose={onClose}
+      actions={(
+        <>
+          <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label="Opciones de albarán">
+            <MoreVertical size={22} />
+          </button>
+          {actionsOpen ? (
+            <DocumentActionsMenu
+              type="delivery-note"
+              onClose={() => setActionsOpen(false)}
+            />
+          ) : null}
+        </>
+      )}
     >
       <div className="quote-record-body">
         <section className="quote-detail-grid">
@@ -3529,7 +3634,7 @@ function LeadsView({ token }) {
   );
 }
 
-function ModalShell({ title, eyebrow, children, onClose, size = "" }) {
+function ModalShell({ title, eyebrow, children, onClose, size = "", actions = null }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <article
@@ -3544,13 +3649,112 @@ function ModalShell({ title, eyebrow, children, onClose, size = "" }) {
             <p>{eyebrow}</p>
             <h3 id={`${title.replace(/\s+/g, "-").toLowerCase()}-title`}>{title}</h3>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="Cerrar ventana">
-            <X size={18} />
-          </button>
+          <div className="modal-header-actions">
+            {actions}
+            <button className="icon-button" onClick={onClose} aria-label="Cerrar ventana">
+              <X size={18} />
+            </button>
+          </div>
         </header>
         {children}
       </article>
     </div>
+  );
+}
+
+function DuplicateAsDocumentModal({ onClose }) {
+  return (
+    <div className="document-actions-backdrop stacked" role="presentation" onMouseDown={onClose}>
+      <article className="duplicate-document-modal" role="dialog" aria-modal="true" aria-label="Duplicar como" onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <h3>Duplicar como...</h3>
+          <button className="document-actions-close" type="button" onClick={onClose} aria-label="Cerrar">
+            <X size={24} />
+          </button>
+        </header>
+        <button type="button" onClick={onClose}>
+          <span>Presupuesto</span>
+          <ChevronRight size={22} />
+        </button>
+        <button type="button" onClick={onClose}>
+          <span>Albarán</span>
+          <ChevronRight size={22} />
+        </button>
+      </article>
+    </div>
+  );
+}
+
+function DocumentActionsMenu({ type, onClose, onSend }) {
+  const [duplicateAsOpen, setDuplicateAsOpen] = useState(false);
+  const isInvoice = type === "invoice";
+  const exportActions = [
+    { label: "Imprimir", action: () => window.print() },
+    { label: "Descargar PDF" },
+    ...(isInvoice ? [{ label: "Descargar Facturae" }] : [])
+  ];
+  const convertActions = isInvoice
+    ? [
+        { label: "Duplicar" },
+        { label: "Duplicar como...", action: () => { setDuplicateAsOpen(true); return false; } }
+      ]
+    : [
+        { label: "Duplicar" },
+        { label: "Duplicar como presupuesto" },
+        { label: "Crear factura" }
+      ];
+  const documentActions = isInvoice
+    ? [
+        { label: "Modificar" },
+        { label: "Enviar", action: onSend },
+        { label: "Registrar ingreso" },
+        { label: "Registrar pago" },
+        { label: "Anular" },
+        { label: "Borrar", danger: true }
+      ]
+    : [
+        { label: "Modificar" },
+        { label: "Enviar", action: onSend },
+        { label: "Borrar", danger: true }
+      ];
+
+  function runAction(action) {
+    const result = action ? action() : undefined;
+    if (result !== false) onClose();
+  }
+
+  function renderColumn(title, actions) {
+    return (
+      <section className="document-actions-column">
+        <h4>{title}</h4>
+        {actions.map((item) => (
+          <button
+            className={item.danger ? "danger" : ""}
+            key={item.label}
+            type="button"
+            onClick={() => runAction(item.action)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </section>
+    );
+  }
+
+  return (
+    <>
+      <div className="document-actions-backdrop" role="presentation" onMouseDown={onClose}>
+        <article className="document-actions-menu" role="dialog" aria-modal="true" aria-label="Opciones del documento" onMouseDown={(event) => event.stopPropagation()}>
+          <button className="document-actions-close" type="button" onClick={onClose} aria-label="Cerrar opciones">
+            <X size={28} />
+          </button>
+          {renderColumn("Exportar", exportActions)}
+          {renderColumn("Convertir", convertActions)}
+          {renderColumn("Acciones", documentActions)}
+        </article>
+      </div>
+      {duplicateAsOpen ? <DuplicateAsDocumentModal onClose={() => setDuplicateAsOpen(false)} /> : null}
+    </>
   );
 }
 
@@ -4454,9 +4658,6 @@ function QuotesView({ token }) {
             Todas las fechas
             <ChevronDown size={16} />
           </button>
-          <button className="invoice-more-button" type="button" aria-label="Más opciones">
-            <MoreVertical size={20} />
-          </button>
         </div>
         <div className="module-filters invoice-filter-row">
           <label className="invoice-filter-select">
@@ -4571,8 +4772,15 @@ function QuotesView({ token }) {
 }
 
 function QuoteEditorModal({ token, quote, onClose, onDone }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
   const item = detail.data?.item || null;
+
+  function openQuoteSendFromMenu() {
+    window.setTimeout(() => {
+      document.querySelector(".quote-work-modal .send-quote-button")?.click();
+    }, 0);
+  }
 
   return (
     <ModalShell
@@ -4580,6 +4788,20 @@ function QuoteEditorModal({ token, quote, onClose, onDone }) {
       eyebrow="Editar presupuesto"
       size="wide-modal quote-work-modal"
       onClose={onClose}
+      actions={(
+        <>
+          <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label="Opciones de presupuesto">
+            <MoreVertical size={22} />
+          </button>
+          {actionsOpen ? (
+            <DocumentActionsMenu
+              type="quote"
+              onClose={() => setActionsOpen(false)}
+              onSend={openQuoteSendFromMenu}
+            />
+          ) : null}
+        </>
+      )}
     >
       {detail.error ? <p className="form-error">{detail.error}</p> : null}
       {detail.loading ? <p className="muted-text">Cargando presupuesto...</p> : null}
