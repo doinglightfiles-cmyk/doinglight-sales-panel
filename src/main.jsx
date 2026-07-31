@@ -5914,6 +5914,32 @@ function QuotesView({ token }) {
     }
   }
 
+  async function invoiceSelectedQuotes() {
+    if (!selectedQuoteIds.length) return;
+
+    try {
+      for (const quoteId of selectedQuoteIds) {
+        const deliveryNoteResult = await apiRequest(`/api/sales/documents/delivery_note/from-quote/${quoteId}`, {
+          token,
+          method: "POST",
+          body: {}
+        });
+        const deliveryNote = deliveryNoteResult.item;
+        if (!deliveryNote?.id) throw new Error("No se ha podido crear el albarán previo a la factura.");
+
+        await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${deliveryNote.id}`, {
+          token,
+          method: "POST",
+          body: {}
+        });
+      }
+      setSelectedQuoteIds([]);
+      quotes.reload();
+    } catch (err) {
+      window.alert(err.message || "No se han podido facturar los presupuestos seleccionados.");
+    }
+  }
+
   return (
     <div className="module-page quotes-page">
       <header className="module-page-header invoices-page-header">
@@ -5965,9 +5991,14 @@ function QuotesView({ token }) {
             </select>
           </label>
           {selectedQuoteIds.length ? (
-            <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
-              Traspasar {selectedQuoteIds.length} a albarán
-            </button>
+            <div className="bulk-document-actions">
+              <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
+                Traspasar {selectedQuoteIds.length} a albarán
+              </button>
+              <button className="bulk-document-action" type="button" onClick={invoiceSelectedQuotes}>
+                Facturar
+              </button>
+            </div>
           ) : null}
         </div>
         <div className="table-wrap invoice-table-wrap">
@@ -6909,6 +6940,35 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     }
   }
 
+  async function invoiceQuoteDirectly() {
+    if (!isQuote || !currentDocument?.id) {
+      window.alert("Guarda primero el presupuesto para poder facturarlo con trazabilidad.");
+      return;
+    }
+
+    try {
+      const deliveryNoteResult = await apiRequest(`/api/sales/documents/delivery_note/from-quote/${currentDocument.id}`, {
+        token,
+        method: "POST",
+        body: {
+          dueDate: validUntil,
+          paymentMethod
+        }
+      });
+      const deliveryNote = deliveryNoteResult.item;
+      if (!deliveryNote?.id) throw new Error("No se ha podido crear el albarán previo a la factura.");
+
+      await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${deliveryNote.id}`, {
+        token,
+        method: "POST",
+        body: {}
+      });
+      onDone();
+    } catch (err) {
+      window.alert(err.message || "No se ha podido facturar el presupuesto.");
+    }
+  }
+
   function removeLine(lineId) {
     setLines((current) => {
       if (current.length === 1) return current;
@@ -7385,9 +7445,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         <header className="form-section-header">
           <h4>Líneas del documento</h4>
           {isQuote ? (
-            <button className="quote-transfer-lines-button" type="button" onClick={openTransferLines}>
-              Traspasar líneas a albarán
-            </button>
+            <div className="quote-line-tools">
+              <button className="quote-transfer-lines-button" type="button" onClick={openTransferLines}>
+                Traspasar líneas a albarán
+              </button>
+              <button className="quote-transfer-lines-button" type="button" onClick={invoiceQuoteDirectly}>
+                Facturar presupuesto
+              </button>
+            </div>
           ) : null}
         </header>
         {lines.map((line, index) => {

@@ -1515,6 +1515,12 @@ select:focus {
   padding: 14px 36px 26px;
 }
 
+.bulk-document-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .invoice-filter-chip {
   min-height: 36px;
   display: inline-flex;
@@ -3442,6 +3448,13 @@ th {
   margin: 0;
   font-size: 15px;
   letter-spacing: 0;
+}
+
+.quote-line-tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .quote-transfer-lines-button {
