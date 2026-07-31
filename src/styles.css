@@ -3267,6 +3267,71 @@ th {
   grid-template-columns: 140px 90px 90px 1fr auto;
 }
 
+.document-trace {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(95, 125, 47, 0.18);
+  border-radius: 8px;
+  background: rgba(156, 195, 27, 0.08);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.document-trace > span {
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+.document-trace > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.document-trace button {
+  border: 0;
+  background: transparent;
+  color: var(--brand-dark);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.document-trace button.active {
+  color: var(--text);
+  cursor: default;
+}
+
+.document-trace button:not(.active):hover {
+  text-decoration: underline;
+}
+
+.document-lock-notice {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(125, 57, 22, 0.18);
+  border-radius: 8px;
+  background: rgba(125, 57, 22, 0.08);
+  color: #7d3916;
+  font-weight: 700;
+}
+
+.quote-form-fieldset {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 18px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
 .lead-form {
   grid-template-columns: 150px repeat(4, minmax(120px, 1fr)) auto;
 }

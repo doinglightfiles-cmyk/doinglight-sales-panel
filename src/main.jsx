@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Bell,
@@ -1199,6 +1199,9 @@ function deliveryNoteState(main) {
   if (main.voided || explicitStatus.includes("void") || explicitStatus.includes("cancel")) {
     return { key: "voided", label: "Anulado" };
   }
+  if (explicitStatus.includes("invoice") || explicitStatus.includes("factur")) {
+    return { key: "invoiced", label: "Albarán facturado" };
+  }
   if (main.draft || explicitStatus.includes("draft") || explicitStatus.includes("borrador")) {
     return { key: "draft", label: "Borrador" };
   }
@@ -1279,7 +1282,9 @@ function quoteStatusState(status = "") {
   const labels = {
     draft: "Pendiente",
     pending: "Pendiente",
-    sent: "Enviado",
+    sent: "Traspasado",
+    transferred: "Traspasado",
+    traspasado: "Traspasado",
     partial: "Parcial",
     accepted: "Aceptado",
     approved: "Aceptado",
@@ -1292,6 +1297,8 @@ function quoteStatusState(status = "") {
     draft: "pending",
     pending: "pending",
     sent: "sent",
+    transferred: "sent",
+    traspasado: "sent",
     partial: "partial",
     accepted: "accepted",
     approved: "accepted",
@@ -1309,7 +1316,7 @@ function quoteStatusState(status = "") {
 
 const QUOTE_STATUS_OPTIONS = [
   { value: "draft", filterKey: "pending", label: "Pendiente" },
-  { value: "sent", filterKey: "sent", label: "Enviado" },
+  { value: "transferred", filterKey: "sent", label: "Traspasado" },
   { value: "partial", filterKey: "partial", label: "Parcial" },
   { value: "accepted", filterKey: "accepted", label: "Aceptado" },
   { value: "closed", filterKey: "voided", label: "Cerrado" },
@@ -4847,7 +4854,10 @@ function DocumentActionsMenu({
   onRegisterIncome,
   onRegisterPayment,
   onVoid,
-  onDelete
+  onDelete,
+  canModify = true,
+  canDelete = true,
+  canVoid = false
 }) {
   const [duplicateAsOpen, setDuplicateAsOpen] = useState(false);
   const isInvoice = type === "invoice";
@@ -4872,17 +4882,18 @@ function DocumentActionsMenu({
       ];
   const documentActions = isInvoice
     ? [
-        { label: "Modificar", action: onModify || unavailable("Modificar") },
+        ...(canModify ? [{ label: "Modificar", action: onModify || unavailable("Modificar") }] : []),
         { label: "Enviar", action: onSend || unavailable("Enviar") },
         { label: "Registrar ingreso", action: onRegisterIncome || unavailable("Registrar ingreso") },
         { label: "Registrar pago", action: onRegisterPayment || unavailable("Registrar pago") },
-        { label: "Anular", action: onVoid || unavailable("Anular") },
-        { label: "Borrar", action: onDelete || unavailable("Borrar"), danger: true }
+        ...(canVoid ? [{ label: "Anular", action: onVoid || unavailable("Anular") }] : []),
+        ...(canDelete ? [{ label: "Borrar", action: onDelete || unavailable("Borrar"), danger: true }] : [])
       ]
     : [
-        { label: "Modificar", action: onModify || unavailable("Modificar") },
+        ...(canModify ? [{ label: "Modificar", action: onModify || unavailable("Modificar") }] : []),
         { label: "Enviar", action: onSend || unavailable("Enviar") },
-        { label: "Borrar", action: onDelete || unavailable("Borrar"), danger: true }
+        ...(canVoid ? [{ label: "Anular", action: onVoid || unavailable("Anular") }] : []),
+        ...(canDelete ? [{ label: "Borrar", action: onDelete || unavailable("Borrar"), danger: true }] : [])
       ];
 
   async function runAction(action) {
@@ -4932,6 +4943,43 @@ function DocumentActionsMenu({
         />
       ) : null}
     </>
+  );
+}
+
+const TRACE_LABELS = {
+  quote: "Presupuesto",
+  delivery_note: "Albarán",
+  invoice: "Factura",
+  proforma: "Proforma"
+};
+
+function DocumentTrace({ trace = [], currentType, currentId, onOpen }) {
+  const visibleTrace = (trace || []).filter((entry) => entry?.id && entry?.type && entry?.number);
+  if (!visibleTrace.length) return null;
+
+  return (
+    <nav className="document-trace" aria-label="Trazabilidad del documento">
+      <span>Trazabilidad</span>
+      <div>
+        {visibleTrace.map((entry, index) => {
+          const isCurrent = entry.type === currentType && entry.id === currentId;
+          return (
+            <Fragment key={`${entry.type}-${entry.id}`}>
+              {index > 0 ? <ChevronRight size={15} /> : null}
+              <button
+                type="button"
+                className={isCurrent ? "active" : ""}
+                onClick={() => {
+                  if (!isCurrent) onOpen?.(entry);
+                }}
+              >
+                {TRACE_LABELS[entry.type] || "Documento"} {entry.number}
+              </button>
+            </Fragment>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
@@ -6088,11 +6136,28 @@ function documentFormMeta(documentType) {
 
 function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDone, onUpdated }) {
   const [actionsOpen, setActionsOpen] = useState(false);
-  const meta = documentFormMeta(documentType);
-  const detail = useResource(() => apiRequest(`${meta.endpoint}/${quote.id}`, { token }), [token, quote.id, meta.endpoint]);
+  const [activeDocument, setActiveDocument] = useState(() => ({
+    id: quote.id,
+    number: quote.number || quote.quoteNumber || quote.documentNumber || "",
+    documentType
+  }));
+  const meta = documentFormMeta(activeDocument.documentType);
+  const detail = useResource(() => apiRequest(`${meta.endpoint}/${activeDocument.id}`, { token }), [token, activeDocument.id, meta.endpoint]);
   const item = detail.data?.item || null;
   const quoteActionsRef = useRef({});
   const finish = onDone || onUpdated || onClose;
+  const itemStatus = String(item?.status || "").toLowerCase();
+  const isLockedQuote = activeDocument.documentType === "quote" && ["sent", "transferred", "traspasado"].includes(itemStatus);
+  const isLockedDeliveryNote = activeDocument.documentType === "delivery_note" && ["invoiced", "facturado", "voided", "anulado", "cancelled", "canceled"].includes(itemStatus);
+  const documentLocked = isLockedQuote || isLockedDeliveryNote;
+  const documentNumber = item?.quoteNumber || item?.documentNumber || activeDocument.number || quote.number;
+  const lockMessage = isLockedQuote
+    ? "Presupuesto traspasado. No se puede modificar porque ya ha generado albarán."
+    : isLockedDeliveryNote
+      ? itemStatus.includes("invoice") || itemStatus.includes("factur")
+        ? "Albarán facturado. No se puede modificar ni eliminar."
+        : "Albarán anulado. No se puede modificar ni eliminar."
+      : "";
 
   function openQuoteSendFromMenu() {
     if (!quoteActionsRef.current.openSend) throw new Error("Todavía no se ha cargado el presupuesto.");
@@ -6139,13 +6204,13 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   }
 
   async function createDocumentFromCurrent(targetType) {
-    if (documentType === targetType) {
+    if (activeDocument.documentType === targetType) {
       return duplicateQuoteFromMenu();
     }
 
-    const endpoint = documentType === "quote"
-      ? `/api/sales/documents/${targetType}/from-quote/${quote.id}`
-      : `/api/sales/documents/${targetType}/from-document/${documentType}/${quote.id}`;
+    const endpoint = activeDocument.documentType === "quote"
+      ? `/api/sales/documents/${targetType}/from-quote/${activeDocument.id}`
+      : `/api/sales/documents/${targetType}/from-document/${activeDocument.documentType}/${activeDocument.id}`;
     await apiRequest(endpoint, { token, method: "POST", body: {} });
     finish();
   }
@@ -6163,17 +6228,35 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   }
 
   async function deleteQuoteFromMenu() {
-    if (!window.confirm(`¿Borrar ${meta.title.toLowerCase()} ${quote.number}? Esta acción no se puede deshacer.`)) {
+    if (!window.confirm(`¿Borrar ${meta.title.toLowerCase()} ${documentNumber}? Esta acción no se puede deshacer.`)) {
       return false;
     }
 
-    await apiRequest(`${meta.endpoint}/${quote.id}`, { token, method: "DELETE" });
+    await apiRequest(`${meta.endpoint}/${activeDocument.id}`, { token, method: "DELETE" });
     finish();
+  }
+
+  async function voidDocumentFromMenu() {
+    if (!window.confirm(`¿Anular ${meta.title.toLowerCase()} ${documentNumber}?`)) {
+      return false;
+    }
+
+    await apiRequest(`${meta.endpoint}/${activeDocument.id}/void`, { token, method: "POST" });
+    finish();
+  }
+
+  function openTraceDocument(entry) {
+    setActionsOpen(false);
+    setActiveDocument({
+      id: entry.id,
+      number: entry.number,
+      documentType: entry.type
+    });
   }
 
   return (
     <ModalShell
-      title={`${meta.title} ${quote.number}`}
+      title={`${meta.title} ${documentNumber}`}
       eyebrow={`Editar ${meta.title.toLowerCase()}`}
       size="wide-modal quote-work-modal"
       onClose={onClose}
@@ -6184,18 +6267,22 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
           </button>
           {actionsOpen ? (
             <DocumentActionsMenu
-              type={documentType === "delivery_note" ? "delivery_note" : documentType}
+              type={activeDocument.documentType === "delivery_note" ? "delivery_note" : activeDocument.documentType}
               onClose={() => setActionsOpen(false)}
               onSend={openQuoteSendFromMenu}
               onPrint={printQuoteFromMenu}
               onDownload={downloadQuoteFromMenu}
-              onModify={modifyQuoteFromMenu}
+              onModify={documentLocked ? null : modifyQuoteFromMenu}
               onDuplicate={duplicateQuoteFromMenu}
               onDuplicateAsQuote={duplicateAsQuoteFromMenu}
               onDuplicateAsDeliveryNote={duplicateAsDeliveryNoteFromMenu}
-              onCreateDeliveryNote={createDeliveryNoteFromQuote}
+              onCreateDeliveryNote={documentLocked ? null : createDeliveryNoteFromQuote}
               onCreateInvoice={createInvoiceFromQuote}
+              onVoid={voidDocumentFromMenu}
               onDelete={deleteQuoteFromMenu}
+              canModify={!documentLocked}
+              canDelete={activeDocument.documentType !== "delivery_note" && !documentLocked}
+              canVoid={activeDocument.documentType === "delivery_note" && !documentLocked}
             />
           ) : null}
         </>
@@ -6207,11 +6294,14 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
         <QuoteForm
           key={item.id}
           token={token}
-          documentType={documentType}
+          documentType={activeDocument.documentType}
           initialQuote={item}
           onCancel={onClose}
           onDone={finish}
           actionsRef={quoteActionsRef}
+          readOnly={documentLocked}
+          lockMessage={lockMessage}
+          onOpenTrace={openTraceDocument}
         />
       ) : null}
     </ModalShell>
@@ -6351,7 +6441,7 @@ function DownloadsView() {
   );
 }
 
-function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote" }) {
+function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace }) {
   const meta = documentFormMeta(documentType);
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
@@ -6476,7 +6566,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         leadBillingSource.country
       ].filter(Boolean).join("\n")
     : "Sin datos de facturación";
-  const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || "Pendiente";
+  const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || quoteStatusState(quoteStatus).label || "Pendiente";
   const selectedQuoteLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((language) => language.value === quoteLanguage)?.label || "Español";
   const quotePdfText = QUOTE_PDF_TEXT[quoteLanguage] || QUOTE_PDF_TEXT.es;
   const quoteClientBlock = selectedLead
@@ -6978,6 +7068,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   async function submit(event) {
     event?.preventDefault();
+    if (readOnly) {
+      setError(lockMessage || "Este documento está bloqueado y no se puede modificar.");
+      return;
+    }
     setError("");
     try {
       if (clientMode === "new") {
@@ -7020,6 +7114,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   return (
     <div className="modal-form quote-modal-form">
+      <DocumentTrace
+        trace={initialQuote?.trace}
+        currentType={documentType}
+        currentId={initialQuote?.id}
+        onOpen={onOpenTrace}
+      />
+      {readOnly ? <p className="document-lock-notice">{lockMessage || "Este documento está bloqueado."}</p> : null}
       <section className="quote-fd-header">
         <div className="quote-fd-toolbar">
           <span>Operación: <strong>Empresa nacional</strong></span>
@@ -7035,6 +7136,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         </div>
       </section>
 
+      <fieldset className="quote-form-fieldset" disabled={readOnly}>
       <section className="quote-fd-fields">
         <div className="quote-fd-actions">
           {isQuote ? (
@@ -7420,13 +7522,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         )}
       </section>
       ) : null}
+      </fieldset>
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
         {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
-        <button className="primary-button" type="button" onClick={submit}>
-          {createButtonLabel}
-        </button>
-        {isDeliveryNote && initialQuote ? (
+        {!readOnly ? (
+          <button className="primary-button" type="button" onClick={submit}>
+            {createButtonLabel}
+          </button>
+        ) : null}
+        {isDeliveryNote && initialQuote && !readOnly ? (
           <button className="primary-button" type="button" onClick={createInvoiceFromDeliveryNote}>
             Facturar
           </button>
