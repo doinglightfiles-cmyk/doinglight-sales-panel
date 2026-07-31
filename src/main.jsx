@@ -6265,7 +6265,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         )
       : leadsList;
 
-    return source.slice(0, 12);
+    return source.slice(0, 20);
   }, [leadsList, leadSearchQuery]);
   const leadBillingSource = leadDraft || selectedLead;
   const billingData = selectedLead
