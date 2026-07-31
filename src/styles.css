@@ -5011,23 +5011,51 @@ th {
 }
 
 .quote-pdf-lines-table {
+  width: 100%;
+  table-layout: fixed;
   margin-top: 32px;
 }
 
 .quote-pdf-page .quote-pdf-lines-table th {
   padding: 6px;
   font-size: 8.5px;
+  overflow-wrap: anywhere;
 }
 
 .quote-pdf-page .quote-pdf-lines-table td {
   background: #f3f3f3;
   border-bottom: 2px solid #fff;
   padding: 6px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  vertical-align: top;
 }
 
 .quote-pdf-page .quote-pdf-lines-table th:first-child,
 .quote-pdf-page .quote-pdf-lines-table td:first-child {
   width: 72px;
+}
+
+.quote-pdf-page .quote-pdf-lines-table th:nth-child(3),
+.quote-pdf-page .quote-pdf-lines-table td:nth-child(3),
+.quote-pdf-page .quote-pdf-lines-table th:nth-child(4),
+.quote-pdf-page .quote-pdf-lines-table td:nth-child(4),
+.quote-pdf-page .quote-pdf-lines-table th:nth-child(5),
+.quote-pdf-page .quote-pdf-lines-table td:nth-child(5),
+.quote-pdf-page .quote-pdf-lines-table th:nth-child(6),
+.quote-pdf-page .quote-pdf-lines-table td:nth-child(6) {
+  width: 54px;
+}
+
+.quote-pdf-page .delivery-pdf-lines-table th:first-child,
+.quote-pdf-page .delivery-pdf-lines-table td:first-child {
+  width: 92px;
+}
+
+.quote-pdf-page .delivery-pdf-lines-table th:nth-child(3),
+.quote-pdf-page .delivery-pdf-lines-table td:nth-child(3) {
+  width: 62px;
 }
 
 .quote-pdf-summary {

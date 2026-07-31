@@ -1476,6 +1476,7 @@ function documentPdfText(language, type = "quote") {
   const base = QUOTE_PDF_TEXT[language] || QUOTE_PDF_TEXT.es;
   const titles = {
     quote: base.title,
+    proforma: language === "en" ? "Proforma invoice" : language === "fr" ? "Facture proforma" : language === "it" ? "Fattura proforma" : language === "pt" ? "Fatura proforma" : language === "de" ? "Proformarechnung" : language === "nl" ? "Proformafactuur" : "Factura Proforma",
     invoice: language === "en" ? "Invoice" : language === "fr" ? "Facture" : language === "it" ? "Fattura" : language === "pt" ? "Fatura" : language === "de" ? "Rechnung" : language === "nl" ? "Factuur" : "Factura",
     "delivery-note": language === "en" ? "Delivery note" : language === "fr" ? "Bon de livraison" : language === "it" ? "Documento di trasporto" : language === "pt" ? "Guia de remessa" : language === "de" ? "Lieferschein" : language === "nl" ? "Leveringsbon" : "Albarán"
   };
@@ -6084,7 +6085,7 @@ const SALES_DOCUMENT_FORM_META = {
     type: "quote",
     title: "Presupuesto",
     eyebrow: "Presupuesto",
-    createLabel: "Crear presupuesto",
+    createLabel: "Guardar presupuesto",
     updateLabel: "Guardar cambios",
     endpoint: "/api/sales/quotes",
     listView: "quotes",
@@ -6446,9 +6447,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
   const isDeliveryNote = documentType === "delivery_note";
+  const [savedDocument, setSavedDocument] = useState(initialQuote || null);
+  const currentDocument = savedDocument || initialQuote || null;
   const documentTitle = meta.title;
   const documentEyebrow = meta.eyebrow;
-  const createButtonLabel = initialQuote ? meta.updateLabel : meta.createLabel;
+  const createButtonLabel = currentDocument ? meta.updateLabel : meta.createLabel;
   const [clientMode, setClientMode] = useState("existing");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
@@ -6866,13 +6869,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       return;
     }
 
-    if (!isQuote || !initialQuote?.id) {
+    if (!isQuote || !currentDocument?.id) {
       window.alert("Guarda primero el presupuesto para poder traspasar líneas con trazabilidad.");
       return;
     }
 
     try {
-      await apiRequest(`/api/sales/documents/delivery_note/from-quote/${initialQuote.id}`, {
+      await apiRequest(`/api/sales/documents/delivery_note/from-quote/${currentDocument.id}`, {
         token,
         method: "POST",
         body: {
@@ -6889,13 +6892,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   async function createInvoiceFromDeliveryNote() {
-    if (!isDeliveryNote || !initialQuote?.id) {
+    if (!isDeliveryNote || !currentDocument?.id) {
       window.alert("Guarda primero el albarán para poder facturarlo con trazabilidad.");
       return;
     }
 
     try {
-      await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${initialQuote.id}`, {
+      await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${currentDocument.id}`, {
         token,
         method: "POST",
         body: {}
@@ -6931,9 +6934,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
   const taxTotal = subtotal * (Number(taxRate) / 100);
   const total = subtotal + taxTotal;
-  const quoteNumberLabel = initialQuote?.quoteNumber || initialQuote?.documentNumber || initialQuote?.number || "borrador";
+  const quoteNumberLabel = currentDocument?.quoteNumber || currentDocument?.documentNumber || currentDocument?.number || "borrador";
   const quotePdfName = `${meta.pdfPrefix}-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
   const quotePdfElementId = `quote-pdf-${safeFilePart(quoteNumberLabel)}-${safeFilePart(quoteDate || "borrador")}`;
+  const pdfDocumentType = documentType === "delivery_note" ? "delivery-note" : documentType;
   const quotePdfLines = lines.map((line) => {
     const selectedProduct = productForLine(line);
     const quantity = Number(line.quantity || 0);
@@ -7079,12 +7083,36 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         return;
       }
 
-      await apiRequest(initialQuote ? `${meta.endpoint}/${initialQuote.id}` : meta.endpoint, {
+      const result = await apiRequest(currentDocument ? `${meta.endpoint}/${currentDocument.id}` : meta.endpoint, {
         token,
-        method: initialQuote ? "PATCH" : "POST",
+        method: currentDocument ? "PATCH" : "POST",
         body: buildQuotePayload()
       });
-      onDone();
+      const saved = result?.item || result;
+      if (saved?.id) {
+        setSavedDocument(saved);
+        if (Array.isArray(saved.items)) {
+          setLines((currentLines) => currentLines.map((line, index) => {
+            const savedLine = saved.items[index];
+            if (!savedLine) return line;
+            return {
+              ...line,
+              id: savedLine.id || line.id,
+              skuQuery: savedLine.sku || line.skuQuery,
+              sku: savedLine.sku || line.sku,
+              quantity: savedLine.quantity ?? line.quantity,
+              discountPercent: savedLine.discountPercent ?? line.discountPercent,
+              unitPriceOverride: savedLine.unitPrice ?? line.unitPriceOverride,
+              manualTotal: null
+            };
+          }));
+        }
+        setQuoteStatus(saved.status || quoteStatus);
+      }
+
+      if (!isQuote) {
+        onDone();
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -7115,9 +7143,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   return (
     <div className="modal-form quote-modal-form">
       <DocumentTrace
-        trace={initialQuote?.trace}
+        trace={currentDocument?.trace}
         currentType={documentType}
-        currentId={initialQuote?.id}
+        currentId={currentDocument?.id}
         onOpen={onOpenTrace}
       />
       {readOnly ? <p className="document-lock-notice">{lockMessage || "Este documento está bloqueado."}</p> : null}
@@ -7296,7 +7324,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             </label>
             <label>
               <span>Número de documento</span>
-              <input value={initialQuote?.quoteNumber || ""} placeholder="Se generará automáticamente" readOnly />
+              <input value={currentDocument?.quoteNumber || currentDocument?.documentNumber || ""} placeholder="Se generará automáticamente" readOnly />
             </label>
             <label>
               <span>Correo electrónico de envío</span>
@@ -7531,7 +7559,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             {createButtonLabel}
           </button>
         ) : null}
-        {isDeliveryNote && initialQuote && !readOnly ? (
+        {isDeliveryNote && currentDocument && !readOnly ? (
           <button className="primary-button" type="button" onClick={createInvoiceFromDeliveryNote}>
             Facturar
           </button>
@@ -7618,7 +7646,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </section>
               <section className="quote-send-preview" aria-label="Vista previa del PDF adjunto">
                 <label className="quote-pdf-language-row">
-                  <span>Idioma del presupuesto</span>
+                  <span>Idioma del documento</span>
                   <select
                     value={quoteLanguage}
                     onChange={(event) => {
@@ -7641,7 +7669,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 </div>
                 <DocumentPdfPage
                   id={quotePdfElementId}
-                  type="quote"
+                  type={pdfDocumentType}
                   language={quoteLanguage}
                   number={quoteNumberLabel}
                   date={quoteDate}
