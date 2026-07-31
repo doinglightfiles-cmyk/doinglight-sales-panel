@@ -1293,6 +1293,25 @@ select:focus {
   background-color: var(--green-soft);
 }
 
+.quote-template-select.in-modal {
+  min-width: 260px;
+}
+
+.bulk-document-action,
+.recover-delivery-notes-button {
+  border: 1px solid rgba(70, 113, 22, 0.18);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  font-weight: 800;
+}
+
+.bulk-document-action:hover,
+.recover-delivery-notes-button:hover {
+  background: #dff0a9;
+}
+
 .invoices-list-panel {
   border-radius: 24px;
 }
@@ -1729,6 +1748,14 @@ select:focus {
   background: transparent;
   color: #3f97d5;
   font-weight: 750;
+}
+
+.invoice-create-meta-line .recover-delivery-notes-button {
+  margin-left: auto;
+  border: 1px solid rgba(70, 113, 22, 0.18);
+  padding: 10px 14px;
+  background: var(--green-soft);
+  color: var(--green-dark);
 }
 
 .invoice-create-title-row {

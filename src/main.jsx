@@ -1279,7 +1279,8 @@ function quoteStatusState(status = "") {
   const labels = {
     draft: "Pendiente",
     pending: "Pendiente",
-    sent: "Pendiente",
+    sent: "Enviado",
+    partial: "Parcial",
     accepted: "Aceptado",
     approved: "Aceptado",
     closed: "Cerrado",
@@ -1290,7 +1291,8 @@ function quoteStatusState(status = "") {
   const keys = {
     draft: "pending",
     pending: "pending",
-    sent: "pending",
+    sent: "sent",
+    partial: "partial",
     accepted: "accepted",
     approved: "accepted",
     closed: "voided",
@@ -1307,6 +1309,8 @@ function quoteStatusState(status = "") {
 
 const QUOTE_STATUS_OPTIONS = [
   { value: "draft", filterKey: "pending", label: "Pendiente" },
+  { value: "sent", filterKey: "sent", label: "Enviado" },
+  { value: "partial", filterKey: "partial", label: "Parcial" },
   { value: "accepted", filterKey: "accepted", label: "Aceptado" },
   { value: "closed", filterKey: "voided", label: "Cerrado" },
   { value: "rejected", filterKey: "overdue", label: "Rechazado" }
@@ -1719,6 +1723,10 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
     () => apiRequest("/api/sales/documents/invoice?limit=300", { token }),
     [token]
   );
+  const deliveryNotesResource = useResource(
+    () => apiRequest("/api/sales/documents/delivery_note?limit=300", { token }),
+    [token]
+  );
   const [form, setForm] = useState({
     operation: "Empresa nacional",
     template: "Principal",
@@ -1737,6 +1745,8 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
   });
   const [newSeriesValue, setNewSeriesValue] = useState("");
   const [customSeries, setCustomSeries] = useState([]);
+  const [deliveryNotesPickerOpen, setDeliveryNotesPickerOpen] = useState(false);
+  const [selectedDeliveryNotesToRecover, setSelectedDeliveryNotesToRecover] = useState([]);
   const [lines, setLines] = useState([
     {
       id: crypto.randomUUID(),
@@ -1755,6 +1765,12 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
   const internalInvoices = useMemo(
     () => (invoicesResource.data?.items || []).map(serializeInternalSalesDocument),
     [invoicesResource.data]
+  );
+  const availableDeliveryNotes = useMemo(
+    () => (deliveryNotesResource.data?.items || [])
+      .map(serializeInternalSalesDocument)
+      .filter((deliveryNote) => !form.leadId || deliveryNote.leadId === form.leadId),
+    [deliveryNotesResource.data, form.leadId]
   );
   const invoiceSeriesOptions = useMemo(() => {
     const importedSeries = internalInvoices.map((invoice) => invoice.series || "");
@@ -1818,6 +1834,46 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
     setLines((current) => (current.length === 1 ? current : current.filter((line) => line.id !== lineId)));
   }
 
+  function openDeliveryNotesRecovery() {
+    if (!form.leadId) {
+      window.alert("debes seleccionar el cliente");
+      return;
+    }
+
+    setSelectedDeliveryNotesToRecover([]);
+    setDeliveryNotesPickerOpen(true);
+  }
+
+  function toggleDeliveryNoteToRecover(deliveryNoteId) {
+    setSelectedDeliveryNotesToRecover((current) => (
+      current.includes(deliveryNoteId)
+        ? current.filter((idValue) => idValue !== deliveryNoteId)
+        : [...current, deliveryNoteId]
+    ));
+  }
+
+  function recoverSelectedDeliveryNotes() {
+    const selectedDeliveryNotes = availableDeliveryNotes.filter((deliveryNote) => selectedDeliveryNotesToRecover.includes(deliveryNote.id));
+    const recoveredLines = selectedDeliveryNotes.flatMap((deliveryNote) => (deliveryNote.lines || []).map((line) => ({
+      id: crypto.randomUUID(),
+      skuQuery: line.sku || "",
+      sku: line.sku || "",
+      description: line.title || line.description || "",
+      quantity: Number(line.quantity || 1),
+      unitPrice: Number(line.unitPrice || 0),
+      taxRate: Number(line.taxRate || 21),
+      discountPercent: Number(line.discountPercent || 0)
+    })));
+
+    if (!recoveredLines.length) {
+      window.alert("Selecciona al menos un albarán.");
+      return;
+    }
+
+    setLines(recoveredLines);
+    setDeliveryNotesPickerOpen(false);
+  }
+
   function addNewSeries() {
     const normalized = newSeriesValue.trim().toUpperCase();
     if (!normalized) return;
@@ -1845,6 +1901,9 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           <span>Responsable:</span>
           <strong>{form.responsible || "-"}</strong>
           <button type="button" onClick={onNavigateSettings}>Cambiar</button>
+          <button className="recover-delivery-notes-button" type="button" onClick={openDeliveryNotesRecovery}>
+            Recuperar albaranes
+          </button>
         </div>
         <div className="invoice-create-title-row">
           <h4>Factura simplificada</h4>
@@ -2059,6 +2118,43 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
         <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button>
         <button className="primary-button" type="button" disabled>Guardar factura</button>
       </div>
+      {deliveryNotesPickerOpen ? (
+        <ModalShell
+          title="Recuperar albaranes"
+          eyebrow="Factura"
+          size="transfer-lines-modal"
+          onClose={() => setDeliveryNotesPickerOpen(false)}
+        >
+          <div className="transfer-lines-content">
+            <p>Selecciona los albaranes de este cliente que quieres cargar en la factura.</p>
+            <div className="transfer-lines-list">
+              {deliveryNotesResource.loading ? (
+                <div className="transfer-line-option">Cargando albaranes...</div>
+              ) : null}
+              {!deliveryNotesResource.loading && !availableDeliveryNotes.length ? (
+                <div className="transfer-line-option">No hay albaranes para este cliente.</div>
+              ) : null}
+              {availableDeliveryNotes.map((deliveryNote) => {
+                const checked = selectedDeliveryNotesToRecover.includes(deliveryNote.id);
+                return (
+                  <label className={`transfer-line-option ${checked ? "active" : ""}`} key={deliveryNote.id}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleDeliveryNoteToRecover(deliveryNote.id)} />
+                    <span className="invoice-kind-badge delivery-note-badge">A</span>
+                    <span>
+                      <strong>{deliveryNote.number} · {dateOnly(deliveryNote.date)}</strong>
+                      <small>{deliveryNote.detail} · {money(deliveryNote.total)}</small>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setDeliveryNotesPickerOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="button" onClick={recoverSelectedDeliveryNotes}>Recuperar líneas</button>
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
     </div>
   );
 }
@@ -2535,6 +2631,7 @@ function InvoiceDetailModal({ token, invoice, onClose }) {
 function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   const [query, setQuery] = useState("");
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
+  const [selectedDeliveryNoteIds, setSelectedDeliveryNoteIds] = useState([]);
   const deliveryNotesResource = useResource(
     () => apiRequest("/api/sales/documents/delivery_note?limit=200", { token }),
     [token]
@@ -2543,6 +2640,12 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   const filteredDeliveryNotes = deliveryNotes.filter((deliveryNote) => {
     return textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
   });
+  const filteredDeliveryNoteIds = filteredDeliveryNotes.map((deliveryNote) => deliveryNote.id);
+  const allFilteredDeliveryNotesSelected = Boolean(filteredDeliveryNoteIds.length) && filteredDeliveryNoteIds.every((idValue) => selectedDeliveryNoteIds.includes(idValue));
+
+  useEffect(() => {
+    setSelectedDeliveryNoteIds((current) => current.filter((idValue) => filteredDeliveryNoteIds.includes(idValue)));
+  }, [filteredDeliveryNoteIds.join("|")]);
 
   function openDeliveryNote(deliveryNote) {
     setSelectedDeliveryNote(deliveryNote);
@@ -2552,6 +2655,36 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openDeliveryNote(deliveryNote);
+    }
+  }
+
+  function toggleDeliveryNoteSelection(deliveryNoteId) {
+    setSelectedDeliveryNoteIds((current) => (
+      current.includes(deliveryNoteId)
+        ? current.filter((idValue) => idValue !== deliveryNoteId)
+        : [...current, deliveryNoteId]
+    ));
+  }
+
+  function toggleAllFilteredDeliveryNotes() {
+    setSelectedDeliveryNoteIds(allFilteredDeliveryNotesSelected ? [] : filteredDeliveryNoteIds);
+  }
+
+  async function invoiceSelectedDeliveryNotes() {
+    if (!selectedDeliveryNoteIds.length) return;
+
+    try {
+      await Promise.all(selectedDeliveryNoteIds.map((deliveryNoteId) =>
+        apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${deliveryNoteId}`, {
+          token,
+          method: "POST",
+          body: {}
+        })
+      ));
+      setSelectedDeliveryNoteIds([]);
+      deliveryNotesResource.reload();
+    } catch (err) {
+      window.alert(err.message || "No se han podido facturar los albaranes seleccionados.");
     }
   }
 
@@ -2593,12 +2726,24 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
             <Plus size={18} />
             Añadir filtro
           </button>
+          {selectedDeliveryNoteIds.length ? (
+            <button className="bulk-document-action" type="button" onClick={invoiceSelectedDeliveryNotes}>
+              Facturar {selectedDeliveryNoteIds.length} albarán{selectedDeliveryNoteIds.length === 1 ? "" : "es"}
+            </button>
+          ) : null}
         </div>
         <div className="table-wrap invoice-table-wrap">
           <table className="module-table invoice-table delivery-notes-table">
             <thead>
               <tr>
-                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todos los albaranes" /></th>
+                <th className="select-column">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todos los albaranes"
+                    checked={allFilteredDeliveryNotesSelected}
+                    onChange={toggleAllFilteredDeliveryNotes}
+                  />
+                </th>
                 <th className="invoice-kind-column"></th>
                 <th>Fecha <span className="sort-arrow">↓</span></th>
                 <th>Estado</th>
@@ -2634,6 +2779,8 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                     <input
                       type="checkbox"
                       aria-label={`Seleccionar albarán ${deliveryNote.number}`}
+                      checked={selectedDeliveryNoteIds.includes(deliveryNote.id)}
+                      onChange={() => toggleDeliveryNoteSelection(deliveryNote.id)}
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}
                     />
@@ -5653,6 +5800,7 @@ function QuotesView({ token }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedQuote, setSelectedQuote] = useState(null);
+  const [selectedQuoteIds, setSelectedQuoteIds] = useState([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
@@ -5668,6 +5816,12 @@ function QuotesView({ token }) {
     const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
     return matchesQuery && matchesStatus;
   });
+  const filteredQuoteIds = filteredQuotes.map((quote) => quote.id);
+  const allFilteredQuotesSelected = Boolean(filteredQuoteIds.length) && filteredQuoteIds.every((idValue) => selectedQuoteIds.includes(idValue));
+
+  useEffect(() => {
+    setSelectedQuoteIds((current) => current.filter((idValue) => filteredQuoteIds.includes(idValue)));
+  }, [filteredQuoteIds.join("|")]);
 
   function openEmptyQuote() {
     setSelectedTemplate(null);
@@ -5679,6 +5833,36 @@ function QuotesView({ token }) {
     if (!template) return;
     setSelectedTemplate(template);
     setShowForm(true);
+  }
+
+  function toggleQuoteSelection(quoteId) {
+    setSelectedQuoteIds((current) => (
+      current.includes(quoteId)
+        ? current.filter((idValue) => idValue !== quoteId)
+        : [...current, quoteId]
+    ));
+  }
+
+  function toggleAllFilteredQuotes() {
+    setSelectedQuoteIds(allFilteredQuotesSelected ? [] : filteredQuoteIds);
+  }
+
+  async function transferSelectedQuotesToDeliveryNotes() {
+    if (!selectedQuoteIds.length) return;
+
+    try {
+      await Promise.all(selectedQuoteIds.map((quoteId) =>
+        apiRequest(`/api/sales/documents/delivery_note/from-quote/${quoteId}`, {
+          token,
+          method: "POST",
+          body: {}
+        })
+      ));
+      setSelectedQuoteIds([]);
+      quotes.reload();
+    } catch (err) {
+      window.alert(err.message || "No se han podido traspasar los presupuestos seleccionados.");
+    }
   }
 
   return (
@@ -5731,12 +5915,24 @@ function QuotesView({ token }) {
               ))}
             </select>
           </label>
+          {selectedQuoteIds.length ? (
+            <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
+              Traspasar {selectedQuoteIds.length} a albarán
+            </button>
+          ) : null}
         </div>
         <div className="table-wrap invoice-table-wrap">
           <table className="module-table invoice-table quotes-table">
             <thead>
               <tr>
-                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todos los presupuestos" /></th>
+                <th className="select-column">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todos los presupuestos"
+                    checked={allFilteredQuotesSelected}
+                    onChange={toggleAllFilteredQuotes}
+                  />
+                </th>
                 <th className="invoice-kind-column"></th>
                 <th>Fecha <span className="sort-arrow">↓</span></th>
                 <th>Estado</th>
@@ -5776,6 +5972,8 @@ function QuotesView({ token }) {
                     <input
                       type="checkbox"
                       aria-label={`Seleccionar presupuesto ${quote.number}`}
+                      checked={selectedQuoteIds.includes(quote.id)}
+                      onChange={() => toggleQuoteSelection(quote.id)}
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}
                     />
@@ -6156,6 +6354,8 @@ function DownloadsView() {
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote" }) {
   const meta = documentFormMeta(documentType);
   const isQuote = documentType === "quote";
+  const isInvoice = documentType === "invoice";
+  const isDeliveryNote = documentType === "delivery_note";
   const documentTitle = meta.title;
   const documentEyebrow = meta.eyebrow;
   const createButtonLabel = initialQuote ? meta.updateLabel : meta.createLabel;
@@ -6212,8 +6412,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       }));
     }
 
-    return [{ id: crypto.randomUUID(), skuQuery: "K240", sku: "K240", quantity: 1, discountPercent: 0, manualTotal: null }];
+    return [{ id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null }];
   });
+  const [templatePicker, setTemplatePicker] = useState(template?.id || "");
   const [draggingLineId, setDraggingLineId] = useState("");
   const [taxRate, setTaxRate] = useState(() => {
     if (!initialQuote?.subtotal) return 21;
@@ -6528,6 +6729,21 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return { id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null };
   }
 
+  function applyQuoteTemplate(templateId) {
+    setTemplatePicker(templateId);
+    const selectedTemplateItem = QUOTE_TEMPLATES.find((item) => item.id === templateId);
+    if (!selectedTemplateItem) return;
+
+    setLines(selectedTemplateItem.lines.map((line) => ({
+      id: crypto.randomUUID(),
+      skuQuery: line.sku,
+      sku: line.sku,
+      quantity: line.quantity || 1,
+      discountPercent: line.discountPercent || 0,
+      manualTotal: null
+    })));
+  }
+
   function addLine(focus = false, afterLineId = null) {
     const nextLine = createEmptyLine();
     setLines((current) => {
@@ -6579,6 +6795,24 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       onDone();
     } catch (err) {
       window.alert(err.message || "No se ha podido crear el albarán.");
+    }
+  }
+
+  async function createInvoiceFromDeliveryNote() {
+    if (!isDeliveryNote || !initialQuote?.id) {
+      window.alert("Guarda primero el albarán para poder facturarlo con trazabilidad.");
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${initialQuote.id}`, {
+        token,
+        method: "POST",
+        body: {}
+      });
+      onDone();
+    } catch (err) {
+      window.alert(err.message || "No se ha podido crear la factura.");
     }
   }
 
@@ -6803,10 +7037,24 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
       <section className="quote-fd-fields">
         <div className="quote-fd-actions">
+          {isQuote ? (
+            <select
+              className="quote-template-select in-modal"
+              aria-label="Presupuestos predefinidos"
+              value={templatePicker}
+              onChange={(event) => applyQuoteTemplate(event.target.value)}
+            >
+              <option value="">Presupuestos predefinidos</option>
+              {QUOTE_TEMPLATES.map((templateItem) => (
+                <option key={templateItem.id} value={templateItem.id}>{templateItem.name}</option>
+              ))}
+            </select>
+          ) : null}
           <div className="quote-client-header-actions">
             <button type="button" className={`quote-client-create-button ${clientMode === "new" ? "active" : ""}`} onClick={() => setClientMode("new")}>
               Crear
             </button>
+            {!isInvoice ? (
             <div className="attachment-menu-wrap">
               <button
                 className="attachment-trigger icon-only-attachment"
@@ -6829,6 +7077,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               ) : null}
               <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
             </div>
+            ) : null}
           </div>
         </div>
 
@@ -7005,7 +7254,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <section className="form-section">
         <header className="form-section-header">
           <h4>Líneas del documento</h4>
-          {isQuote && initialQuote ? (
+          {isQuote ? (
             <button className="quote-transfer-lines-button" type="button" onClick={openTransferLines}>
               Traspasar líneas a albarán
             </button>
@@ -7152,6 +7401,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <strong>{money(total)}</strong>
         </div>
       </section>
+      {!isInvoice ? (
       <section className="quote-attachments">
         {attachments.length ? (
           <div className="attachment-chip-list">
@@ -7169,12 +7419,18 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <p>Sin adjuntos.</p>
         )}
       </section>
+      ) : null}
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
         {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
         <button className="primary-button" type="button" onClick={submit}>
           {createButtonLabel}
         </button>
+        {isDeliveryNote && initialQuote ? (
+          <button className="primary-button" type="button" onClick={createInvoiceFromDeliveryNote}>
+            Facturar
+          </button>
+        ) : null}
         <button className="primary-button send-quote-button" type="button" onClick={openSendModal}>
           Enviar
         </button>
