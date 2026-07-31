@@ -4156,7 +4156,17 @@ function ContactsView({ token, initialFilter = "all" }) {
   const [contactFilter, setContactFilter] = useState(initialFilter);
   const [customerLevelFilter, setCustomerLevelFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const leads = useResource(() => apiRequest("/api/sales/leads?limit=200", { token }), [token]);
+  const normalizedQuery = query.trim();
+  const contactKindParam = contactFilter === "clients" ? "client" : contactFilter === "suppliers" ? "supplier" : "";
+  const leads = useResource(
+    () => {
+      const params = new URLSearchParams({ limit: "500" });
+      if (contactKindParam) params.set("contactKind", contactKindParam);
+      if (normalizedQuery) params.set("q", normalizedQuery);
+      return apiRequest(`/api/sales/leads?${params.toString()}`, { token });
+    },
+    [token, contactKindParam, normalizedQuery]
+  );
   const clientContacts = (leads.data?.items || [])
     .filter((lead) => (lead.contactKind || "client") === "client")
     .map((lead) => ({ ...lead, contactClass: "client" }));
