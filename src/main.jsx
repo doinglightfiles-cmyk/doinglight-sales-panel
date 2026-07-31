@@ -1073,19 +1073,22 @@ function nextInvoiceSequence(series, invoices = []) {
 function invoicePaymentState(main, total, fdState = "") {
   const normalizedFdState = String(fdState || "").trim().toLowerCase();
   const fdStateLabels = {
-    paid: "Pagado",
+    paid: "Cobrada",
     pending: "Pendiente",
     overdue: "Vencida",
     overpaid: "Sobrepagada",
     draft: "Borrador",
-    voided: "Anulada"
+    voided: "Abonada",
+    rectified: "Rectificada",
+    credited: "Abonada"
   };
 
   if (fdStateLabels[normalizedFdState]) {
+    const normalizedKey = normalizedFdState === "voided" ? "credited" : normalizedFdState;
     return {
-      key: normalizedFdState,
+      key: normalizedKey,
       label: fdStateLabels[normalizedFdState],
-      pendingBalance: ["pending", "overdue"].includes(normalizedFdState) ? total : 0
+      pendingBalance: ["pending", "overdue"].includes(normalizedKey) ? total : 0
     };
   }
 
@@ -1106,7 +1109,13 @@ function invoicePaymentState(main, total, fdState = "") {
   ], 0));
 
   if (main.voided || explicitStatus.includes("void") || explicitStatus.includes("cancel")) {
-    return { key: "voided", label: "Anulada", pendingBalance: 0 };
+    return { key: "credited", label: "Abonada", pendingBalance: 0 };
+  }
+  if (explicitStatus.includes("rectif")) {
+    return { key: "rectified", label: "Rectificada", pendingBalance: 0 };
+  }
+  if (explicitStatus.includes("abon") || explicitStatus.includes("credit")) {
+    return { key: "credited", label: "Abonada", pendingBalance: 0 };
   }
   if (main.draft || explicitStatus.includes("draft") || explicitStatus.includes("borrador")) {
     return { key: "draft", label: "Borrador", pendingBalance: total };
@@ -1115,7 +1124,7 @@ function invoicePaymentState(main, total, fdState = "") {
     return { key: "pending", label: "Pendiente", pendingBalance: pendingBalance || total };
   }
 
-  return { key: "paid", label: "Pagado", pendingBalance: 0 };
+  return { key: "paid", label: "Cobrada", pendingBalance: 0 };
 }
 
 function serializeFacturaDirectaInvoice(item) {
@@ -1321,6 +1330,22 @@ const QUOTE_STATUS_OPTIONS = [
   { value: "accepted", filterKey: "accepted", label: "Aceptado" },
   { value: "closed", filterKey: "voided", label: "Cerrado" },
   { value: "rejected", filterKey: "overdue", label: "Rechazado" }
+];
+
+const INVOICE_STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "Todos los estados" },
+  { value: "pending", label: "Pendiente" },
+  { value: "paid", label: "Cobrada" },
+  { value: "rectified", label: "Rectificada" },
+  { value: "credited", label: "Abonada" }
+];
+
+const DELIVERY_NOTE_STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "Todos los estados" },
+  { value: "pending", label: "Pendiente" },
+  { value: "closed", label: "Cerrado" },
+  { value: "invoiced", label: "Albarán facturado" },
+  { value: "voided", label: "Anulado" }
 ];
 
 const QUOTE_LANGUAGE_OPTIONS = [
@@ -2169,6 +2194,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 
 function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const invoicesResource = useResource(
     () => apiRequest("/api/sales/documents/invoice?limit=200", { token }),
@@ -2176,7 +2202,9 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
   );
   const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredInvoices = invoices.filter((invoice) => {
-    return textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query);
+    const matchesQuery = textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query);
+    const matchesStatus = statusFilter === "all" || invoice.statusKey === statusFilter;
+    return matchesQuery && matchesStatus;
   });
 
   return (
@@ -2216,12 +2244,14 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
           </button>
         </div>
         <div className="module-filters invoice-filter-row">
-          <button className="invoice-filter-chip" type="button">Estado <MoreVertical size={14} /></button>
-          <button className="invoice-filter-chip" type="button">Cliente <MoreVertical size={14} /></button>
-          <button className="invoice-add-filter" type="button">
-            <Plus size={18} />
-            Añadir filtro
-          </button>
+          <label className="invoice-filter-select">
+            <span>Estado</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              {INVOICE_STATUS_FILTER_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="table-wrap invoice-table-wrap">
           <table className="module-table invoice-table">
@@ -2638,6 +2668,7 @@ function InvoiceDetailModal({ token, invoice, onClose }) {
 
 function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
   const [selectedDeliveryNoteIds, setSelectedDeliveryNoteIds] = useState([]);
   const deliveryNotesResource = useResource(
@@ -2646,7 +2677,9 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   );
   const deliveryNotes = (deliveryNotesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredDeliveryNotes = deliveryNotes.filter((deliveryNote) => {
-    return textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
+    const matchesQuery = textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
+    const matchesStatus = statusFilter === "all" || deliveryNote.statusKey === statusFilter;
+    return matchesQuery && matchesStatus;
   });
   const filteredDeliveryNoteIds = filteredDeliveryNotes.map((deliveryNote) => deliveryNote.id);
   const allFilteredDeliveryNotesSelected = Boolean(filteredDeliveryNoteIds.length) && filteredDeliveryNoteIds.every((idValue) => selectedDeliveryNoteIds.includes(idValue));
@@ -2728,12 +2761,14 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
           </button>
         </div>
         <div className="module-filters invoice-filter-row">
-          <button className="invoice-filter-chip" type="button">Estado <MoreVertical size={14} /></button>
-          <button className="invoice-filter-chip" type="button">Cliente <MoreVertical size={14} /></button>
-          <button className="invoice-add-filter" type="button">
-            <Plus size={18} />
-            Añadir filtro
-          </button>
+          <label className="invoice-filter-select">
+            <span>Estado</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              {DELIVERY_NOTE_STATUS_FILTER_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
+          </label>
           {selectedDeliveryNoteIds.length ? (
             <button className="bulk-document-action" type="button" onClick={invoiceSelectedDeliveryNotes}>
               Facturar {selectedDeliveryNoteIds.length} albarán{selectedDeliveryNoteIds.length === 1 ? "" : "es"}
