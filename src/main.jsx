@@ -53,11 +53,17 @@ function normalizeSearchText(value) {
     .toLowerCase();
 }
 
+function normalizeCompactSearchText(value) {
+  return normalizeSearchText(value).replace(/[^a-z0-9]/g, "");
+}
+
 function textMatchesQuery(values, query) {
   const needle = normalizeSearchText(query);
   if (!needle) return true;
   const haystack = Array.isArray(values) ? values.join(" ") : values;
-  return normalizeSearchText(haystack).includes(needle);
+  if (normalizeSearchText(haystack).includes(needle)) return true;
+  const compactNeedle = normalizeCompactSearchText(query);
+  return Boolean(compactNeedle && normalizeCompactSearchText(haystack).includes(compactNeedle));
 }
 
 function printDocumentElement(elementId, title = "Documento Doinglight") {
@@ -6156,7 +6162,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [quoteViesChecking, setQuoteViesChecking] = useState(false);
   const normalizedLeadSearch = leadSearchQuery.trim();
   const leads = useResource(
-    () => apiRequest(`/api/sales/leads?limit=25&contactKind=client&q=${encodeURIComponent(normalizedLeadSearch)}`, { token }),
+    () => apiRequest(`/api/sales/leads?limit=100&contactKind=client&q=${encodeURIComponent(normalizedLeadSearch)}`, { token }),
     [token, normalizedLeadSearch]
   );
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -6239,6 +6245,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             lead.phone,
             lead.mobilePhone,
             lead.taxId,
+            lead.address,
+            lead.postalCode,
+            lead.town,
+            lead.city,
+            lead.province,
             lead.country
           ], leadSearchQuery)
         )
