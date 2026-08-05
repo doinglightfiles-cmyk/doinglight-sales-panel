@@ -3753,6 +3753,193 @@ th {
   white-space: nowrap;
 }
 
+.quote-fd-grid .payment-method-field {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.payment-method-field > span {
+  color: var(--muted);
+}
+
+.payment-method-picker {
+  position: relative;
+}
+
+.payment-method-trigger {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.payment-method-trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payment-method-menu {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(740px, 92vw);
+  max-height: min(560px, 70vh);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 22px 64px rgba(26, 37, 22, 0.22);
+}
+
+.payment-method-menu-search {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.payment-method-menu-search input {
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.payment-method-create-row,
+.payment-method-option {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.payment-method-create-row:hover,
+.payment-method-option:hover,
+.payment-method-option.active {
+  background: #f4f8e9;
+}
+
+.payment-method-create-row svg {
+  flex: 0 0 auto;
+  color: var(--green-dark);
+}
+
+.payment-method-create-row span,
+.payment-method-option {
+  min-width: 0;
+}
+
+.payment-method-create-row strong,
+.payment-method-option strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payment-method-create-row small,
+.payment-method-option small {
+  display: block;
+  min-height: 0;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payment-method-menu-title {
+  padding: 14px 16px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.payment-method-options p {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.product-detail.payment-modal {
+  width: min(1040px, calc(100vw - 48px));
+  max-height: min(720px, calc(100vh - 48px));
+}
+
+.product-detail.sepa-payment-modal {
+  width: min(1280px, calc(100vw - 48px));
+  max-height: min(860px, calc(100vh - 48px));
+}
+
+.payment-method-modal-form {
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+  padding: 20px;
+}
+
+.payment-method-modal-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.payment-method-modal-form input,
+.payment-method-modal-form select {
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 14px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+}
+
+.payment-method-modal-form small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .quote-client-search-field {
   position: relative;
 }

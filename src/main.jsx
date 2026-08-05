@@ -37,6 +37,32 @@ import "./styles.css";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const SESSION_KEY = "doinglight_panel_session";
 const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
+const PAYMENT_METHOD_DEFAULTS = [
+  { id: "fd-zero", name: "0", detail: "" },
+  { id: "fd-50-formalizacion-confirming", name: "50% a la formalizacion del pedido y 50% confirming a 60 dias.", detail: "" },
+  { id: "fd-50-firma-entrega", name: "50% a la firma del presupuesto y 50% a la entrega", detail: "" },
+  { id: "fd-a-concretar", name: "A CONCRETAR ENTRE LAS DOS PARTES ANTES DE FIRMA DE OFERTA.", detail: "" },
+  { id: "fd-cheque-sabadell", name: "Cheque", detail: "Sabadell Doinglight ****4476" },
+  { id: "fd-efectivo", name: "Efectivo", detail: "DOINGLIGHT TECHNOLOGIES, slu. ****9122" },
+  {
+    id: "fd-iban-caja-rural",
+    name: "IBAN ES11 3144 5700 2720 1693 9122 CAJA R. DE VILLAMALEA, S.C.C.A. CASTILLA-LA MANCHA",
+    detail: "Caja Rural de Villamalea"
+  },
+  { id: "fd-pagare-sabadell", name: "Pagaré a la orden", detail: "Sabadell Doinglight ****4476" },
+  { id: "fd-tarjeta", name: "Pago mediante tarjeta", detail: "Caja Rural de Villamalea" },
+  { id: "fd-suplidos", name: "Pago por suplidos de otros proveedores", detail: "Suplidos" },
+  { id: "fd-paypal", name: "Paypal", detail: "Caja Rural de Villamalea" },
+  { id: "fd-recibo", name: "Recibo domiciliado", detail: "Caja Rural de Villamalea" },
+  { id: "fd-transferencia", name: "Transferencia", detail: "Caja Rural de Villamalea" },
+  { id: "fd-transferencia-sabadell", name: "Transferencia Banco Sabadell", detail: "Sabadell Doinglight ****4476" }
+];
+const PAYMENT_BANK_OPTIONS = [
+  "Caja Rural de Villamalea",
+  "Sabadell Doinglight ****4476",
+  "DOINGLIGHT TECHNOLOGIES, slu. ****9122",
+  "Suplidos"
+];
 
 function safeFilePart(value) {
   return String(value || "documento")
@@ -64,6 +90,65 @@ function textMatchesQuery(values, query) {
   if (normalizeSearchText(haystack).includes(needle)) return true;
   const compactNeedle = normalizeCompactSearchText(query);
   return Boolean(compactNeedle && normalizeCompactSearchText(haystack).includes(compactNeedle));
+}
+
+function paymentMethodLabel(method) {
+  if (!method) return "";
+  if (typeof method === "string") return method;
+  return [method.name, method.detail].filter(Boolean).join(" · ");
+}
+
+function normalizePaymentMethods(raw) {
+  const rawItems = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.items)
+      ? raw.items
+      : [];
+  const combined = [...PAYMENT_METHOD_DEFAULTS, ...rawItems];
+  const seen = new Set();
+
+  return combined
+    .map((item, index) => {
+      if (typeof item === "string") {
+        return { id: `method-${index}-${normalizeCompactSearchText(item)}`, name: item, detail: "" };
+      }
+
+      return {
+        id: item.id || `method-${index}-${normalizeCompactSearchText(paymentMethodLabel(item))}`,
+        name: String(item.name || item.label || "").trim(),
+        detail: String(item.detail || item.bank || item.description || "").trim(),
+        type: item.type || "custom",
+        iban: item.iban || "",
+        bicSwift: item.bicSwift || "",
+        mandateReference: item.mandateReference || "",
+        mandateType: item.mandateType || "",
+        paymentType: item.paymentType || "",
+        signedAt: item.signedAt || ""
+      };
+    })
+    .filter((item) => item.name)
+    .filter((item) => {
+      const key = normalizeCompactSearchText(paymentMethodLabel(item));
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function mergePaymentMethod(methods, method) {
+  return normalizePaymentMethods({
+    items: [
+      ...methods,
+      {
+        ...method,
+        id: method.id || `method-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`
+      }
+    ]
+  });
+}
+
+function generateMandateReference() {
+  return Math.random().toString(16).slice(2, 14).toUpperCase();
 }
 
 function printDocumentElement(elementId, title = "Documento Doinglight") {
@@ -6375,6 +6460,228 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   );
 }
 
+function PaymentMethodSelector({ value, methods, selectedLead, onChange, onSaveMethod }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [modal, setModal] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [customMethod, setCustomMethod] = useState({ name: "", bank: "" });
+  const [sepaMethod, setSepaMethod] = useState(() => ({
+    contact: selectedLead?.companyName || selectedLead?.fullName || "",
+    iban: "",
+    name: "Recibo domiciliado",
+    mandateReference: generateMandateReference(),
+    mandateType: "CORE (Básico)",
+    paymentType: "Pago periódico",
+    bicSwift: "",
+    signedAt: inputDate(new Date())
+  }));
+  const filteredMethods = useMemo(() => {
+    const source = normalizePaymentMethods({ items: methods });
+    if (!query.trim()) return source;
+    return source.filter((method) => textMatchesQuery([method.name, method.detail], query));
+  }, [methods, query]);
+
+  function openCreation(kind) {
+    setError("");
+    setOpen(false);
+    if (kind === "sepa") {
+      setSepaMethod((current) => ({
+        ...current,
+        contact: selectedLead?.companyName || selectedLead?.fullName || current.contact || "",
+        mandateReference: current.mandateReference || generateMandateReference(),
+        signedAt: current.signedAt || inputDate(new Date())
+      }));
+    }
+    setModal(kind);
+  }
+
+  async function saveMethod(method) {
+    setSaving(true);
+    setError("");
+    try {
+      await onSaveMethod(method);
+      onChange(paymentMethodLabel(method));
+      setModal("");
+    } catch (err) {
+      setError(err.message || "No se ha podido guardar el método de pago.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function saveCustomMethod() {
+    const name = customMethod.name.trim();
+    if (!name) {
+      setError("Indica un nombre para este método de pago.");
+      return;
+    }
+    saveMethod({
+      id: `custom-${Date.now()}`,
+      type: "custom",
+      name,
+      detail: customMethod.bank.trim()
+    });
+  }
+
+  function saveSepaMethod() {
+    if (!sepaMethod.iban.trim()) {
+      setError("Indica el IBAN del cliente.");
+      return;
+    }
+    saveMethod({
+      id: `sepa-${Date.now()}`,
+      type: "sepa",
+      name: sepaMethod.name.trim() || "Recibo domiciliado",
+      detail: [sepaMethod.iban.trim(), sepaMethod.contact.trim()].filter(Boolean).join(" · "),
+      iban: sepaMethod.iban.trim(),
+      bicSwift: sepaMethod.bicSwift.trim(),
+      mandateReference: sepaMethod.mandateReference.trim(),
+      mandateType: sepaMethod.mandateType,
+      paymentType: sepaMethod.paymentType,
+      signedAt: sepaMethod.signedAt
+    });
+  }
+
+  return (
+    <div className="payment-method-field">
+      <span>Método de pago</span>
+      <div className="payment-method-picker">
+        <button className="payment-method-trigger" type="button" onClick={() => setOpen((current) => !current)}>
+          <span>{value || "Sin definir"}</span>
+          <ChevronDown size={17} />
+        </button>
+        {open ? (
+          <div className="payment-method-menu">
+            <div className="payment-method-menu-search">
+              <Search size={16} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Escribe para buscar..." autoFocus />
+            </div>
+            <button className="payment-method-create-row" type="button" onClick={() => openCreation("sepa")}>
+              <Plus size={18} />
+              <span>
+                <strong>Nueva domiciliación SEPA</strong>
+                <small>Cobro automático desde la cuenta bancaria del cliente</small>
+              </span>
+            </button>
+            <button className="payment-method-create-row" type="button" onClick={() => openCreation("custom")}>
+              <Plus size={18} />
+              <span>
+                <strong>Nuevo método de pago</strong>
+                <small>Método de pago personalizado (efectivo, cheque, etc.)</small>
+              </span>
+            </button>
+            <div className="payment-method-menu-title">Métodos de pago habituales</div>
+            <div className="payment-method-options">
+              {filteredMethods.map((method) => (
+                <button
+                  key={method.id}
+                  className={paymentMethodLabel(method) === value ? "payment-method-option active" : "payment-method-option"}
+                  type="button"
+                  onClick={() => {
+                    onChange(paymentMethodLabel(method));
+                    setOpen(false);
+                  }}
+                >
+                  <strong>{method.name}</strong>
+                  {method.detail ? <small>{method.detail}</small> : null}
+                </button>
+              ))}
+              {!filteredMethods.length ? <p>No hay métodos con esa búsqueda.</p> : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+      {error && !modal ? <small className="form-error">{error}</small> : null}
+      {modal === "custom" ? (
+        <ModalShell title="Método de pago" eyebrow="Nuevo método" size="payment-modal" onClose={() => setModal("")}>
+          <div className="payment-method-modal-form">
+            <label>
+              <span>Nombre</span>
+              <input
+                value={customMethod.name}
+                onChange={(event) => setCustomMethod({ ...customMethod, name: event.target.value })}
+                placeholder="Indica un nombre para este método de pago"
+                autoFocus
+              />
+            </label>
+            <label>
+              <span>Banco de ingreso</span>
+              <select value={customMethod.bank} onChange={(event) => setCustomMethod({ ...customMethod, bank: event.target.value })}>
+                <option value="">Sin banco asociado</option>
+                {PAYMENT_BANK_OPTIONS.map((bank) => (
+                  <option key={bank} value={bank}>{bank}</option>
+                ))}
+              </select>
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setModal("")}>Cerrar</button>
+              <button className="primary-button" type="button" onClick={saveCustomMethod} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar y cerrar"}
+              </button>
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
+      {modal === "sepa" ? (
+        <ModalShell title="Mandato SEPA (Autorización de remesa bancaria)" eyebrow="Nueva domiciliación" size="payment-modal sepa-payment-modal" onClose={() => setModal("")}>
+          <div className="payment-method-modal-form">
+            <label>
+              <span>Contacto</span>
+              <input value={sepaMethod.contact} onChange={(event) => setSepaMethod({ ...sepaMethod, contact: event.target.value })} placeholder="Contacto" />
+              <small>El contacto de este método de pago no se puede cambiar. Si necesitas cambiarlo, crea otro método asociado al contacto deseado.</small>
+            </label>
+            <label>
+              <span>IBAN</span>
+              <input value={sepaMethod.iban} onChange={(event) => setSepaMethod({ ...sepaMethod, iban: event.target.value.toUpperCase() })} placeholder="IBAN (Cuenta bancaria de tu cliente)" />
+            </label>
+            <label>
+              <span>Nombre</span>
+              <input value={sepaMethod.name} onChange={(event) => setSepaMethod({ ...sepaMethod, name: event.target.value })} />
+            </label>
+            <label>
+              <span>Referencia del mandato</span>
+              <input value={sepaMethod.mandateReference} onChange={(event) => setSepaMethod({ ...sepaMethod, mandateReference: event.target.value.toUpperCase() })} />
+            </label>
+            <label>
+              <span>Tipo de mandato</span>
+              <select value={sepaMethod.mandateType} onChange={(event) => setSepaMethod({ ...sepaMethod, mandateType: event.target.value })}>
+                <option value="CORE (Básico)">CORE (Básico) · Cobros a consumidores, empresas o autónomos</option>
+                <option value="B2B">B2B · Cobros entre empresas</option>
+              </select>
+            </label>
+            <label>
+              <span>Tipo de pago</span>
+              <select value={sepaMethod.paymentType} onChange={(event) => setSepaMethod({ ...sepaMethod, paymentType: event.target.value })}>
+                <option value="Pago periódico">Pago periódico · Vas a realizar periódicamente cobros a este cliente</option>
+                <option value="Pago único">Pago único</option>
+              </select>
+            </label>
+            <label>
+              <span>BIC/SWIFT</span>
+              <input value={sepaMethod.bicSwift} onChange={(event) => setSepaMethod({ ...sepaMethod, bicSwift: event.target.value.toUpperCase() })} placeholder="BIC/SWIFT (Banco de tu cliente)" />
+              <small>El código BIC o SWIFT completa la información del IBAN. Déjalo en blanco si no lo conoces.</small>
+            </label>
+            <label>
+              <span>Fecha de la firma del mandato</span>
+              <input type="date" value={sepaMethod.signedAt} onChange={(event) => setSepaMethod({ ...sepaMethod, signedAt: event.target.value })} />
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setModal("")}>Cerrar</button>
+              <button className="primary-button" type="button" onClick={saveSepaMethod} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar y cerrar"}
+              </button>
+            </div>
+          </div>
+        </ModalShell>
+      ) : null}
+    </div>
+  );
+}
+
 function QuoteDetailModal({ token, quote, lead, onClose }) {
   const detail = useResource(() => apiRequest(`/api/sales/quotes/${quote.id}`, { token }), [token, quote.id]);
   const item = detail.data?.item || null;
@@ -6513,6 +6820,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
   const isDeliveryNote = documentType === "delivery_note";
+  const isProforma = documentType === "proforma";
   const [savedDocument, setSavedDocument] = useState(initialQuote || null);
   const currentDocument = savedDocument || initialQuote || null;
   const documentTitle = meta.title;
@@ -6534,6 +6842,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     () => apiRequest(`/api/sales/leads?limit=100&contactKind=client&q=${encodeURIComponent(normalizedLeadSearch)}`, { token }),
     [token, normalizedLeadSearch]
   );
+  const paymentSettings = useResource(() => apiRequest("/api/settings", { token }), [token]);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
   const [transferLinesOpen, setTransferLinesOpen] = useState(false);
@@ -6601,6 +6910,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   const products = catalog.data?.products || [];
   const leadsList = leads.data?.items || [];
+  const paymentMethods = useMemo(
+    () => normalizePaymentMethods(paymentSettings.data?.item?.paymentMethods),
+    [paymentSettings.data]
+  );
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
@@ -7147,6 +7460,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     };
   }
 
+  async function savePaymentMethod(method) {
+    const nextMethods = mergePaymentMethod(paymentMethods, method);
+    await apiRequest("/api/settings/payment_methods", {
+      token,
+      method: "PATCH",
+      body: { items: nextMethods }
+    });
+    paymentSettings.reload();
+  }
+
   useEffect(() => {
     if (!actionsRef) return undefined;
 
@@ -7429,15 +7752,25 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <span>Válido hasta</span>
               <input type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
             </label>
-            <label>
-              <span>Método de pago</span>
-              <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
-                <option value="">Sin definir</option>
-                <option value="card">Tarjeta</option>
-                <option value="transfer">Transferencia</option>
-                <option value="receipt">Recibo</option>
-              </select>
-            </label>
+            {isQuote || isProforma ? (
+              <PaymentMethodSelector
+                value={paymentMethod}
+                methods={paymentMethods}
+                selectedLead={selectedLead}
+                onChange={setPaymentMethod}
+                onSaveMethod={savePaymentMethod}
+              />
+            ) : (
+              <label>
+                <span>Método de pago</span>
+                <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+                  <option value="">Sin definir</option>
+                  {paymentMethods.map((method) => (
+                    <option key={method.id} value={paymentMethodLabel(method)}>{paymentMethodLabel(method)}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label>
               <span>Estado del {documentTitle.toLowerCase()}</span>
               <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
