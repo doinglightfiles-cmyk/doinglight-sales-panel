@@ -699,6 +699,70 @@ select:focus {
   display: block;
 }
 
+.numbering-preferences-card {
+  gap: 30px;
+}
+
+.numbering-preferences-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 42px;
+  row-gap: 28px;
+}
+
+.numbering-series-card {
+  gap: 18px;
+}
+
+.numbering-add-button {
+  justify-self: start;
+}
+
+.numbering-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.numbering-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.numbering-table th,
+.numbering-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 15px 14px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.numbering-table th {
+  color: var(--muted);
+  background: #f7faf0;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.numbering-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.numbering-boolean {
+  display: inline-flex;
+  align-items: center;
+  color: #8a8f82;
+}
+
+.numbering-boolean.yes {
+  color: var(--green-dark);
+}
+
 .home-dashboard {
   display: grid;
   gap: 28px;
@@ -3902,9 +3966,86 @@ th {
   max-height: min(720px, calc(100vh - 48px));
 }
 
+.product-detail.numbering-modal {
+  width: min(1180px, calc(100vw - 48px));
+  max-height: min(900px, calc(100vh - 48px));
+}
+
 .product-detail.sepa-payment-modal {
   width: min(1280px, calc(100vw - 48px));
   max-height: min(860px, calc(100vh - 48px));
+}
+
+.numbering-series-form {
+  display: grid;
+  gap: 18px;
+  overflow: auto;
+  padding: 20px;
+}
+
+.numbering-series-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.numbering-series-form input,
+.numbering-series-form select {
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 14px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+}
+
+.numbering-series-form input:focus,
+.numbering-series-form select:focus {
+  outline: 2px solid rgba(156, 195, 27, 0.28);
+  border-color: var(--green);
+}
+
+.numbering-series-form small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.numbering-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.numbering-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 28px;
+}
+
+.numbering-checkbox {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.numbering-checkbox input {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--green);
+}
+
+.numbering-template-field {
+  max-width: 460px;
 }
 
 .payment-method-modal-form {
@@ -5475,7 +5616,10 @@ th {
 
   .company-data-grid,
   .electronic-invoice-grid,
-  .settings-simple-grid {
+  .settings-simple-grid,
+  .numbering-preferences-grid,
+  .numbering-form-grid,
+  .numbering-checkbox-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -5638,7 +5782,10 @@ th {
 
   .company-data-grid,
   .electronic-invoice-grid,
-  .settings-simple-grid {
+  .settings-simple-grid,
+  .numbering-preferences-grid,
+  .numbering-form-grid,
+  .numbering-checkbox-grid {
     grid-template-columns: 1fr;
   }
 

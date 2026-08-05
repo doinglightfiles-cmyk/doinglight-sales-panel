@@ -151,6 +151,54 @@ function generateMandateReference() {
   return Math.random().toString(16).slice(2, 14).toUpperCase();
 }
 
+const NUMBERING_DEFAULTS = {
+  preferences: {
+    minLength: 5,
+    facturaeMinLength: "",
+    seriesPosition: "Delante",
+    seriesExample: "ABC/0012"
+  },
+  series: {
+    invoice: [
+      { id: "invoice-none", code: "", invoiceType: "Completa", template: "Principal", restart: "Cada año", initialNumber: 1, manual: true, hidden: false, notes: "Sin serie" },
+      { id: "invoice-r", code: "R", invoiceType: "Completa rectificativa", template: "Principal", restart: "Cada año", initialNumber: 1, manual: false, hidden: false, notes: "Serie de facturas rectificativas" },
+      { id: "invoice-r100", code: "R100", invoiceType: "Completa", template: "Principal", restart: "Nunca", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" },
+      { id: "invoice-r1", code: "R1", invoiceType: "Completa", template: "Principal", restart: "Cada año", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" },
+      { id: "invoice-am", code: "AM", invoiceType: "Completa", template: "Principal", restart: "Nunca", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" },
+      { id: "invoice-ams", code: "AMS", invoiceType: "Completa", template: "Principal", restart: "Nunca", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" },
+      { id: "invoice-it", code: "IT", invoiceType: "Completa", template: "Principal", restart: "Cada año", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" },
+      { id: "invoice-pt", code: "PT", invoiceType: "Completa", template: "Principal", restart: "Cada año", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" },
+      { id: "invoice-fr", code: "FR", invoiceType: "Completa", template: "Principal", restart: "Cada año", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" },
+      { id: "invoice-sz", code: "SZ", invoiceType: "Completa", template: "Principal", restart: "Nunca", initialNumber: 1, manual: false, hidden: false, notes: "" },
+      { id: "invoice-pa", code: "PA", invoiceType: "Completa", template: "Principal", restart: "Cada año", initialNumber: 1, manual: false, hidden: false, notes: "" },
+      { id: "invoice-al", code: "AL", invoiceType: "Completa", template: "Principal", restart: "Nunca", initialNumber: 1, manual: false, hidden: false, notes: "" }
+    ],
+    quote: [
+      { id: "quote-none", code: "", template: "Principal", restart: "Nunca", initialNumber: 1, manual: false, hidden: false, notes: "Sin serie" },
+      { id: "quote-00001", code: "00001", template: "Principal", restart: "Cada año", initialNumber: "", manual: false, hidden: false, notes: "Importada desde FacturaDirecta Clásico" }
+    ],
+    deliveryNote: [
+      { id: "delivery-none", code: "", template: "Principal", restart: "Nunca", initialNumber: 1, manual: false, hidden: false, notes: "Sin serie" },
+      { id: "delivery-00001", code: "00001", template: "Principal", restart: "Cada año", initialNumber: 1, manual: false, hidden: false, notes: "" }
+    ]
+  }
+};
+
+function normalizeNumbering(raw) {
+  const rawSeries = raw?.series || {};
+  return {
+    preferences: {
+      ...NUMBERING_DEFAULTS.preferences,
+      ...(raw?.preferences || {})
+    },
+    series: {
+      invoice: Array.isArray(rawSeries.invoice) ? rawSeries.invoice : NUMBERING_DEFAULTS.series.invoice,
+      quote: Array.isArray(rawSeries.quote) ? rawSeries.quote : NUMBERING_DEFAULTS.series.quote,
+      deliveryNote: Array.isArray(rawSeries.deliveryNote) ? rawSeries.deliveryNote : NUMBERING_DEFAULTS.series.deliveryNote
+    }
+  };
+}
+
 function printDocumentElement(elementId, title = "Documento Doinglight") {
   const element = document.getElementById(elementId);
   if (!element) throw new Error("No se ha encontrado la vista previa del documento.");
@@ -3314,6 +3362,7 @@ const SETTINGS_SECTIONS = [
   { id: "taxes", title: "Impuestos", description: "Operador intracomunitario e impuestos habituales", icon: Landmark },
   { id: "verifactu", title: "VeriFactu", description: "Configura VeriFactu", icon: Fingerprint },
   { id: "sales", title: "Ventas", description: "Cálculo de impuestos, creación de facturas y firma digital", icon: Truck },
+  { id: "numbering", title: "Numeración", description: "Numeración y series de facturas, presupuestos y albaranes", icon: History },
   { id: "accounting", title: "Contabilidad", description: "Cuentas contables y reglas internas pendientes de definir", icon: Share2 }
 ];
 
@@ -3417,6 +3466,8 @@ function SettingsView() {
         <main className="settings-content">
           {activeSection === "company" ? (
             <CompanySettingsPanel token={session?.token} />
+          ) : activeSection === "numbering" ? (
+            <NumberingSettingsPanel token={session?.token} />
           ) : (
             <GenericSettingsPanel config={SETTINGS_PANELS[activeSection]} />
           )}
@@ -3447,6 +3498,363 @@ function GenericSettingsPanel({ config }) {
         </div>
       </section>
     </div>
+  );
+}
+
+const NUMBERING_DOCUMENTS = {
+  invoice: {
+    title: "Series de factura",
+    singular: "factura",
+    description: "Puedes tener múltiples series para utilizar en tus facturas",
+    columns: ["Serie", "Tipo factura", "Plantilla", "Reinicio", "Número inicial", "Manual", "Ocultar", "Notas"]
+  },
+  quote: {
+    title: "Series de presupuesto",
+    singular: "presupuesto",
+    description: "Puedes tener múltiples series para utilizar en tus presupuestos",
+    columns: ["Serie", "Plantilla", "Reinicio", "Número inicial", "Manual", "Ocultar", "Notas"]
+  },
+  deliveryNote: {
+    title: "Series de albaranes",
+    singular: "albarán",
+    description: "Puedes tener múltiples series para utilizar en tus albaranes",
+    columns: ["Serie", "Plantilla", "Reinicio", "Número inicial", "Manual", "Ocultar", "Notas"]
+  }
+};
+
+function NumberingSettingsPanel({ token }) {
+  const settings = useResource(() => apiRequest("/api/settings", { token }), [token]);
+  const numbering = useMemo(() => normalizeNumbering(settings.data?.item?.numbering), [settings.data]);
+  const [modalType, setModalType] = useState(null);
+  const [editingPreferences, setEditingPreferences] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function saveNumbering(nextNumbering) {
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest("/api/settings/numbering", {
+        token,
+        method: "PATCH",
+        body: nextNumbering
+      });
+      await settings.reload();
+      setModalType(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addSeries(type, series) {
+    const nextNumbering = {
+      ...numbering,
+      series: {
+        ...numbering.series,
+        [type]: [
+          ...(numbering.series[type] || []),
+          {
+            ...series,
+            id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`
+          }
+        ]
+      }
+    };
+    await saveNumbering(nextNumbering);
+  }
+
+  async function savePreferences(preferences) {
+    await saveNumbering({
+      ...numbering,
+      preferences: {
+        ...numbering.preferences,
+        ...preferences
+      }
+    });
+    setEditingPreferences(false);
+  }
+
+  const preferences = numbering.preferences;
+
+  return (
+    <div className="settings-card-stack">
+      {settings.error ? <p className="form-error">{settings.error}</p> : null}
+      {error ? <p className="form-error">{error}</p> : null}
+      <section className="settings-card numbering-preferences-card">
+        <header className="settings-card-header">
+          <div>
+            <h3>Numeración de documentos</h3>
+            <p>Preferencias de numeración de tus facturas, presupuestos y albaranes</p>
+          </div>
+          <button className="settings-outline-button" type="button" onClick={() => setEditingPreferences(true)}>Modificar</button>
+        </header>
+        <div className="numbering-preferences-grid">
+          <SettingField label="Longitud mínima del número de documento" value={preferences.minLength || "Sin longitud mínima"} />
+          <SettingField label="Longitud del número de documento en Facturae" value={preferences.facturaeMinLength || "Sin longitud mínima"} />
+          <SettingField
+            label="Posición de la serie en el número de documento"
+            value={`${preferences.seriesPosition || "Delante"} · Ejemplo. ${preferences.seriesExample || "ABC/0012"}`}
+            wide
+          />
+        </div>
+      </section>
+
+      {Object.entries(NUMBERING_DOCUMENTS).map(([type, config]) => (
+        <NumberingSeriesCard
+          key={type}
+          config={config}
+          rows={numbering.series[type] || []}
+          type={type}
+          onAdd={() => setModalType(type)}
+        />
+      ))}
+
+      {modalType ? (
+        <NumberingSeriesModal
+          config={NUMBERING_DOCUMENTS[modalType]}
+          type={modalType}
+          onClose={() => setModalType(null)}
+          onSave={(series) => addSeries(modalType, series)}
+          saving={saving}
+        />
+      ) : null}
+      {editingPreferences ? (
+        <NumberingPreferencesModal
+          initial={preferences}
+          onClose={() => setEditingPreferences(false)}
+          onSave={savePreferences}
+          saving={saving}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function NumberingSeriesCard({ config, rows, type, onAdd }) {
+  return (
+    <section className="settings-card numbering-series-card">
+      <header className="settings-card-header">
+        <div>
+          <h3>{config.title}</h3>
+          <p>{config.description}</p>
+        </div>
+      </header>
+      <button className="settings-outline-button numbering-add-button" type="button" onClick={onAdd}>
+        Añadir serie
+      </button>
+      <div className="numbering-table-wrap">
+        <table className="numbering-table">
+          <thead>
+            <tr>
+              {config.columns.map((column) => (
+                <th key={column}>{column}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id || `${type}-${row.code}-${row.notes}`}>
+                <td>{row.code || ""}</td>
+                {type === "invoice" ? <td>{row.invoiceType || "Completa"}</td> : null}
+                <td>{row.template || "Principal"}</td>
+                <td>{row.restart || "Nunca"}</td>
+                <td>{row.initialNumber || ""}</td>
+                <td><BooleanMark value={row.manual} /></td>
+                <td><BooleanMark value={row.hidden} /></td>
+                <td>{row.notes || ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function BooleanMark({ value }) {
+  return (
+    <span className={value ? "numbering-boolean yes" : "numbering-boolean no"} aria-label={value ? "Sí" : "No"}>
+      {value ? <CheckCircle2 size={17} /> : <X size={17} />}
+    </span>
+  );
+}
+
+function NumberingPreferencesModal({ initial, onClose, onSave, saving }) {
+  const [form, setForm] = useState({
+    minLength: initial.minLength || "",
+    facturaeMinLength: initial.facturaeMinLength || "",
+    seriesPosition: initial.seriesPosition || "Delante",
+    seriesExample: initial.seriesExample || "ABC/0012"
+  });
+
+  async function submit(event) {
+    event.preventDefault();
+    await onSave({
+      minLength: form.minLength ? Number(form.minLength) : "",
+      facturaeMinLength: form.facturaeMinLength ? Number(form.facturaeMinLength) : "",
+      seriesPosition: form.seriesPosition,
+      seriesExample: form.seriesExample
+    });
+  }
+
+  return (
+    <ModalShell title="Numeración de documentos" eyebrow="Ajustes" size="payment-modal" onClose={onClose}>
+      <form className="numbering-series-form" onSubmit={submit}>
+        <div className="numbering-form-grid">
+          <label>
+            Longitud mínima del número de documento
+            <input
+              type="number"
+              min="0"
+              value={form.minLength}
+              onChange={(event) => setForm({ ...form, minLength: event.target.value })}
+            />
+          </label>
+          <label>
+            Longitud del número de documento en Facturae
+            <input
+              type="number"
+              min="0"
+              placeholder="Sin longitud mínima"
+              value={form.facturaeMinLength}
+              onChange={(event) => setForm({ ...form, facturaeMinLength: event.target.value })}
+            />
+          </label>
+        </div>
+        <div className="numbering-form-grid">
+          <label>
+            Posición de la serie en el número de documento
+            <select value={form.seriesPosition} onChange={(event) => setForm({ ...form, seriesPosition: event.target.value })}>
+              <option value="Delante">Delante</option>
+              <option value="Detrás">Detrás</option>
+            </select>
+          </label>
+          <label>
+            Ejemplo
+            <input value={form.seriesExample} onChange={(event) => setForm({ ...form, seriesExample: event.target.value })} />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="primary-button" type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+function NumberingSeriesModal({ type, config, onClose, onSave, saving }) {
+  const [form, setForm] = useState({
+    invoiceType: "Completa",
+    code: "",
+    initialNumber: "1",
+    notes: "",
+    restartYearly: false,
+    hidden: false,
+    manual: false,
+    template: "Principal"
+  });
+
+  async function submit(event) {
+    event.preventDefault();
+    await onSave({
+      code: form.code.trim(),
+      invoiceType: type === "invoice" ? form.invoiceType : undefined,
+      template: form.template,
+      restart: form.restartYearly ? "Cada año" : "Nunca",
+      initialNumber: Number(form.initialNumber || 1),
+      manual: form.manual,
+      hidden: form.hidden,
+      notes: form.notes.trim()
+    });
+  }
+
+  return (
+    <ModalShell title={`Nueva serie de ${config.singular}`} eyebrow="Numeración" size="numbering-modal" onClose={onClose}>
+      <form className="numbering-series-form" onSubmit={submit}>
+        {type === "invoice" ? (
+          <label className="wide-field">
+            Tipo de factura
+            <select value={form.invoiceType} onChange={(event) => setForm({ ...form, invoiceType: event.target.value })}>
+              <option value="Completa">Completa</option>
+              <option value="Completa rectificativa">Completa rectificativa</option>
+              <option value="Simplificada">Simplificada</option>
+              <option value="Factura proforma">Factura proforma</option>
+            </select>
+            <small>Indica para qué tipo de facturas se usará esta serie</small>
+          </label>
+        ) : null}
+
+        <div className="numbering-form-grid">
+          <label>
+            Serie
+            <input
+              placeholder="Serie"
+              value={form.code}
+              onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })}
+            />
+            <small>Puedes usar ## o #### para indicar el año del documento con 2 o 4 dígitos respectivamente</small>
+          </label>
+          <label>
+            Número inicial
+            <input
+              type="number"
+              min="1"
+              value={form.initialNumber}
+              onChange={(event) => setForm({ ...form, initialNumber: event.target.value })}
+            />
+            <small>Si no existe ningún documento en esta serie, empezará por este número.</small>
+          </label>
+        </div>
+
+        <label>
+          Notas
+          <input placeholder="Notas" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+        </label>
+
+        <div className="numbering-checkbox-grid">
+          <label className="numbering-checkbox">
+            <input
+              type="checkbox"
+              checked={form.restartYearly}
+              onChange={(event) => setForm({ ...form, restartYearly: event.target.checked })}
+            />
+            <span>Reiniciar la numeración cada año</span>
+          </label>
+          <label className="numbering-checkbox">
+            <input
+              type="checkbox"
+              checked={form.hidden}
+              onChange={(event) => setForm({ ...form, hidden: event.target.checked })}
+            />
+            <span>Ocultar la serie en los listados</span>
+          </label>
+          <label className="numbering-checkbox">
+            <input
+              type="checkbox"
+              checked={form.manual}
+              onChange={(event) => setForm({ ...form, manual: event.target.checked })}
+            />
+            <span>Permitir numeración manual</span>
+          </label>
+        </div>
+
+        <label className="numbering-template-field">
+          Plantilla de PDF asociada a la serie
+          <select value={form.template} onChange={(event) => setForm({ ...form, template: event.target.value })}>
+            <option value="Principal">Principal</option>
+            <option value="Tubo Solar">Tubo Solar</option>
+          </select>
+        </label>
+
+        <div className="form-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="primary-button" type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }
 
