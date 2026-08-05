@@ -1665,6 +1665,38 @@ select:focus {
   white-space: nowrap;
 }
 
+.sortable-column-header button {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-weight: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+
+.sortable-column-header button:hover,
+.sortable-column-header.active button {
+  color: #547313;
+}
+
+.sortable-column-header .sort-arrow {
+  color: currentColor;
+  opacity: 0.38;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sortable-column-header.active .sort-arrow {
+  opacity: 1;
+}
+
 .clickable-table-row {
   cursor: pointer;
 }

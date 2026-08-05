@@ -92,6 +92,98 @@ function textMatchesQuery(values, query) {
   return Boolean(compactNeedle && normalizeCompactSearchText(haystack).includes(compactNeedle));
 }
 
+function parseSortableDate(value) {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  const asString = String(value);
+  const spanishDate = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(asString);
+  if (spanishDate) {
+    return Date.UTC(Number(spanishDate[3]), Number(spanishDate[2]) - 1, Number(spanishDate[1]));
+  }
+  const timestamp = Date.parse(asString);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function parseSortableNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const rawValue = String(value || "").trim();
+  const normalized = (rawValue.includes(",") ? rawValue.replace(/\./g, "").replace(",", ".") : rawValue)
+    .replace(/[^\d.-]/g, "");
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function defaultDocumentSortDirection(key) {
+  return ["date", "pendingBalance", "subtotal", "total"].includes(key) ? "desc" : "asc";
+}
+
+function documentSortValue(documentRow, key) {
+  if (key === "date") return { type: "number", value: parseSortableDate(documentRow.date) };
+  if (["pendingBalance", "subtotal", "total"].includes(key)) {
+    return { type: "number", value: parseSortableNumber(documentRow[key]) };
+  }
+  if (key === "number") {
+    return { type: "text", value: normalizeSearchText([documentRow.series, documentRow.number].filter(Boolean).join(" ")) };
+  }
+  if (key === "contact") {
+    return { type: "text", value: normalizeSearchText([documentRow.contact, documentRow.detail].filter(Boolean).join(" ")) };
+  }
+  return { type: "text", value: normalizeSearchText(documentRow[key]) };
+}
+
+function sortDocumentRows(rows, sortConfig) {
+  const direction = sortConfig.direction === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const left = documentSortValue(a, sortConfig.key);
+    const right = documentSortValue(b, sortConfig.key);
+    let result = 0;
+
+    if (left.type === "number" && right.type === "number") {
+      result = left.value - right.value;
+    } else {
+      result = String(left.value).localeCompare(String(right.value), "es", { numeric: true, sensitivity: "base" });
+    }
+
+    if (result === 0) {
+      result = parseSortableDate(a.date) - parseSortableDate(b.date);
+    }
+
+    return result * direction;
+  });
+}
+
+function useDocumentSort(defaultKey = "date") {
+  const [sortConfig, setSortConfig] = useState({
+    key: defaultKey,
+    direction: defaultDocumentSortDirection(defaultKey)
+  });
+
+  function requestSort(key) {
+    setSortConfig((current) => {
+      if (current.key === key) {
+        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: defaultDocumentSortDirection(key) };
+    });
+  }
+
+  return { sortConfig, requestSort };
+}
+
+function SortableDocumentHeader({ children, sortKey, sortConfig, onSort, className = "" }) {
+  const active = sortConfig.key === sortKey;
+  const arrow = active ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↕";
+
+  return (
+    <th className={["sortable-column-header", active ? "active" : "", className].filter(Boolean).join(" ")}>
+      <button type="button" onClick={() => onSort(sortKey)}>
+        <span>{children}</span>
+        <span className="sort-arrow" aria-hidden="true">{arrow}</span>
+      </button>
+    </th>
+  );
+}
+
 function paymentMethodLabel(method) {
   if (!method) return "";
   if (typeof method === "string") return method;
@@ -2329,6 +2421,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const invoiceSort = useDocumentSort();
   const invoicesResource = useResource(
     () => apiRequest("/api/sales/documents/invoice?limit=200", { token }),
     [token]
@@ -2339,6 +2432,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
     const matchesStatus = statusFilter === "all" || invoice.statusKey === statusFilter;
     return matchesQuery && matchesStatus;
   });
+  const sortedInvoices = sortDocumentRows(filteredInvoices, invoiceSort.sortConfig);
 
   return (
     <div className="module-page invoices-mirror-page">
@@ -2392,15 +2486,15 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
               <tr>
                 <th className="select-column"><input type="checkbox" aria-label="Seleccionar todas las facturas" /></th>
                 <th className="invoice-kind-column"></th>
-                <th>Fecha <span className="sort-arrow">↓</span></th>
-                <th>Verifactu</th>
-                <th>Estado</th>
-                <th>Serie / Núm.</th>
-                <th>Cliente / Detalle</th>
-                <th>Saldo pendiente</th>
-                <th>Subtotal</th>
-                <th>Total</th>
-                <th>Moneda</th>
+                <SortableDocumentHeader sortKey="date" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Fecha</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="verifactuStatus" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Verifactu</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="status" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Estado</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="number" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Serie / Núm.</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="contact" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Cliente / Detalle</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="pendingBalance" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Saldo pendiente</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="subtotal" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Subtotal</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="total" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Total</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="currency" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Moneda</SortableDocumentHeader>
               </tr>
             </thead>
             <tbody>
@@ -2414,7 +2508,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                   <td colSpan={11}>No hay facturas internas de prueba todavía.</td>
                 </tr>
               ) : null}
-              {filteredInvoices.map((invoice) => (
+              {sortedInvoices.map((invoice) => (
                 <tr
                   key={invoice.id}
                   className="clickable-table-row"
@@ -2804,6 +2898,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
   const [selectedDeliveryNoteIds, setSelectedDeliveryNoteIds] = useState([]);
+  const deliveryNoteSort = useDocumentSort();
   const deliveryNotesResource = useResource(
     () => apiRequest("/api/sales/documents/delivery_note?limit=200", { token }),
     [token]
@@ -2814,6 +2909,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
     const matchesStatus = statusFilter === "all" || deliveryNote.statusKey === statusFilter;
     return matchesQuery && matchesStatus;
   });
+  const sortedDeliveryNotes = sortDocumentRows(filteredDeliveryNotes, deliveryNoteSort.sortConfig);
   const filteredDeliveryNoteIds = filteredDeliveryNotes.map((deliveryNote) => deliveryNote.id);
   const allFilteredDeliveryNotesSelected = Boolean(filteredDeliveryNoteIds.length) && filteredDeliveryNoteIds.every((idValue) => selectedDeliveryNoteIds.includes(idValue));
 
@@ -2921,14 +3017,14 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                   />
                 </th>
                 <th className="invoice-kind-column"></th>
-                <th>Fecha <span className="sort-arrow">↓</span></th>
-                <th>Estado</th>
-                <th>Serie / Núm.</th>
-                <th>Cliente / Detalle</th>
+                <SortableDocumentHeader sortKey="date" sortConfig={deliveryNoteSort.sortConfig} onSort={deliveryNoteSort.requestSort}>Fecha</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="status" sortConfig={deliveryNoteSort.sortConfig} onSort={deliveryNoteSort.requestSort}>Estado</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="number" sortConfig={deliveryNoteSort.sortConfig} onSort={deliveryNoteSort.requestSort}>Serie / Núm.</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="contact" sortConfig={deliveryNoteSort.sortConfig} onSort={deliveryNoteSort.requestSort}>Cliente / Detalle</SortableDocumentHeader>
                 <th></th>
-                <th>Subtotal</th>
-                <th>Total</th>
-                <th>Moneda</th>
+                <SortableDocumentHeader sortKey="subtotal" sortConfig={deliveryNoteSort.sortConfig} onSort={deliveryNoteSort.requestSort}>Subtotal</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="total" sortConfig={deliveryNoteSort.sortConfig} onSort={deliveryNoteSort.requestSort}>Total</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="currency" sortConfig={deliveryNoteSort.sortConfig} onSort={deliveryNoteSort.requestSort}>Moneda</SortableDocumentHeader>
               </tr>
             </thead>
             <tbody>
@@ -2942,7 +3038,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                   <td colSpan={10}>No hay albaranes internos de prueba todavía.</td>
                 </tr>
               ) : null}
-              {filteredDeliveryNotes.map((deliveryNote) => (
+              {sortedDeliveryNotes.map((deliveryNote) => (
                 <tr
                   key={deliveryNote.id}
                   className="clickable-table-row"
@@ -3026,6 +3122,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
 function ProformasView({ token, onCreateProforma }) {
   const [query, setQuery] = useState("");
   const [selectedProforma, setSelectedProforma] = useState(null);
+  const proformaSort = useDocumentSort();
   const proformasResource = useResource(
     () => apiRequest("/api/sales/documents/proforma?limit=200", { token }),
     [token]
@@ -3034,6 +3131,7 @@ function ProformasView({ token, onCreateProforma }) {
   const filteredProformas = proformas.filter((proforma) =>
     textMatchesQuery([proforma.number, proforma.contact, proforma.status, proforma.total, proforma.detail], query)
   );
+  const sortedProformas = sortDocumentRows(filteredProformas, proformaSort.sortConfig);
 
   return (
     <div className="module-page invoices-mirror-page">
@@ -3070,13 +3168,13 @@ function ProformasView({ token, onCreateProforma }) {
               <tr>
                 <th className="select-column"><input type="checkbox" aria-label="Seleccionar todas las proformas" /></th>
                 <th className="invoice-kind-column"></th>
-                <th>Fecha <span className="sort-arrow">↓</span></th>
-                <th>Estado</th>
-                <th>Serie / Núm.</th>
-                <th>Cliente / Detalle</th>
-                <th>Subtotal</th>
-                <th>Total</th>
-                <th>Moneda</th>
+                <SortableDocumentHeader sortKey="date" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Fecha</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="status" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Estado</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="number" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Serie / Núm.</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="contact" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Cliente / Detalle</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="subtotal" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Subtotal</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="total" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Total</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="currency" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Moneda</SortableDocumentHeader>
               </tr>
             </thead>
             <tbody>
@@ -3090,7 +3188,7 @@ function ProformasView({ token, onCreateProforma }) {
                   <td colSpan={9}>No hay proformas internas de prueba todavía.</td>
                 </tr>
               ) : null}
-              {filteredProformas.map((proforma) => (
+              {sortedProformas.map((proforma) => (
                 <tr
                   key={proforma.id}
                   className="clickable-table-row"
@@ -6425,6 +6523,7 @@ function QuotesView({ token }) {
   const [selectedQuoteIds, setSelectedQuoteIds] = useState([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const quoteSort = useDocumentSort();
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
   const leadsById = useMemo(() => {
@@ -6438,6 +6537,7 @@ function QuotesView({ token }) {
     const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
     return matchesQuery && matchesStatus;
   });
+  const sortedQuotes = sortDocumentRows(filteredQuotes, quoteSort.sortConfig);
   const filteredQuoteIds = filteredQuotes.map((quote) => quote.id);
   const allFilteredQuotesSelected = Boolean(filteredQuoteIds.length) && filteredQuoteIds.every((idValue) => selectedQuoteIds.includes(idValue));
 
@@ -6587,13 +6687,13 @@ function QuotesView({ token }) {
                   />
                 </th>
                 <th className="invoice-kind-column"></th>
-                <th>Fecha <span className="sort-arrow">↓</span></th>
-                <th>Estado</th>
-                <th>Serie / Núm.</th>
-                <th>Cliente / Detalle</th>
-                <th>Subtotal</th>
-                <th>Total</th>
-                <th>Moneda</th>
+                <SortableDocumentHeader sortKey="date" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Fecha</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="status" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Estado</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="number" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Serie / Núm.</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="contact" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Cliente / Detalle</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="subtotal" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Subtotal</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="total" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Total</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="currency" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Moneda</SortableDocumentHeader>
               </tr>
             </thead>
             <tbody>
@@ -6607,7 +6707,7 @@ function QuotesView({ token }) {
                   <td colSpan={9}>No hay presupuestos para mostrar todavía.</td>
                 </tr>
               ) : null}
-              {filteredQuotes.map((quote) => (
+              {sortedQuotes.map((quote) => (
                 <tr
                   className="clickable-table-row"
                   key={quote.id}
