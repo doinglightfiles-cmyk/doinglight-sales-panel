@@ -720,7 +720,7 @@ function LoginView({ onLogin }) {
 
 function App() {
   const [session, setSession] = useState(readSession);
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState("quotes");
 
   function logout() {
     localStorage.removeItem(SESSION_KEY);
