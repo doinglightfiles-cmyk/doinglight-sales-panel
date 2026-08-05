@@ -184,6 +184,176 @@ function SortableDocumentHeader({ children, sortKey, sortConfig, onSort, classNa
   );
 }
 
+const DOCUMENT_LIST_INITIAL_ROWS = 25;
+const DOCUMENT_LIST_BATCH_SIZE = 25;
+
+function parseDocumentFilterDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const asString = String(value);
+  const spanishDate = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(asString);
+  if (spanishDate) {
+    return new Date(Number(spanishDate[3]), Number(spanishDate[2]) - 1, Number(spanishDate[1]));
+  }
+  const parsed = new Date(asString);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+}
+
+function endOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+}
+
+function yearRange(year) {
+  return {
+    start: new Date(year, 0, 1),
+    end: new Date(year, 11, 31, 23, 59, 59, 999)
+  };
+}
+
+function quarterRange(year, quarter) {
+  const startMonth = (quarter - 1) * 3;
+  return {
+    start: new Date(year, startMonth, 1),
+    end: new Date(year, startMonth + 3, 0, 23, 59, 59, 999)
+  };
+}
+
+function getDocumentDateFilterOptions(referenceDate = new Date()) {
+  const year = referenceDate.getFullYear();
+  return [
+    { value: "all", label: "Todas las fechas" },
+    { value: "last_365", label: "Últimos 365 días" },
+    { value: "last_30", label: "Últimos 30 días" },
+    { value: "current_month", label: "Mes actual" },
+    { value: "previous_month", label: "Mes pasado" },
+    { value: "current_quarter", label: "Trimestre actual" },
+    { value: "previous_quarter", label: "Trimestre pasado" },
+    { value: "current_year", label: `Todo el año ${year}` },
+    { value: "q4_current_year", label: `Cuarto trimestre de ${year}` },
+    { value: "q3_current_year", label: `Tercer trimestre de ${year}` },
+    { value: "q2_current_year", label: `Segundo trimestre de ${year}` },
+    { value: "q1_current_year", label: `Primer trimestre de ${year}` },
+    { value: "previous_year", label: `Todo el año ${year - 1}` },
+    { value: "q4_previous_year", label: `Cuarto trimestre de ${year - 1}` },
+    { value: "q3_previous_year", label: `Tercer trimestre de ${year - 1}` },
+    { value: "q2_previous_year", label: `Segundo trimestre de ${year - 1}` },
+    { value: "q1_previous_year", label: `Primer trimestre de ${year - 1}` },
+    { value: "two_years_ago", label: `Todo el año ${year - 2}` },
+    { value: "three_years_ago", label: `Todo el año ${year - 3}` }
+  ];
+}
+
+function getDocumentDateRange(filterValue, referenceDate = new Date()) {
+  const today = startOfDay(referenceDate);
+  const year = today.getFullYear();
+  const currentQuarter = Math.floor(today.getMonth() / 3) + 1;
+
+  if (filterValue === "last_365") return { start: startOfDay(new Date(year, today.getMonth(), today.getDate() - 364)), end: endOfDay(today) };
+  if (filterValue === "last_30") return { start: startOfDay(new Date(year, today.getMonth(), today.getDate() - 29)), end: endOfDay(today) };
+  if (filterValue === "current_month") return { start: new Date(year, today.getMonth(), 1), end: endOfDay(new Date(year, today.getMonth() + 1, 0)) };
+  if (filterValue === "previous_month") return { start: new Date(year, today.getMonth() - 1, 1), end: endOfDay(new Date(year, today.getMonth(), 0)) };
+  if (filterValue === "current_quarter") return quarterRange(year, currentQuarter);
+  if (filterValue === "previous_quarter") {
+    const previousQuarter = currentQuarter === 1 ? 4 : currentQuarter - 1;
+    const previousQuarterYear = currentQuarter === 1 ? year - 1 : year;
+    return quarterRange(previousQuarterYear, previousQuarter);
+  }
+  if (filterValue === "current_year") return yearRange(year);
+  if (filterValue === "previous_year") return yearRange(year - 1);
+  if (filterValue === "two_years_ago") return yearRange(year - 2);
+  if (filterValue === "three_years_ago") return yearRange(year - 3);
+  if (/^q[1-4]_current_year$/.test(filterValue)) return quarterRange(year, Number(filterValue[1]));
+  if (/^q[1-4]_previous_year$/.test(filterValue)) return quarterRange(year - 1, Number(filterValue[1]));
+  return null;
+}
+
+function documentMatchesDateFilter(documentRow, dateFilter) {
+  const range = getDocumentDateRange(dateFilter);
+  if (!range) return true;
+  const documentDate = parseDocumentFilterDate(documentRow.date);
+  if (!documentDate) return false;
+  const timestamp = documentDate.getTime();
+  return timestamp >= range.start.getTime() && timestamp <= range.end.getTime();
+}
+
+function DocumentDateFilter({ value, onChange }) {
+  const options = getDocumentDateFilterOptions();
+
+  return (
+    <label className="invoice-date-filter">
+      <CalendarDays size={18} />
+      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label="Filtrar por fecha">
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={16} aria-hidden="true" />
+    </label>
+  );
+}
+
+function useIncrementalDocumentRows(totalRows, resetKey) {
+  const [visibleCount, setVisibleCount] = useState(DOCUMENT_LIST_INITIAL_ROWS);
+  const hasMore = visibleCount < totalRows;
+
+  useEffect(() => {
+    setVisibleCount(DOCUMENT_LIST_INITIAL_ROWS);
+  }, [resetKey]);
+
+  useEffect(() => {
+    setVisibleCount((current) => Math.min(Math.max(current, DOCUMENT_LIST_INITIAL_ROWS), Math.max(totalRows, DOCUMENT_LIST_INITIAL_ROWS)));
+  }, [totalRows]);
+
+  function loadMoreRows() {
+    setVisibleCount((current) => Math.min(current + DOCUMENT_LIST_BATCH_SIZE, totalRows));
+  }
+
+  useEffect(() => {
+    function handleWindowScroll() {
+      if (!hasMore) return;
+      const scrollBottom = window.innerHeight + window.scrollY;
+      const pageBottom = document.documentElement.scrollHeight;
+      if (scrollBottom >= pageBottom - 360) loadMoreRows();
+    }
+
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleWindowScroll);
+  }, [hasMore, totalRows]);
+
+  function handleTableScroll(event) {
+    if (!hasMore) return;
+    const target = event.currentTarget;
+    if (target.scrollTop + target.clientHeight >= target.scrollHeight - 120) {
+      loadMoreRows();
+    }
+  }
+
+  return {
+    visibleCount: Math.min(visibleCount, totalRows),
+    hasMore,
+    loadMoreRows,
+    handleTableScroll
+  };
+}
+
+function DocumentLoadMoreRow({ colSpan, visibleCount, totalRows, onLoadMore }) {
+  if (visibleCount >= totalRows) return null;
+
+  return (
+    <tr className="document-load-more-row">
+      <td colSpan={colSpan}>
+        <button type="button" onClick={onLoadMore}>
+          Mostrando {visibleCount} de {totalRows}. Cargar más
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 function paymentMethodLabel(method) {
   if (!method) return "";
   if (typeof method === "string") return method;
@@ -2420,19 +2590,26 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
 function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const invoiceSort = useDocumentSort();
   const invoicesResource = useResource(
-    () => apiRequest("/api/sales/documents/invoice?limit=200", { token }),
+    () => apiRequest("/api/sales/documents/invoice?limit=500", { token }),
     [token]
   );
   const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesQuery = textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query);
     const matchesStatus = statusFilter === "all" || invoice.statusKey === statusFilter;
-    return matchesQuery && matchesStatus;
+    const matchesDate = documentMatchesDateFilter(invoice, dateFilter);
+    return matchesQuery && matchesStatus && matchesDate;
   });
   const sortedInvoices = sortDocumentRows(filteredInvoices, invoiceSort.sortConfig);
+  const invoiceRows = useIncrementalDocumentRows(
+    sortedInvoices.length,
+    [query, statusFilter, dateFilter, invoiceSort.sortConfig.key, invoiceSort.sortConfig.direction].join("|")
+  );
+  const visibleInvoices = sortedInvoices.slice(0, invoiceRows.visibleCount);
 
   return (
     <div className="module-page invoices-mirror-page">
@@ -2464,11 +2641,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
             <Search size={18} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
           </div>
-          <button className="invoice-date-filter" type="button">
-            <CalendarDays size={18} />
-            Todas las fechas
-            <ChevronDown size={16} />
-          </button>
+          <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
         </div>
         <div className="module-filters invoice-filter-row">
           <label className="invoice-filter-select">
@@ -2480,7 +2653,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
             </select>
           </label>
         </div>
-        <div className="table-wrap invoice-table-wrap">
+        <div className="table-wrap invoice-table-wrap" onScroll={invoiceRows.handleTableScroll}>
           <table className="module-table invoice-table">
             <thead>
               <tr>
@@ -2508,7 +2681,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                   <td colSpan={11}>No hay facturas internas de prueba todavía.</td>
                 </tr>
               ) : null}
-              {sortedInvoices.map((invoice) => (
+              {visibleInvoices.map((invoice) => (
                 <tr
                   key={invoice.id}
                   className="clickable-table-row"
@@ -2551,6 +2724,12 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                   <td>{invoice.currency}</td>
                 </tr>
               ))}
+              <DocumentLoadMoreRow
+                colSpan={11}
+                visibleCount={invoiceRows.visibleCount}
+                totalRows={sortedInvoices.length}
+                onLoadMore={invoiceRows.loadMoreRows}
+              />
             </tbody>
           </table>
         </div>
@@ -2896,20 +3075,27 @@ function InvoiceDetailModal({ token, invoice, onClose }) {
 function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
   const [selectedDeliveryNoteIds, setSelectedDeliveryNoteIds] = useState([]);
   const deliveryNoteSort = useDocumentSort();
   const deliveryNotesResource = useResource(
-    () => apiRequest("/api/sales/documents/delivery_note?limit=200", { token }),
+    () => apiRequest("/api/sales/documents/delivery_note?limit=500", { token }),
     [token]
   );
   const deliveryNotes = (deliveryNotesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredDeliveryNotes = deliveryNotes.filter((deliveryNote) => {
     const matchesQuery = textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
     const matchesStatus = statusFilter === "all" || deliveryNote.statusKey === statusFilter;
-    return matchesQuery && matchesStatus;
+    const matchesDate = documentMatchesDateFilter(deliveryNote, dateFilter);
+    return matchesQuery && matchesStatus && matchesDate;
   });
   const sortedDeliveryNotes = sortDocumentRows(filteredDeliveryNotes, deliveryNoteSort.sortConfig);
+  const deliveryNoteRows = useIncrementalDocumentRows(
+    sortedDeliveryNotes.length,
+    [query, statusFilter, dateFilter, deliveryNoteSort.sortConfig.key, deliveryNoteSort.sortConfig.direction].join("|")
+  );
+  const visibleDeliveryNotes = sortedDeliveryNotes.slice(0, deliveryNoteRows.visibleCount);
   const filteredDeliveryNoteIds = filteredDeliveryNotes.map((deliveryNote) => deliveryNote.id);
   const allFilteredDeliveryNotesSelected = Boolean(filteredDeliveryNoteIds.length) && filteredDeliveryNoteIds.every((idValue) => selectedDeliveryNoteIds.includes(idValue));
 
@@ -2983,11 +3169,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
             <Search size={18} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
           </div>
-          <button className="invoice-date-filter" type="button">
-            <CalendarDays size={18} />
-            Todas las fechas
-            <ChevronDown size={16} />
-          </button>
+          <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
         </div>
         <div className="module-filters invoice-filter-row">
           <label className="invoice-filter-select">
@@ -3004,7 +3186,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
             </button>
           ) : null}
         </div>
-        <div className="table-wrap invoice-table-wrap">
+        <div className="table-wrap invoice-table-wrap" onScroll={deliveryNoteRows.handleTableScroll}>
           <table className="module-table invoice-table delivery-notes-table">
             <thead>
               <tr>
@@ -3038,7 +3220,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                   <td colSpan={10}>No hay albaranes internos de prueba todavía.</td>
                 </tr>
               ) : null}
-              {sortedDeliveryNotes.map((deliveryNote) => (
+              {visibleDeliveryNotes.map((deliveryNote) => (
                 <tr
                   key={deliveryNote.id}
                   className="clickable-table-row"
@@ -3079,6 +3261,12 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                   <td>{deliveryNote.currency}</td>
                 </tr>
               ))}
+              <DocumentLoadMoreRow
+                colSpan={10}
+                visibleCount={deliveryNoteRows.visibleCount}
+                totalRows={sortedDeliveryNotes.length}
+                onLoadMore={deliveryNoteRows.loadMoreRows}
+              />
             </tbody>
           </table>
         </div>
@@ -3121,17 +3309,24 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
 
 function ProformasView({ token, onCreateProforma }) {
   const [query, setQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
   const [selectedProforma, setSelectedProforma] = useState(null);
   const proformaSort = useDocumentSort();
   const proformasResource = useResource(
-    () => apiRequest("/api/sales/documents/proforma?limit=200", { token }),
+    () => apiRequest("/api/sales/documents/proforma?limit=500", { token }),
     [token]
   );
   const proformas = (proformasResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredProformas = proformas.filter((proforma) =>
     textMatchesQuery([proforma.number, proforma.contact, proforma.status, proforma.total, proforma.detail], query)
+    && documentMatchesDateFilter(proforma, dateFilter)
   );
   const sortedProformas = sortDocumentRows(filteredProformas, proformaSort.sortConfig);
+  const proformaRows = useIncrementalDocumentRows(
+    sortedProformas.length,
+    [query, dateFilter, proformaSort.sortConfig.key, proformaSort.sortConfig.direction].join("|")
+  );
+  const visibleProformas = sortedProformas.slice(0, proformaRows.visibleCount);
 
   return (
     <div className="module-page invoices-mirror-page">
@@ -3156,13 +3351,9 @@ function ProformasView({ token, onCreateProforma }) {
             <Search size={18} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
           </div>
-          <button className="invoice-date-filter" type="button">
-            <CalendarDays size={18} />
-            Todas las fechas
-            <ChevronDown size={16} />
-          </button>
+          <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
         </div>
-        <div className="table-wrap invoice-table-wrap">
+        <div className="table-wrap invoice-table-wrap" onScroll={proformaRows.handleTableScroll}>
           <table className="module-table invoice-table">
             <thead>
               <tr>
@@ -3188,7 +3379,7 @@ function ProformasView({ token, onCreateProforma }) {
                   <td colSpan={9}>No hay proformas internas de prueba todavía.</td>
                 </tr>
               ) : null}
-              {sortedProformas.map((proforma) => (
+              {visibleProformas.map((proforma) => (
                 <tr
                   key={proforma.id}
                   className="clickable-table-row"
@@ -3225,6 +3416,12 @@ function ProformasView({ token, onCreateProforma }) {
                   <td>{proforma.currency}</td>
                 </tr>
               ))}
+              <DocumentLoadMoreRow
+                colSpan={9}
+                visibleCount={proformaRows.visibleCount}
+                totalRows={sortedProformas.length}
+                onLoadMore={proformaRows.loadMoreRows}
+              />
             </tbody>
           </table>
         </div>
@@ -6523,8 +6720,9 @@ function QuotesView({ token }) {
   const [selectedQuoteIds, setSelectedQuoteIds] = useState([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const quoteSort = useDocumentSort();
-  const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
+  const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=500", { token }), [token]);
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
   const leadsById = useMemo(() => {
     const map = new Map();
@@ -6535,9 +6733,15 @@ function QuotesView({ token }) {
   const filteredQuotes = quoteRows.filter((quote) => {
     const matchesQuery = textMatchesQuery([quote.number, quote.contact, quote.status, quote.total, quote.detail], query);
     const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
-    return matchesQuery && matchesStatus;
+    const matchesDate = documentMatchesDateFilter(quote, dateFilter);
+    return matchesQuery && matchesStatus && matchesDate;
   });
   const sortedQuotes = sortDocumentRows(filteredQuotes, quoteSort.sortConfig);
+  const quoteRowsList = useIncrementalDocumentRows(
+    sortedQuotes.length,
+    [query, statusFilter, dateFilter, quoteSort.sortConfig.key, quoteSort.sortConfig.direction].join("|")
+  );
+  const visibleQuotes = sortedQuotes.slice(0, quoteRowsList.visibleCount);
   const filteredQuoteIds = filteredQuotes.map((quote) => quote.id);
   const allFilteredQuotesSelected = Boolean(filteredQuoteIds.length) && filteredQuoteIds.every((idValue) => selectedQuoteIds.includes(idValue));
 
@@ -6647,11 +6851,7 @@ function QuotesView({ token }) {
             <Search size={18} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
           </div>
-          <button className="invoice-date-filter" type="button">
-            <CalendarDays size={18} />
-            Todas las fechas
-            <ChevronDown size={16} />
-          </button>
+          <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
         </div>
         <div className="module-filters invoice-filter-row">
           <label className="invoice-filter-select">
@@ -6674,7 +6874,7 @@ function QuotesView({ token }) {
             </div>
           ) : null}
         </div>
-        <div className="table-wrap invoice-table-wrap">
+        <div className="table-wrap invoice-table-wrap" onScroll={quoteRowsList.handleTableScroll}>
           <table className="module-table invoice-table quotes-table">
             <thead>
               <tr>
@@ -6707,7 +6907,7 @@ function QuotesView({ token }) {
                   <td colSpan={9}>No hay presupuestos para mostrar todavía.</td>
                 </tr>
               ) : null}
-              {sortedQuotes.map((quote) => (
+              {visibleQuotes.map((quote) => (
                 <tr
                   className="clickable-table-row"
                   key={quote.id}
@@ -6750,6 +6950,12 @@ function QuotesView({ token }) {
                   <td>{quote.currency}</td>
                 </tr>
               ))}
+              <DocumentLoadMoreRow
+                colSpan={9}
+                visibleCount={quoteRowsList.visibleCount}
+                totalRows={sortedQuotes.length}
+                onLoadMore={quoteRowsList.loadMoreRows}
+              />
             </tbody>
           </table>
         </div>
