@@ -4294,6 +4294,20 @@ th {
   background: var(--green-dark);
 }
 
+.quote-client-cancel-button {
+  min-height: 36px;
+  border: 1px solid rgba(82, 116, 11, 0.18);
+  border-radius: 7px;
+  padding: 0 14px;
+  color: var(--green-dark);
+  background: var(--white);
+  font-weight: 800;
+}
+
+.quote-client-cancel-button:hover {
+  background: #f2f8df;
+}
+
 .quote-status-section {
   padding: 14px;
 }

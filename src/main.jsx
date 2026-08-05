@@ -6753,7 +6753,13 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   const finish = onDone || onUpdated || onClose;
   const itemStatus = String(item?.status || "").toLowerCase();
   const isLockedQuote = activeDocument.documentType === "quote" && ["sent", "transferred", "traspasado"].includes(itemStatus);
-  const isLockedDeliveryNote = activeDocument.documentType === "delivery_note" && ["invoiced", "facturado", "voided", "anulado", "cancelled", "canceled"].includes(itemStatus);
+  const isLockedDeliveryNote = activeDocument.documentType === "delivery_note" && (
+    itemStatus.includes("factur") ||
+    itemStatus.includes("invoice") ||
+    itemStatus.includes("void") ||
+    itemStatus.includes("anulad") ||
+    itemStatus.includes("cancel")
+  );
   const documentLocked = isLockedQuote || isLockedDeliveryNote;
   const documentNumber = item?.quoteNumber || item?.documentNumber || activeDocument.number || quote.number;
   const lockMessage = isLockedQuote
@@ -8055,6 +8061,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             <button type="button" className={`quote-client-create-button ${clientMode === "new" ? "active" : ""}`} onClick={() => setClientMode("new")}>
               Crear
             </button>
+            {clientMode === "new" ? (
+              <button type="button" className="quote-client-cancel-button" onClick={() => setClientMode("existing")}>
+                Cancelar
+              </button>
+            ) : null}
             {!isInvoice ? (
             <div className="attachment-menu-wrap">
               <button
