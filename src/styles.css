@@ -753,6 +753,17 @@ select:focus {
   border-bottom: 0;
 }
 
+.numbering-table-row-clickable {
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.numbering-table-row-clickable:hover,
+.numbering-table-row-clickable:focus-visible {
+  background: rgba(156, 195, 27, 0.09);
+  outline: none;
+}
+
 .numbering-boolean {
   display: inline-flex;
   align-items: center;

@@ -3526,6 +3526,7 @@ function NumberingSettingsPanel({ token }) {
   const settings = useResource(() => apiRequest("/api/settings", { token }), [token]);
   const numbering = useMemo(() => normalizeNumbering(settings.data?.item?.numbering), [settings.data]);
   const [modalType, setModalType] = useState(null);
+  const [editingSeries, setEditingSeries] = useState(null);
   const [editingPreferences, setEditingPreferences] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -3541,6 +3542,7 @@ function NumberingSettingsPanel({ token }) {
       });
       await settings.reload();
       setModalType(null);
+      setEditingSeries(null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -3563,6 +3565,25 @@ function NumberingSettingsPanel({ token }) {
       }
     };
     await saveNumbering(nextNumbering);
+  }
+
+  async function updateSeries(type, index, series) {
+    const currentRows = numbering.series[type] || [];
+    const nextRows = currentRows.map((row, rowIndex) => {
+      if (rowIndex !== index) return row;
+      return {
+        ...row,
+        ...series,
+        id: row.id || `${type}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`
+      };
+    });
+    await saveNumbering({
+      ...numbering,
+      series: {
+        ...numbering.series,
+        [type]: nextRows
+      }
+    });
   }
 
   async function savePreferences(preferences) {
@@ -3608,6 +3629,7 @@ function NumberingSettingsPanel({ token }) {
           rows={numbering.series[type] || []}
           type={type}
           onAdd={() => setModalType(type)}
+          onEdit={(row, index) => setEditingSeries({ type, index, row })}
         />
       ))}
 
@@ -3617,6 +3639,16 @@ function NumberingSettingsPanel({ token }) {
           type={modalType}
           onClose={() => setModalType(null)}
           onSave={(series) => addSeries(modalType, series)}
+          saving={saving}
+        />
+      ) : null}
+      {editingSeries ? (
+        <NumberingSeriesModal
+          config={NUMBERING_DOCUMENTS[editingSeries.type]}
+          type={editingSeries.type}
+          initial={editingSeries.row}
+          onClose={() => setEditingSeries(null)}
+          onSave={(series) => updateSeries(editingSeries.type, editingSeries.index, series)}
           saving={saving}
         />
       ) : null}
@@ -3632,7 +3664,7 @@ function NumberingSettingsPanel({ token }) {
   );
 }
 
-function NumberingSeriesCard({ config, rows, type, onAdd }) {
+function NumberingSeriesCard({ config, rows, type, onAdd, onEdit }) {
   return (
     <section className="settings-card numbering-series-card">
       <header className="settings-card-header">
@@ -3654,8 +3686,21 @@ function NumberingSeriesCard({ config, rows, type, onAdd }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id || `${type}-${row.code}-${row.notes}`}>
+            {rows.map((row, index) => (
+              <tr
+                className="numbering-table-row-clickable"
+                key={row.id || `${type}-${row.code}-${row.notes}-${index}`}
+                onClick={() => onEdit(row, index)}
+                tabIndex={0}
+                role="button"
+                aria-label={`Editar serie ${row.code || row.notes || "sin serie"}`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onEdit(row, index);
+                  }
+                }}
+              >
                 <td>{row.code || ""}</td>
                 {type === "invoice" ? <td>{row.invoiceType || "Completa"}</td> : null}
                 <td>{row.template || "Principal"}</td>
@@ -3745,16 +3790,16 @@ function NumberingPreferencesModal({ initial, onClose, onSave, saving }) {
   );
 }
 
-function NumberingSeriesModal({ type, config, onClose, onSave, saving }) {
+function NumberingSeriesModal({ type, config, initial, onClose, onSave, saving }) {
   const [form, setForm] = useState({
-    invoiceType: "Completa",
-    code: "",
-    initialNumber: "1",
-    notes: "",
-    restartYearly: false,
-    hidden: false,
-    manual: false,
-    template: "Principal"
+    invoiceType: initial?.invoiceType || "Completa",
+    code: initial?.code || "",
+    initialNumber: initial?.initialNumber === "" || initial?.initialNumber == null ? "" : String(initial.initialNumber),
+    notes: initial?.notes || "",
+    restartYearly: initial?.restart === "Cada año",
+    hidden: Boolean(initial?.hidden),
+    manual: Boolean(initial?.manual),
+    template: initial?.template || "Principal"
   });
 
   async function submit(event) {
@@ -3764,7 +3809,7 @@ function NumberingSeriesModal({ type, config, onClose, onSave, saving }) {
       invoiceType: type === "invoice" ? form.invoiceType : undefined,
       template: form.template,
       restart: form.restartYearly ? "Cada año" : "Nunca",
-      initialNumber: Number(form.initialNumber || 1),
+      initialNumber: form.initialNumber === "" ? "" : Number(form.initialNumber || 1),
       manual: form.manual,
       hidden: form.hidden,
       notes: form.notes.trim()
@@ -3772,7 +3817,7 @@ function NumberingSeriesModal({ type, config, onClose, onSave, saving }) {
   }
 
   return (
-    <ModalShell title={`Nueva serie de ${config.singular}`} eyebrow="Numeración" size="numbering-modal" onClose={onClose}>
+    <ModalShell title={`${initial ? "Editar" : "Nueva"} serie de ${config.singular}`} eyebrow="Numeración" size="numbering-modal" onClose={onClose}>
       <form className="numbering-series-form" onSubmit={submit}>
         {type === "invoice" ? (
           <label className="wide-field">
