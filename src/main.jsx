@@ -37,6 +37,7 @@ import "./styles.css";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const SESSION_KEY = "doinglight_panel_session";
 const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
+const TUBO_SOLAR_PDF_LOGO = "/tubosolar-pdf-logo.png";
 const PAYMENT_METHOD_DEFAULTS = [
   { id: "fd-zero", name: "0", detail: "" },
   { id: "fd-50-formalizacion-confirming", name: "50% a la formalizacion del pedido y 50% confirming a 60 dias.", detail: "" },
@@ -1718,6 +1719,11 @@ function quoteStatusState(status = "") {
   };
 }
 
+function isQuoteTransferBlockedStatus(status = "") {
+  const normalized = String(status || "").trim().toLowerCase();
+  return ["partial", "parcial", "sent", "transferred", "traspasado"].includes(normalized);
+}
+
 const QUOTE_STATUS_OPTIONS = [
   { value: "draft", filterKey: "pending", label: "Pendiente" },
   { value: "transferred", filterKey: "sent", label: "Traspasado" },
@@ -1742,6 +1748,59 @@ const DELIVERY_NOTE_STATUS_FILTER_OPTIONS = [
   { value: "invoiced", label: "Albarán facturado" },
   { value: "voided", label: "Anulado" }
 ];
+
+const REVERSE_CHARGE_TAX_CODE = "reverse_charge";
+const REVERSE_CHARGE_TAX_LABEL = "Inversión del Sujeto Pasivo";
+const REVERSE_CHARGE_PDF_SUBTITLE = "inversión del sujeto pasivo";
+const REVERSE_CHARGE_LEGAL_TEXT = "Operación con inversión del sujeto pasivo conforme al Artículo 84. Uno. 2º de la Ley 37/1992 del IVA";
+
+const DOCUMENT_TAX_OPTIONS = [
+  { value: "0", rate: 0, label: "Exento · 0%" },
+  { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: `${REVERSE_CHARGE_TAX_LABEL} · 0%`, reverseCharge: true },
+  { value: "21", rate: 21, label: "España · 21%" },
+  { value: "23", rate: 23, label: "Portugal · 23%" },
+  { value: "22", rate: 22, label: "Italia · 22%" },
+  { value: "20", rate: 20, label: "Francia · 20%" },
+  { value: "19", rate: 19, label: "Alemania · 19%" }
+];
+
+function taxOptionFromMode(value) {
+  const normalized = String(value ?? "");
+  return DOCUMENT_TAX_OPTIONS.find((option) => option.value === normalized)
+    || DOCUMENT_TAX_OPTIONS.find((option) => Number.isFinite(Number(normalized)) && option.rate === Number(normalized) && option.value !== REVERSE_CHARGE_TAX_CODE)
+    || DOCUMENT_TAX_OPTIONS.find((option) => option.value === "21")
+    || DOCUMENT_TAX_OPTIONS[0];
+}
+
+function taxRateFromTaxMode(value) {
+  return taxOptionFromMode(value).rate;
+}
+
+function isReverseChargeTaxMode(value) {
+  return Boolean(taxOptionFromMode(value).reverseCharge);
+}
+
+function isReverseChargeDocument(document) {
+  if (!document) return false;
+  const probe = [
+    document.taxCode,
+    document.taxMode,
+    document.taxLabel,
+    document.taxTreatment,
+    document.vatType,
+    document.reverseCharge ? REVERSE_CHARGE_TAX_CODE : ""
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  return probe.includes("reverse")
+    || probe.includes("sujeto pasivo")
+    || probe.includes("inversión");
+}
+
+function taxModeFromDocument(document) {
+  if (isReverseChargeDocument(document)) return REVERSE_CHARGE_TAX_CODE;
+  if (!document?.subtotal) return "21";
+  return String(Math.round((Number(document.taxTotal || 0) / Number(document.subtotal || 1)) * 100));
+}
 
 const QUOTE_LANGUAGE_OPTIONS = [
   { value: "es", label: "Español", countryCode: "ES" },
@@ -1925,18 +1984,22 @@ function DocumentPdfPage({
   total = 0,
   currency = "EUR",
   paymentMethod = "",
-  notes = ""
+  notes = "",
+  reverseCharge = false,
+  pdfTemplate = "doinglight"
 }) {
   const text = documentPdfText(language, type);
   const isDeliveryNote = type === "delivery-note";
   const validityLabel = isDeliveryNote ? text.deliveryDate : type === "invoice" ? text.dueDate : text.validUntil;
+  const isTuboSolarTemplate = pdfTemplate === "tubo-solar";
+  const logoSrc = isTuboSolarTemplate ? TUBO_SOLAR_PDF_LOGO : DOCUMENT_PDF_LOGO;
 
   return (
-    <div id={id} className="quote-pdf-page quote-pdf-page-template">
+    <div id={id} className={`quote-pdf-page quote-pdf-page-template${isTuboSolarTemplate ? " quote-pdf-page-tubo-solar" : ""}`}>
       <section className="quote-pdf-top">
         <div className="quote-pdf-issuer">
           <div className="quote-pdf-logo">
-            <img className="quote-pdf-logo-image" src={DOCUMENT_PDF_LOGO} alt="Doinglight Skylights" />
+            <img className="quote-pdf-logo-image" src={logoSrc} alt={isTuboSolarTemplate ? "Tubo Solar" : "Doinglight Skylights"} />
           </div>
           <strong>{text.issuedBy}</strong>
           <span>DOINGLIGHT TECHNOLOGIES, SLU</span>
@@ -1949,7 +2012,10 @@ function DocumentPdfPage({
           <span>658856869</span>
         </div>
         <div className="quote-pdf-document-head">
-          <h2>{text.title}</h2>
+          <div className="quote-pdf-title-block">
+            <h2>{text.title}</h2>
+            {reverseCharge ? <strong className="quote-pdf-reverse-charge">{REVERSE_CHARGE_PDF_SUBTITLE}</strong> : null}
+          </div>
           <div className="quote-pdf-number-table">
             <strong>{text.number}</strong>
             <strong>{text.date}</strong>
@@ -1995,7 +2061,7 @@ function DocumentPdfPage({
         <div className="quote-pdf-totals quote-pdf-summary">
           <span>{text.subtotal}</span>
           <strong>{tableMoney(subtotal)}</strong>
-          <span>{text.vat} {taxRate}% (Base: {tableMoney(subtotal)})</span>
+          <span>{reverseCharge ? REVERSE_CHARGE_TAX_LABEL : `${text.vat} ${taxRate}%`} (Base: {tableMoney(subtotal)})</span>
           <strong>{tableMoney(taxTotal)}</strong>
           <span>{text.totalCurrency || `Total (${currency})`}</span>
           <strong>{money(total)}</strong>
@@ -2022,6 +2088,7 @@ function DocumentPdfPage({
         {!isDeliveryNote ? (
           <p>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</p>
         ) : null}
+        {reverseCharge ? <p className="quote-pdf-reverse-charge-note">{REVERSE_CHARGE_LEGAL_TEXT}</p> : null}
       </div>
       <footer className="quote-pdf-privacy">
         <strong>{text.privacyTitle}</strong>
@@ -2289,7 +2356,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
       description: line.title || line.description || "",
       quantity: Number(line.quantity || 1),
       unitPrice: Number(line.unitPrice || 0),
-      taxRate: Number(line.taxRate || 21),
+      taxRate: line.taxCode || line.taxMode || line.taxRate || 21,
       discountPercent: Number(line.discountPercent || 0)
     })));
 
@@ -2315,7 +2382,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
   }
 
   const subtotal = lines.reduce((sum, line) => sum + lineSubtotal(line), 0);
-  const taxTotal = lines.reduce((sum, line) => sum + lineSubtotal(line) * (Number(line.taxRate || 0) / 100), 0);
+  const taxTotal = lines.reduce((sum, line) => sum + lineSubtotal(line) * (taxRateFromTaxMode(line.taxRate) / 100), 0);
   const total = subtotal + taxTotal;
 
   return (
@@ -2496,12 +2563,9 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
               <input type="number" min="0" value={line.quantity} onChange={(event) => updateLine(line.id, { quantity: event.target.value })} />
               <input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => updateLine(line.id, { unitPrice: event.target.value })} />
               <select value={line.taxRate} onChange={(event) => updateLine(line.id, { taxRate: event.target.value })}>
-                <option value="0">Exento</option>
-                <option value="21">IVA 21%</option>
-                <option value="23">IVA PT 23%</option>
-                <option value="22">IVA IT 22%</option>
-                <option value="20">IVA FR 20%</option>
-                <option value="19">IVA DE 19%</option>
+                {DOCUMENT_TAX_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
               <input type="number" min="0" max="100" value={line.discountPercent} onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })} />
               <strong>{tableMoney(lineSubtotal(line))}</strong>
@@ -3144,6 +3208,24 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
     }
   }
 
+  async function deleteSelectedDeliveryNotes() {
+    if (!selectedDeliveryNoteIds.length) return;
+    if (!window.confirm(`¿Eliminar ${selectedDeliveryNoteIds.length} albarán${selectedDeliveryNoteIds.length === 1 ? "" : "es"} seleccionado${selectedDeliveryNoteIds.length === 1 ? "" : "s"}?`)) return;
+
+    try {
+      await Promise.all(selectedDeliveryNoteIds.map((deliveryNoteId) =>
+        apiRequest(`/api/sales/documents/delivery_note/${deliveryNoteId}`, {
+          token,
+          method: "DELETE"
+        })
+      ));
+      setSelectedDeliveryNoteIds([]);
+      deliveryNotesResource.reload();
+    } catch (err) {
+      window.alert(err.message || "No se han podido eliminar los albaranes seleccionados.");
+    }
+  }
+
   return (
     <div className="module-page invoices-mirror-page">
       <header className="module-page-header invoices-page-header">
@@ -3181,9 +3263,14 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
             </select>
           </label>
           {selectedDeliveryNoteIds.length ? (
-            <button className="bulk-document-action" type="button" onClick={invoiceSelectedDeliveryNotes}>
-              Facturar {selectedDeliveryNoteIds.length} albarán{selectedDeliveryNoteIds.length === 1 ? "" : "es"}
-            </button>
+            <div className="bulk-document-actions">
+              <button className="bulk-document-action" type="button" onClick={invoiceSelectedDeliveryNotes}>
+                Facturar {selectedDeliveryNoteIds.length} albarán{selectedDeliveryNoteIds.length === 1 ? "" : "es"}
+              </button>
+              <button className="bulk-document-action danger" type="button" onClick={deleteSelectedDeliveryNotes}>
+                Eliminar
+              </button>
+            </div>
           ) : null}
         </div>
         <div className="table-wrap invoice-table-wrap" onScroll={deliveryNoteRows.handleTableScroll}>
@@ -3311,6 +3398,7 @@ function ProformasView({ token, onCreateProforma }) {
   const [query, setQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [selectedProforma, setSelectedProforma] = useState(null);
+  const [selectedProformaIds, setSelectedProformaIds] = useState([]);
   const proformaSort = useDocumentSort();
   const proformasResource = useResource(
     () => apiRequest("/api/sales/documents/proforma?limit=500", { token }),
@@ -3327,6 +3415,42 @@ function ProformasView({ token, onCreateProforma }) {
     [query, dateFilter, proformaSort.sortConfig.key, proformaSort.sortConfig.direction].join("|")
   );
   const visibleProformas = sortedProformas.slice(0, proformaRows.visibleCount);
+  const filteredProformaIds = filteredProformas.map((proforma) => proforma.id);
+  const allFilteredProformasSelected = Boolean(filteredProformaIds.length) && filteredProformaIds.every((idValue) => selectedProformaIds.includes(idValue));
+
+  useEffect(() => {
+    setSelectedProformaIds((current) => current.filter((idValue) => filteredProformaIds.includes(idValue)));
+  }, [filteredProformaIds.join("|")]);
+
+  function toggleProformaSelection(proformaId) {
+    setSelectedProformaIds((current) => (
+      current.includes(proformaId)
+        ? current.filter((idValue) => idValue !== proformaId)
+        : [...current, proformaId]
+    ));
+  }
+
+  function toggleAllFilteredProformas() {
+    setSelectedProformaIds(allFilteredProformasSelected ? [] : filteredProformaIds);
+  }
+
+  async function deleteSelectedProformas() {
+    if (!selectedProformaIds.length) return;
+    if (!window.confirm(`¿Eliminar ${selectedProformaIds.length} proforma${selectedProformaIds.length === 1 ? "" : "s"} seleccionada${selectedProformaIds.length === 1 ? "" : "s"}?`)) return;
+
+    try {
+      await Promise.all(selectedProformaIds.map((proformaId) =>
+        apiRequest(`/api/sales/documents/proforma/${proformaId}`, {
+          token,
+          method: "DELETE"
+        })
+      ));
+      setSelectedProformaIds([]);
+      proformasResource.reload();
+    } catch (err) {
+      window.alert(err.message || "No se han podido eliminar las proformas seleccionadas.");
+    }
+  }
 
   return (
     <div className="module-page invoices-mirror-page">
@@ -3353,11 +3477,27 @@ function ProformasView({ token, onCreateProforma }) {
           </div>
           <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
         </div>
+        {selectedProformaIds.length ? (
+          <div className="module-filters invoice-filter-row">
+            <div className="bulk-document-actions">
+              <button className="bulk-document-action danger" type="button" onClick={deleteSelectedProformas}>
+                Eliminar {selectedProformaIds.length} proforma{selectedProformaIds.length === 1 ? "" : "s"}
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="table-wrap invoice-table-wrap" onScroll={proformaRows.handleTableScroll}>
           <table className="module-table invoice-table">
             <thead>
               <tr>
-                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todas las proformas" /></th>
+                <th className="select-column">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todas las proformas"
+                    checked={allFilteredProformasSelected}
+                    onChange={toggleAllFilteredProformas}
+                  />
+                </th>
                 <th className="invoice-kind-column"></th>
                 <SortableDocumentHeader sortKey="date" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Fecha</SortableDocumentHeader>
                 <SortableDocumentHeader sortKey="status" sortConfig={proformaSort.sortConfig} onSort={proformaSort.requestSort}>Estado</SortableDocumentHeader>
@@ -3397,6 +3537,8 @@ function ProformasView({ token, onCreateProforma }) {
                     <input
                       type="checkbox"
                       aria-label={`Seleccionar proforma ${proforma.number}`}
+                      checked={selectedProformaIds.includes(proforma.id)}
+                      onChange={() => toggleProformaSelection(proforma.id)}
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}
                     />
@@ -6716,6 +6858,7 @@ const QUOTE_TEMPLATES = [
 function QuotesView({ token }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedPdfTemplate, setSelectedPdfTemplate] = useState("doinglight");
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [selectedQuoteIds, setSelectedQuoteIds] = useState([]);
   const [query, setQuery] = useState("");
@@ -6749,8 +6892,9 @@ function QuotesView({ token }) {
     setSelectedQuoteIds((current) => current.filter((idValue) => filteredQuoteIds.includes(idValue)));
   }, [filteredQuoteIds.join("|")]);
 
-  function openEmptyQuote() {
+  function openEmptyQuote(pdfTemplate = "doinglight") {
     setSelectedTemplate(null);
+    setSelectedPdfTemplate(pdfTemplate);
     setShowForm(true);
   }
 
@@ -6758,6 +6902,7 @@ function QuotesView({ token }) {
     const template = QUOTE_TEMPLATES.find((item) => item.id === templateId);
     if (!template) return;
     setSelectedTemplate(template);
+    setSelectedPdfTemplate("doinglight");
     setShowForm(true);
   }
 
@@ -6775,6 +6920,11 @@ function QuotesView({ token }) {
 
   async function transferSelectedQuotesToDeliveryNotes() {
     if (!selectedQuoteIds.length) return;
+    const blockedQuotes = filteredQuotes.filter((quote) => selectedQuoteIds.includes(quote.id) && isQuoteTransferBlockedStatus(quote.statusKey === "partial" ? "partial" : quote.raw?.item?.status || quote.status));
+    if (blockedQuotes.length) {
+      window.alert("Uno o varios presupuestos seleccionados ya están traspasados o parcialmente traspasados. No se pueden volver a traspasar.");
+      return;
+    }
 
     try {
       await Promise.all(selectedQuoteIds.map((quoteId) =>
@@ -6793,6 +6943,11 @@ function QuotesView({ token }) {
 
   async function invoiceSelectedQuotes() {
     if (!selectedQuoteIds.length) return;
+    const blockedQuotes = filteredQuotes.filter((quote) => selectedQuoteIds.includes(quote.id) && isQuoteTransferBlockedStatus(quote.statusKey === "partial" ? "partial" : quote.raw?.item?.status || quote.status));
+    if (blockedQuotes.length) {
+      window.alert("Uno o varios presupuestos seleccionados ya están traspasados o parcialmente traspasados. No se pueden volver a facturar desde presupuesto.");
+      return;
+    }
 
     try {
       for (const quoteId of selectedQuoteIds) {
@@ -6817,6 +6972,24 @@ function QuotesView({ token }) {
     }
   }
 
+  async function deleteSelectedQuotes() {
+    if (!selectedQuoteIds.length) return;
+    if (!window.confirm(`¿Eliminar ${selectedQuoteIds.length} presupuesto${selectedQuoteIds.length === 1 ? "" : "s"} seleccionado${selectedQuoteIds.length === 1 ? "" : "s"}?`)) return;
+
+    try {
+      await Promise.all(selectedQuoteIds.map((quoteId) =>
+        apiRequest(`/api/sales/quotes/${quoteId}`, {
+          token,
+          method: "DELETE"
+        })
+      ));
+      setSelectedQuoteIds([]);
+      quotes.reload();
+    } catch (err) {
+      window.alert(err.message || "No se han podido eliminar los presupuestos seleccionados.");
+    }
+  }
+
   return (
     <div className="module-page quotes-page">
       <header className="module-page-header invoices-page-header">
@@ -6833,7 +7006,15 @@ function QuotesView({ token }) {
               <option key={template.id} value={template.id}>{template.name}</option>
             ))}
           </select>
-          <button className="invoice-new-split single-action" type="button" onClick={openEmptyQuote}>
+          <button className="invoice-new-split single-action" type="button" onClick={() => openEmptyQuote("doinglight")}>
+            Nuevo presupuesto
+          </button>
+          <button
+            className="invoice-new-split single-action quote-new-alt-action"
+            type="button"
+            onClick={() => openEmptyQuote("tubo-solar")}
+            title="Nuevo presupuesto con plantilla Tubo Solar"
+          >
             Nuevo presupuesto
           </button>
         </div>
@@ -6842,11 +7023,6 @@ function QuotesView({ token }) {
       {quotes.error || leads.error ? <p className="form-error">{quotes.error || leads.error}</p> : null}
       <section className="module-panel invoices-list-panel quotes-list-panel">
         <div className="invoice-toolbar">
-          <button className="invoice-view-filter" type="button">
-            <FileText size={18} />
-            Todos los presupuestos
-            <ChevronDown size={16} />
-          </button>
           <div className="module-search">
             <Search size={18} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
@@ -6863,17 +7039,23 @@ function QuotesView({ token }) {
               ))}
             </select>
           </label>
-          {selectedQuoteIds.length ? (
-            <div className="bulk-document-actions">
-              <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
-                Traspasar {selectedQuoteIds.length} a albarán
-              </button>
-              <button className="bulk-document-action" type="button" onClick={invoiceSelectedQuotes}>
-                Facturar
-              </button>
-            </div>
-          ) : null}
         </div>
+        {selectedQuoteIds.length ? (
+          <div className="document-selection-actions" aria-live="polite">
+            <span className="selection-count">
+              {selectedQuoteIds.length} presupuesto{selectedQuoteIds.length === 1 ? "" : "s"} seleccionado{selectedQuoteIds.length === 1 ? "" : "s"}
+            </span>
+            <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
+              Traspasar a albarán
+            </button>
+            <button className="bulk-document-action" type="button" onClick={invoiceSelectedQuotes}>
+              Facturar
+            </button>
+            <button className="bulk-document-action danger" type="button" onClick={deleteSelectedQuotes}>
+              Eliminar
+            </button>
+          </div>
+        ) : null}
         <div className="table-wrap invoice-table-wrap" onScroll={quoteRowsList.handleTableScroll}>
           <table className="module-table invoice-table quotes-table">
             <thead>
@@ -6970,6 +7152,7 @@ function QuotesView({ token }) {
           <QuoteForm
             token={token}
             template={selectedTemplate}
+            visualTemplate={selectedPdfTemplate}
             onCancel={() => setShowForm(false)}
             onDone={() => { setShowForm(false); quotes.reload(); }}
           />
@@ -7580,7 +7763,7 @@ function DownloadsView() {
   );
 }
 
-function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace }) {
+function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight" }) {
   const meta = documentFormMeta(documentType);
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
@@ -7588,6 +7771,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isProforma = documentType === "proforma";
   const [savedDocument, setSavedDocument] = useState(initialQuote || null);
   const currentDocument = savedDocument || initialQuote || null;
+  const pdfTemplate = currentDocument?.pdfTemplate || currentDocument?.visualTemplate || currentDocument?.metadata?.pdfTemplate || visualTemplate || "doinglight";
   const documentTitle = meta.title;
   const documentEyebrow = meta.eyebrow;
   const createButtonLabel = currentDocument ? meta.updateLabel : meta.createLabel;
@@ -7716,6 +7900,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || quoteStatusState(quoteStatus).label || "Pendiente";
   const selectedQuoteLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((language) => language.value === quoteLanguage)?.label || "Español";
   const quotePdfText = QUOTE_PDF_TEXT[quoteLanguage] || QUOTE_PDF_TEXT.es;
+  const quoteTransferBlocked = isQuote && isQuoteTransferBlockedStatus(quoteStatus || currentDocument?.status);
   const quoteClientBlock = selectedLead
     ? [
         leadBillingSource.fullName || leadBillingSource.companyName,
@@ -7995,6 +8180,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   function openTransferLines() {
+    if (quoteTransferBlocked) {
+      window.alert("Este presupuesto ya está traspasado y no se puede volver a traspasar.");
+      return;
+    }
+
     setTransferLineIds(lines.filter((line) => line.sku).map((line) => line.id));
     setTransferLinesOpen(true);
   }
@@ -8008,6 +8198,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   async function confirmTransferLines() {
+    if (quoteTransferBlocked) {
+      window.alert("Este presupuesto ya está traspasado y no se puede volver a traspasar.");
+      return;
+    }
+
     if (!transferLineIds.length) {
       window.alert("Selecciona al menos una línea para traspasar.");
       return;
@@ -8054,6 +8249,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   async function invoiceQuoteDirectly() {
+    if (quoteTransferBlocked) {
+      window.alert("Este presupuesto ya está traspasado y no se puede facturar de nuevo desde el presupuesto.");
+      return;
+    }
+
     if (!isQuote || !currentDocument?.id) {
       window.alert("Guarda primero el presupuesto para poder facturarlo con trazabilidad.");
       return;
@@ -8207,6 +8407,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       taxTotal,
       total,
       taxRate,
+      pdfTemplate,
+      visualTemplate: pdfTemplate,
       attachments: attachments.map((attachment) => ({
         name: attachment.name,
         type: attachment.type,
@@ -8584,10 +8786,22 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <h4>Líneas del documento</h4>
           {isQuote ? (
             <div className="quote-line-tools">
-              <button className="quote-transfer-lines-button" type="button" onClick={openTransferLines}>
+              <button
+                className="quote-transfer-lines-button"
+                type="button"
+                onClick={openTransferLines}
+                disabled={quoteTransferBlocked}
+                title={quoteTransferBlocked ? "Este presupuesto ya está traspasado." : undefined}
+              >
                 Traspasar líneas a albarán
               </button>
-              <button className="quote-transfer-lines-button" type="button" onClick={invoiceQuoteDirectly}>
+              <button
+                className="quote-transfer-lines-button"
+                type="button"
+                onClick={invoiceQuoteDirectly}
+                disabled={quoteTransferBlocked}
+                title={quoteTransferBlocked ? "Este presupuesto ya está traspasado." : undefined}
+              >
                 Facturar presupuesto
               </button>
             </div>
@@ -8885,6 +9099,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   total={total}
                   paymentMethod={paymentMethod}
                   notes={notes || "**Para pagar con tarjeta por favor haga click en el siguiente enlace:**\n\nhttps://sis.redsys.es/sis/p2f?..."}
+                  pdfTemplate={pdfTemplate}
                 />
               </section>
             </div>

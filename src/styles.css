@@ -1354,6 +1354,15 @@ select:focus {
   font-weight: 800;
 }
 
+.invoice-new-split.single-action.quote-new-alt-action {
+  background: #2f80ed;
+  color: #fff;
+}
+
+.invoice-new-split.single-action.quote-new-alt-action:hover {
+  background: #256fd0;
+}
+
 .quote-header-actions {
   display: inline-flex;
   align-items: center;
@@ -1385,6 +1394,17 @@ select:focus {
 .bulk-document-action:hover,
 .recover-delivery-notes-button:hover {
   background: #dff0a9;
+}
+
+.bulk-document-action.danger {
+  border-color: #e4b3b3;
+  color: #8a1f1f;
+  background: #f9dddd;
+}
+
+.bulk-document-action.danger:hover {
+  border-color: #d89595;
+  background: #f4caca;
 }
 
 .invoices-list-panel {
@@ -1631,6 +1651,21 @@ select:focus {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.document-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 36px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.document-selection-actions .selection-count {
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .invoice-filter-chip {
@@ -3616,6 +3651,14 @@ th {
   background: var(--green-dark);
 }
 
+.quote-transfer-lines-button:disabled,
+.quote-transfer-lines-button:disabled:hover {
+  color: var(--muted);
+  background: #eef3e4;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .form-section-note {
   color: var(--muted);
   font-size: 13px;
@@ -5341,6 +5384,16 @@ th {
   font-size: 9.5px;
 }
 
+.quote-pdf-page-tubo-solar {
+  --pdf-tubo-blue: #0f8ed8;
+  --pdf-tubo-blue-soft: #e8f5fd;
+  --pdf-tubo-blue-line: #7fc7ef;
+}
+
+.quote-pdf-page-tubo-solar::before {
+  display: none;
+}
+
 .quote-pdf-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
@@ -5363,11 +5416,62 @@ th {
   color: #6f7768;
 }
 
+.quote-pdf-page-tubo-solar .quote-pdf-logo {
+  align-items: center;
+  gap: 0;
+}
+
 .quote-pdf-logo-image {
   width: 178px;
   height: auto;
   display: block;
   object-fit: contain;
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-logo-image {
+  width: 132px;
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-document-head h2 {
+  color: #111;
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-number-table strong,
+.quote-pdf-page-tubo-solar .quote-pdf-lines-table th,
+.quote-pdf-page-tubo-solar .quote-pdf-validity-table th {
+  background: var(--pdf-tubo-blue);
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-client-box,
+.quote-pdf-page-tubo-solar .quote-pdf-number-table span,
+.quote-pdf-page-tubo-solar .quote-pdf-lines-table td,
+.quote-pdf-page-tubo-solar .quote-pdf-validity-table td {
+  background: var(--pdf-tubo-blue-soft);
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-lines-table,
+.quote-pdf-page-tubo-solar .quote-pdf-validity-table {
+  border-top-color: var(--pdf-tubo-blue-line);
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-brand,
+.quote-pdf-page-tubo-solar .quote-pdf-notes,
+.quote-pdf-page-tubo-solar footer {
+  border-color: var(--pdf-tubo-blue-line);
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-brand,
+.quote-pdf-page-tubo-solar .quote-pdf-meta span,
+.quote-pdf-page-tubo-solar footer {
+  color: #1f6fa9;
+}
+
+.quote-pdf-page-tubo-solar th {
+  background: var(--pdf-tubo-blue);
+}
+
+.quote-pdf-page-tubo-solar td {
+  border-bottom-color: #d8ebf8;
 }
 
 .quote-pdf-logo-dot {
