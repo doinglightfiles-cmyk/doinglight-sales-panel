@@ -745,6 +745,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [globalQuoteOpen, setGlobalQuoteOpen] = useState(false);
   const [globalProformaOpen, setGlobalProformaOpen] = useState(false);
   const [globalDeliveryNoteOpen, setGlobalDeliveryNoteOpen] = useState(false);
+  const [globalPurchaseOpen, setGlobalPurchaseOpen] = useState(null);
   const [globalContactPickerOpen, setGlobalContactPickerOpen] = useState(false);
   const [globalContactForm, setGlobalContactForm] = useState(null);
   const primaryNav = [
@@ -829,6 +830,12 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   function openGlobalInvoice() {
     setCreateDrawerOpen(false);
     setGlobalInvoiceOpen(true);
+  }
+
+  function openGlobalPurchase(documentType = "supplier_invoice", purchase = null) {
+    setCreateDrawerOpen(false);
+    navigate("purchases");
+    setGlobalPurchaseOpen({ documentType, purchase });
   }
 
   useEffect(() => {
@@ -990,7 +997,13 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           ) : null}
           {activeView === "settings" ? <SettingsView /> : null}
           {activeView === "invoices" ? <InvoicesMirrorView token={session.token} onCreateInvoice={openGlobalInvoice} /> : null}
-          {activeView === "purchases" ? <ModuleWorkspace moduleId="purchases" /> : null}
+          {activeView === "purchases" ? (
+            <PurchasesView
+              token={session.token}
+              onCreate={(documentType) => openGlobalPurchase(documentType)}
+              onOpen={(purchase) => openGlobalPurchase(purchase.documentType, purchase)}
+            />
+          ) : null}
           {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
           {activeView === "delivery-notes" ? <DeliveryNotesView token={session.token} onCreateDeliveryNote={openGlobalDeliveryNote} /> : null}
@@ -1024,7 +1037,30 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           onCreateProforma={openGlobalProforma}
           onCreateDeliveryNote={openGlobalDeliveryNote}
           onCreateContact={openGlobalContactPicker}
+          onCreatePurchase={openGlobalPurchase}
         />
+      ) : null}
+      {globalPurchaseOpen ? (
+        <ModalShell
+          title={globalPurchaseOpen.purchase
+            ? `${globalPurchaseOpen.documentType === "expense" ? "Gasto" : "Factura de compra"} ${globalPurchaseOpen.purchase.documentNumber || ""}`.trim()
+            : globalPurchaseOpen.documentType === "expense" ? "Nuevo gasto o tique" : "Nueva factura de compra"}
+          eyebrow="Compras"
+          size="wide-modal purchase-work-modal"
+          onClose={() => setGlobalPurchaseOpen(null)}
+        >
+          <PurchaseForm
+            token={session.token}
+            documentType={globalPurchaseOpen.documentType}
+            purchase={globalPurchaseOpen.purchase}
+            onCancel={() => setGlobalPurchaseOpen(null)}
+            onDone={() => {
+              setGlobalPurchaseOpen(null);
+              window.dispatchEvent(new CustomEvent("doinglight:purchases-changed"));
+              navigate("purchases");
+            }}
+          />
+        </ModalShell>
       ) : null}
       {globalInvoiceOpen ? (
         <ModalShell
@@ -1132,15 +1168,15 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   );
 }
 
-function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateProforma, onCreateDeliveryNote, onCreateContact }) {
+function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateProforma, onCreateDeliveryNote, onCreateContact, onCreatePurchase }) {
   const [isClosing, setIsClosing] = useState(false);
   const actions = [
     { label: "Factura de venta", action: onCreateInvoice },
     { label: "Presupuesto", action: onCreateQuote },
     { label: "Proforma", action: onCreateProforma },
     { label: "Albarán", action: onCreateDeliveryNote },
-    { label: "Factura de compra", action: () => onNavigate("purchases") },
-    { label: "Gasto/Tiquet", action: () => onNavigate("purchases") },
+    { label: "Factura de compra", action: () => onCreatePurchase("supplier_invoice") },
+    { label: "Gasto/Tiquet", action: () => onCreatePurchase("expense") },
     { label: "Nómina", action: () => onNavigate("payroll") },
     { label: "Contacto", action: onCreateContact },
     { label: "Producto", action: () => onNavigate("catalog") },
@@ -5743,6 +5779,383 @@ function SupplierForm({ token, onCancel, onDone }) {
         <button className="primary-button" type="submit" disabled={saving || !token}>
           {saving ? "Guardando..." : "Guardar proveedor"}
         </button>
+      </div>
+    </form>
+  );
+}
+
+const PURCHASE_STATUS_OPTIONS = [
+  { value: "draft", label: "Borrador" },
+  { value: "pending", label: "Pendiente" },
+  { value: "paid", label: "Pagada" },
+  { value: "overdue", label: "Vencida" },
+  { value: "void", label: "Anulada" }
+];
+
+function purchaseStatusLabel(value) {
+  return PURCHASE_STATUS_OPTIONS.find((option) => option.value === value)?.label || value;
+}
+
+function purchaseTypeLabel(value) {
+  return value === "expense" ? "Gasto / tique" : "Factura de compra";
+}
+
+function emptyPurchaseLine() {
+  return {
+    reference: "",
+    description: "",
+    quantity: 1,
+    unitCost: 0,
+    discountPercent: 0,
+    taxRate: 21
+  };
+}
+
+function PurchasesView({ token, onCreate, onOpen }) {
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [revision, setRevision] = useState(0);
+  const purchases = useResource(
+    () => apiRequest("/api/purchases?limit=500", { token }),
+    [token, revision]
+  );
+
+  useEffect(() => {
+    const refresh = () => setRevision((value) => value + 1);
+    window.addEventListener("doinglight:purchases-changed", refresh);
+    return () => window.removeEventListener("doinglight:purchases-changed", refresh);
+  }, []);
+
+  const items = purchases.data?.items || [];
+  const summary = purchases.data?.summary || { count: 0, total: 0, taxTotal: 0, byStatus: {} };
+  const filteredItems = items.filter((item) => {
+    const supplier = item.supplier || {};
+    const matchesQuery = !query || textMatchesQuery(
+      [item.documentNumber, supplier.companyName, supplier.fullName, supplier.taxId].filter(Boolean).join(" "),
+      query
+    );
+    return matchesQuery
+      && (typeFilter === "all" || item.documentType === typeFilter)
+      && (statusFilter === "all" || item.status === statusFilter);
+  });
+  const pendingTotal = Number(summary.byStatus?.pending || 0) + Number(summary.byStatus?.overdue || 0);
+
+  return (
+    <section className="module-page purchases-page">
+      <header className="module-page-header purchases-page-header">
+        <div>
+          <h3>Compras y gastos</h3>
+        </div>
+        <div className="purchase-header-actions">
+          <button className="secondary-button" type="button" onClick={() => onCreate("expense")}>Gasto / tique</button>
+          <button className="primary-button" type="button" onClick={() => onCreate("supplier_invoice")}>
+            <Plus size={17} />
+            Factura de compra
+          </button>
+        </div>
+      </header>
+
+      <div className="module-metrics">
+        <div className="metric"><span>Total compras</span><strong>{money(summary.total)}</strong></div>
+        <div className="metric"><span>Pendiente de pago</span><strong>{money(pendingTotal)}</strong></div>
+        <div className="metric"><span>IVA soportado</span><strong>{money(summary.taxTotal)}</strong></div>
+        <div className="metric"><span>Documentos</span><strong>{summary.count || 0}</strong></div>
+      </div>
+
+      <div className="module-panel">
+        <div className="module-toolbar purchases-toolbar">
+          <div className="purchase-filter-controls">
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Filtrar por tipo">
+              <option value="all">Todas las compras</option>
+              <option value="supplier_invoice">Facturas de compra</option>
+              <option value="expense">Gastos y tiques</option>
+            </select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filtrar por estado">
+              <option value="all">Todos los estados</option>
+              {PURCHASE_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <label className="module-search">
+            <Search size={18} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por proveedor, NIF o número" />
+          </label>
+        </div>
+
+        {purchases.error ? <p className="form-error module-message">{purchases.error}</p> : null}
+        <div className="table-wrap">
+          <table className="module-table purchases-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Número</th>
+                <th>Proveedor / detalle</th>
+                <th>Estado</th>
+                <th>Vencimiento</th>
+                <th className="numeric-cell">Base</th>
+                <th className="numeric-cell">IVA</th>
+                <th className="numeric-cell">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {purchases.loading ? (
+                <tr><td colSpan="9" className="empty-table-cell">Cargando compras...</td></tr>
+              ) : filteredItems.length ? filteredItems.map((item) => {
+                const supplierName = item.supplier?.companyName || item.supplier?.fullName || "Sin proveedor";
+                return (
+                  <tr key={item.id} className="clickable-row" onClick={() => onOpen(item)}>
+                    <td>{dateOnly(item.issueDate)}</td>
+                    <td><span className={`purchase-kind ${item.documentType}`}>{item.documentType === "expense" ? "G" : "C"}</span> {purchaseTypeLabel(item.documentType)}</td>
+                    <td>{item.documentNumber || "Sin número"}</td>
+                    <td><strong>{supplierName}</strong>{item.supplier?.taxId ? <small>{item.supplier.taxId}</small> : null}</td>
+                    <td><span className={`purchase-status ${item.status}`}>{purchaseStatusLabel(item.status)}</span></td>
+                    <td>{dateOnly(item.dueDate)}</td>
+                    <td className="numeric-cell">{money(item.subtotal)}</td>
+                    <td className="numeric-cell">{money(item.taxTotal)}</td>
+                    <td className="numeric-cell"><strong>{money(item.total)}</strong></td>
+                  </tr>
+                );
+              }) : (
+                <tr><td colSpan="9" className="empty-table-cell">No hay compras que coincidan con los filtros.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
+  const initialDocumentType = purchase?.documentType || documentType || "supplier_invoice";
+  const [form, setForm] = useState({
+    documentType: initialDocumentType,
+    documentNumber: purchase?.documentNumber || "",
+    supplierLeadId: purchase?.supplierLeadId || purchase?.supplier?.id || "",
+    issueDate: inputDate(purchase?.issueDate || new Date()),
+    dueDate: inputDate(purchase?.dueDate || ""),
+    status: purchase?.status || "pending",
+    currency: purchase?.currency || "EUR",
+    deductible: purchase?.deductible ?? true,
+    paymentMethod: purchase?.paymentMethod || "",
+    notes: purchase?.notes || "",
+    internalNotes: purchase?.internalNotes || "",
+    lines: purchase?.lines?.length ? purchase.lines : [emptyPurchaseLine()]
+  });
+  const [saving, setSaving] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(Boolean(purchase?.id));
+  const [error, setError] = useState("");
+  const suppliers = useResource(
+    () => apiRequest("/api/sales/leads?contactKind=supplier&limit=500", { token }),
+    [token]
+  );
+
+  useEffect(() => {
+    if (!purchase?.id) return undefined;
+    let active = true;
+    apiRequest(`/api/purchases/${purchase.id}`, { token })
+      .then((result) => {
+        if (!active) return;
+        const item = result.item || result;
+        setForm({
+          documentType: item.documentType || initialDocumentType,
+          documentNumber: item.documentNumber || "",
+          supplierLeadId: item.supplierLeadId || item.supplier?.id || "",
+          issueDate: inputDate(item.issueDate),
+          dueDate: inputDate(item.dueDate || ""),
+          status: item.status || "pending",
+          currency: item.currency || "EUR",
+          deductible: item.deductible ?? true,
+          paymentMethod: item.paymentMethod || "",
+          notes: item.notes || "",
+          internalNotes: item.internalNotes || "",
+          lines: item.lines?.length ? item.lines : [emptyPurchaseLine()]
+        });
+      })
+      .catch((err) => active && setError(err.message))
+      .finally(() => active && setLoadingDetail(false));
+    return () => { active = false; };
+  }, [purchase?.id, token]);
+
+  const supplierItems = suppliers.data?.items || suppliers.data?.leads || [];
+  const totals = form.lines.reduce((acc, line) => {
+    const quantity = Math.max(0, Number(line.quantity) || 0);
+    const unitCost = Math.max(0, Number(line.unitCost) || 0);
+    const discount = Math.min(100, Math.max(0, Number(line.discountPercent) || 0));
+    const subtotal = quantity * unitCost * (1 - discount / 100);
+    const tax = subtotal * (Math.max(0, Number(line.taxRate) || 0) / 100);
+    return { subtotal: acc.subtotal + subtotal, tax: acc.tax + tax, total: acc.total + subtotal + tax };
+  }, { subtotal: 0, tax: 0, total: 0 });
+  const readOnly = purchase?.status === "paid";
+
+  function updateLine(index, key, value) {
+    setForm((current) => ({
+      ...current,
+      lines: current.lines.map((line, lineIndex) => lineIndex === index ? { ...line, [key]: value } : line)
+    }));
+  }
+
+  function addLine(index = form.lines.length - 1) {
+    setForm((current) => {
+      const lines = [...current.lines];
+      lines.splice(index + 1, 0, emptyPurchaseLine());
+      return { ...current, lines };
+    });
+  }
+
+  function removeLine(index) {
+    setForm((current) => ({
+      ...current,
+      lines: current.lines.length === 1 ? [emptyPurchaseLine()] : current.lines.filter((_, lineIndex) => lineIndex !== index)
+    }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    if (form.documentType === "supplier_invoice" && !form.supplierLeadId) {
+      setError("Selecciona el proveedor de la factura.");
+      return;
+    }
+    if (!form.lines.some((line) => String(line.description || "").trim())) {
+      setError("Añade al menos una línea con descripción.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiRequest(purchase?.id ? `/api/purchases/${purchase.id}` : "/api/purchases", {
+        token,
+        method: purchase?.id ? "PATCH" : "POST",
+        body: {
+          ...form,
+          supplierLeadId: form.supplierLeadId || null,
+          dueDate: form.dueDate || null,
+          lines: form.lines.filter((line) => String(line.description || "").trim())
+        }
+      });
+      onDone?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removePurchase() {
+    if (!purchase?.id || !window.confirm("¿Eliminar este documento de compra?")) return;
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest(`/api/purchases/${purchase.id}`, { token, method: "DELETE" });
+      onDone?.();
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
+
+  if (loadingDetail) return <p className="module-message">Cargando documento...</p>;
+
+  return (
+    <form className="purchase-form" onSubmit={submit}>
+      <fieldset disabled={readOnly || saving}>
+        <div className="purchase-form-grid">
+          <label>
+            Tipo de documento
+            <select value={form.documentType} onChange={(event) => setForm({ ...form, documentType: event.target.value })}>
+              <option value="supplier_invoice">Factura de compra</option>
+              <option value="expense">Gasto / tique</option>
+            </select>
+          </label>
+          <label>
+            Proveedor
+            <select value={form.supplierLeadId} onChange={(event) => setForm({ ...form, supplierLeadId: event.target.value })}>
+              <option value="">{form.documentType === "expense" ? "Sin proveedor" : "Seleccionar proveedor"}</option>
+              {supplierItems.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>{supplier.companyName || supplier.fullName}{supplier.taxId ? ` · ${supplier.taxId}` : ""}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Número de documento
+            <input value={form.documentNumber} onChange={(event) => setForm({ ...form, documentNumber: event.target.value })} placeholder="Número del proveedor" />
+          </label>
+          <label>
+            Fecha
+            <input type="date" value={form.issueDate} onChange={(event) => setForm({ ...form, issueDate: event.target.value })} />
+          </label>
+          <label>
+            Vencimiento
+            <input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
+          </label>
+          <label>
+            Estado
+            <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
+              {PURCHASE_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Método de pago
+            <input value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })} placeholder="Transferencia, tarjeta..." />
+          </label>
+          <label className="purchase-deductible-field">
+            <input type="checkbox" checked={form.deductible} onChange={(event) => setForm({ ...form, deductible: event.target.checked })} />
+            IVA deducible
+          </label>
+        </div>
+
+        <section className="purchase-lines">
+          <header>
+            <div>
+              <h4>Líneas de compra</h4>
+            </div>
+            <button className="secondary-button" type="button" onClick={() => addLine()}><Plus size={16} /> Añadir línea</button>
+          </header>
+          <div className="purchase-line-header" aria-hidden="true">
+            <span>Referencia</span><span>Descripción</span><span>Cantidad</span><span>Coste</span><span>Dto. %</span><span>IVA %</span><span>Importe</span><span />
+          </div>
+          {form.lines.map((line, index) => {
+            const base = Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.unitCost) || 0) * (1 - Math.min(100, Math.max(0, Number(line.discountPercent) || 0)) / 100);
+            return (
+              <div className="purchase-line-row" key={`${index}-${line.id || "new"}`}>
+                <input value={line.reference} onChange={(event) => updateLine(index, "reference", event.target.value)} placeholder="Ref." aria-label="Referencia" />
+                <input value={line.description} onChange={(event) => updateLine(index, "description", event.target.value)} placeholder="Descripción" aria-label="Descripción" />
+                <input type="number" min="0" step="0.01" value={line.quantity} onChange={(event) => updateLine(index, "quantity", event.target.value)} aria-label="Cantidad" />
+                <input type="number" min="0" step="0.01" value={line.unitCost} onChange={(event) => updateLine(index, "unitCost", event.target.value)} aria-label="Coste unitario" />
+                <input type="number" min="0" max="100" step="0.01" value={line.discountPercent} onChange={(event) => updateLine(index, "discountPercent", event.target.value)} aria-label="Descuento" />
+                <select value={line.taxRate} onChange={(event) => updateLine(index, "taxRate", event.target.value)} aria-label="IVA">
+                  <option value="0">0%</option><option value="4">4%</option><option value="10">10%</option><option value="21">21%</option>
+                </select>
+                <strong className="purchase-line-total">{money(base)}</strong>
+                <div className="purchase-line-actions">
+                  <button className="icon-button" type="button" onClick={() => addLine(index)} aria-label="Añadir línea"><Plus size={15} /></button>
+                  <button className="icon-button" type="button" onClick={() => removeLine(index)} aria-label="Eliminar línea"><X size={15} /></button>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
+        <div className="purchase-notes-grid">
+          <label>Notas<textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+          <label>Notas internas<textarea value={form.internalNotes} onChange={(event) => setForm({ ...form, internalNotes: event.target.value })} /></label>
+        </div>
+      </fieldset>
+
+      <aside className="purchase-summary" aria-label="Resumen de compra">
+        <span>Base imponible <strong>{money(totals.subtotal)}</strong></span>
+        <span>IVA <strong>{money(totals.tax)}</strong></span>
+        <span className="purchase-summary-total">Total <strong>{money(totals.total)}</strong></span>
+      </aside>
+
+      {readOnly ? <p className="purchase-lock-note">La compra está pagada y se conserva bloqueada para evitar cambios contables.</p> : null}
+      {error ? <p className="form-error">{error}</p> : null}
+      <div className="form-actions purchase-form-actions">
+        {purchase?.id && !readOnly ? <button className="danger-text-button" type="button" onClick={removePurchase}>Eliminar</button> : null}
+        <span className="form-actions-spacer" />
+        <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button>
+        {!readOnly ? <button className="primary-button" type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar compra"}</button> : null}
       </div>
     </form>
   );

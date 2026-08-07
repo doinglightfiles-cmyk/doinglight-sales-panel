@@ -1306,6 +1306,263 @@ select:focus {
   min-width: 960px;
 }
 
+.purchase-page-header,
+.purchase-header-actions,
+.purchase-filter-controls,
+.purchase-line-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.purchase-filter-controls {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.purchases-toolbar {
+  grid-template-columns: minmax(360px, 1fr) minmax(280px, 420px);
+}
+
+.purchases-toolbar select {
+  min-width: 170px;
+}
+
+.purchases-table td strong,
+.purchases-table td small {
+  display: block;
+}
+
+.purchases-table td small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.numeric-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.purchase-kind {
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  color: var(--white);
+  background: var(--green-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.purchase-kind.expense {
+  color: #4b3510;
+  background: #f5c65a;
+}
+
+.purchase-status {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #5f4700;
+  background: #fff2c7;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.purchase-status.paid {
+  color: var(--green-dark);
+  background: #eaf4d2;
+}
+
+.purchase-status.overdue,
+.purchase-status.void {
+  color: var(--danger);
+  background: #fde8e5;
+}
+
+.purchase-status.draft {
+  color: var(--muted);
+  background: #edf0e9;
+}
+
+.empty-table-cell,
+.module-message {
+  padding: 30px 22px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.purchase-form {
+  display: grid;
+  gap: 20px;
+}
+
+.purchase-form fieldset {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.purchase-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.purchase-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.purchase-deductible-field {
+  min-height: 42px;
+  align-self: end;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 9px !important;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--ink) !important;
+}
+
+.purchase-deductible-field input {
+  width: 18px;
+  min-height: 18px;
+  margin: 0;
+}
+
+.purchase-lines {
+  margin-top: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fbfcf8;
+}
+
+.purchase-lines > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.purchase-lines h4 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.purchase-line-header,
+.purchase-line-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.8fr) minmax(190px, 2.2fr) minmax(76px, 0.65fr) minmax(90px, 0.8fr) minmax(72px, 0.65fr) minmax(76px, 0.65fr) minmax(92px, 0.8fr) 82px;
+  gap: 8px;
+  align-items: center;
+}
+
+.purchase-line-header {
+  padding: 0 4px 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.purchase-line-row + .purchase-line-row {
+  margin-top: 8px;
+}
+
+.purchase-line-row input,
+.purchase-line-row select {
+  min-width: 0;
+}
+
+.purchase-line-total {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.purchase-line-actions {
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.purchase-line-actions .icon-button {
+  width: 36px;
+  height: 36px;
+}
+
+.purchase-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.purchase-summary {
+  width: min(520px, 100%);
+  justify-self: end;
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.purchase-summary span {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  color: var(--muted);
+}
+
+.purchase-summary strong {
+  color: var(--ink);
+}
+
+.purchase-summary-total {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.purchase-lock-note {
+  margin: 0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: var(--green-dark);
+  background: #edf5d6;
+  font-weight: 700;
+}
+
+.purchase-form-actions {
+  align-items: center;
+}
+
+.form-actions-spacer {
+  flex: 1;
+}
+
+.danger-text-button {
+  min-height: 42px;
+  border: 0;
+  padding: 0 8px;
+  color: var(--danger);
+  background: transparent;
+  font-weight: 750;
+}
+
 .invoices-page-header {
   align-items: center;
 }
@@ -5960,6 +6217,36 @@ th {
   .hidden-grid-cell {
     display: none;
   }
+
+  .purchase-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .purchase-line-header {
+    display: none;
+  }
+
+  .purchase-line-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+
+  .purchase-line-row > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+
+  .purchase-line-total {
+    text-align: left;
+  }
+
+  .purchase-line-actions {
+    justify-content: flex-start;
+  }
+
+  .purchase-notes-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -6093,5 +6380,43 @@ th {
 
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .purchase-header-actions,
+  .purchase-filter-controls {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .purchase-header-actions button,
+  .purchase-filter-controls select {
+    width: 100%;
+  }
+
+  .purchase-form-grid,
+  .purchase-line-row {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-line-row > :nth-child(2) {
+    grid-column: auto;
+  }
+
+  .purchase-lines {
+    padding: 14px;
+  }
+
+  .purchase-lines > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .purchase-form-actions {
+    flex-wrap: wrap;
+  }
+
+  .form-actions-spacer {
+    display: none;
   }
 }
