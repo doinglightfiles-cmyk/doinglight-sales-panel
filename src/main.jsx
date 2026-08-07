@@ -2046,29 +2046,49 @@ function DocumentPdfPage({
         </div>
       </section>
       <table className={isDeliveryNote ? "quote-pdf-lines-table delivery-pdf-lines-table" : "quote-pdf-lines-table"}>
+        <colgroup>
+          <col className="quote-pdf-image-col" />
+          <col className="quote-pdf-code-col" />
+          <col className="quote-pdf-concept-col" />
+          <col className="quote-pdf-qty-col" />
+          {!isDeliveryNote ? <col className="quote-pdf-price-col" /> : null}
+          {!isDeliveryNote ? <col className="quote-pdf-discount-col" /> : null}
+          {!isDeliveryNote ? <col className="quote-pdf-total-col" /> : null}
+        </colgroup>
         <thead>
           <tr>
+            <th className="quote-pdf-line-image-heading" aria-label="Imagen" />
             <th>{text.code}</th>
             <th>{text.concept}</th>
-            <th>{text.quantity}</th>
-            {!isDeliveryNote ? <th>{text.price}</th> : null}
-            {!isDeliveryNote ? <th>{text.discount}</th> : null}
-            {!isDeliveryNote ? <th>{text.total}</th> : null}
+            <th className="quote-pdf-line-number">{text.quantity}</th>
+            {!isDeliveryNote ? <th className="quote-pdf-line-number">{text.price}</th> : null}
+            {!isDeliveryNote ? <th className="quote-pdf-line-number">{text.discount}</th> : null}
+            {!isDeliveryNote ? <th className="quote-pdf-line-number">{text.total}</th> : null}
           </tr>
         </thead>
         <tbody>
           {lines.length ? lines.map((line, index) => (
             <tr key={`${line.code || "line"}-${index}`}>
+              <td className="quote-pdf-line-image-cell">
+                {line.imageUrl ? (
+                  <img
+                    className="quote-pdf-line-image"
+                    src={line.imageUrl}
+                    alt={line.code || line.concept || "Producto"}
+                    crossOrigin="anonymous"
+                  />
+                ) : null}
+              </td>
               <td>{line.code || "-"}</td>
-              <td>{line.concept || "-"}</td>
-              <td>{tableMoney(line.quantity || 0)}</td>
-              {!isDeliveryNote ? <td>{tableMoney(line.price || 0)}</td> : null}
-              {!isDeliveryNote ? <td>{line.discount ? `${tableMoney(line.discount)}%` : ""}</td> : null}
-              {!isDeliveryNote ? <td>{tableMoney(line.total || 0)}</td> : null}
+              <td className="quote-pdf-line-concept">{line.concept || "-"}</td>
+              <td className="quote-pdf-line-number">{tableMoney(line.quantity || 0)}</td>
+              {!isDeliveryNote ? <td className="quote-pdf-line-number">{tableMoney(line.price || 0)}</td> : null}
+              {!isDeliveryNote ? <td className="quote-pdf-line-number">{line.discount ? `${tableMoney(line.discount)}%` : ""}</td> : null}
+              {!isDeliveryNote ? <td className="quote-pdf-line-number">{tableMoney(line.total || 0)}</td> : null}
             </tr>
           )) : (
             <tr>
-              <td colSpan={isDeliveryNote ? 3 : 6}>Sin líneas.</td>
+              <td colSpan={isDeliveryNote ? 4 : 7}>Sin líneas.</td>
             </tr>
           )}
         </tbody>
@@ -2084,6 +2104,11 @@ function DocumentPdfPage({
         </div>
       ) : null}
       <table className="quote-pdf-validity-table">
+        <colgroup>
+          <col className="quote-pdf-validity-main-col" />
+          <col className="quote-pdf-validity-payment-col" />
+          <col className="quote-pdf-validity-empty-col" />
+        </colgroup>
         <thead>
           <tr>
             <th>{validityLabel}</th>
@@ -8340,9 +8365,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     const quantity = Number(line.quantity || 0);
     const lineAmount = lineTotal(line);
     const unitPrice = quantity ? lineAmount / quantity : lineAmount;
+    const lineImageUrl =
+      getProductImage(selectedProduct) ||
+      line.imageUrl ||
+      line.mainImageUrl ||
+      line.productSnapshot?.mainImageUrl ||
+      line.productSnapshot?.media?.[0]?.url ||
+      "";
     return {
       code: line.skuQuery || line.sku || "-",
       concept: selectedProduct?.title || selectedProduct?.shortDescription || "Producto pendiente",
+      imageUrl: imageUrlForDisplay(lineImageUrl, 220),
       quantity,
       price: unitPrice,
       discount: Number(line.discountPercent || 0),
