@@ -5564,77 +5564,88 @@ th {
 }
 
 .quote-pdf-lines-table col.quote-pdf-image-col {
-  width: 42px;
+  width: 34px;
 }
 
 .quote-pdf-lines-table col.quote-pdf-code-col {
-  width: 62px;
-}
-
-.quote-pdf-lines-table col.quote-pdf-qty-col {
-  width: 42px;
-}
-
-.quote-pdf-lines-table col.quote-pdf-price-col {
   width: 54px;
 }
 
-.quote-pdf-lines-table col.quote-pdf-discount-col {
+.quote-pdf-lines-table col.quote-pdf-qty-col {
+  width: 34px;
+}
+
+.quote-pdf-lines-table col.quote-pdf-price-col {
   width: 46px;
 }
 
+.quote-pdf-lines-table col.quote-pdf-discount-col {
+  width: 36px;
+}
+
 .quote-pdf-lines-table col.quote-pdf-total-col {
-  width: 58px;
+  width: 50px;
 }
 
 .delivery-pdf-lines-table col.quote-pdf-code-col {
-  width: 68px;
+  width: 60px;
 }
 
 .delivery-pdf-lines-table col.quote-pdf-qty-col {
-  width: 52px;
+  width: 40px;
 }
 
 .quote-pdf-page .quote-pdf-lines-table th {
-  padding: 6px;
-  font-size: 8.5px;
+  padding: 5px 4px;
+  font-size: 7.5px;
   overflow-wrap: anywhere;
   text-align: left;
+  white-space: nowrap;
 }
 
 .quote-pdf-page .quote-pdf-lines-table td {
   background: #f3f3f3;
   border-bottom: 2px solid #fff;
-  padding: 6px;
-  line-height: 1.25;
+  padding: 5px 4px;
+  font-size: 9px;
+  line-height: 1.18;
   overflow-wrap: anywhere;
   word-break: normal;
   vertical-align: top;
   text-align: left;
 }
 
+.quote-pdf-page .quote-pdf-lines-table td:nth-child(2),
+.quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-concept {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-number {
+  font-size: 8.5px;
   text-align: right;
   white-space: nowrap;
 }
 
 .quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-image-heading,
 .quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-image-cell {
-  padding: 4px;
+  padding: 3px;
   text-align: center;
 }
 
 .quote-pdf-line-image {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   display: block;
   object-fit: contain;
   margin: 0 auto;
 }
 
 .quote-pdf-line-concept {
+  font-size: 9px;
+  line-height: 1.18;
   overflow-wrap: anywhere;
-  word-break: normal;
+  word-break: break-word;
 }
 
 .quote-pdf-summary {

@@ -2009,6 +2009,9 @@ function DocumentPdfPage({
   const validityLabel = isDeliveryNote ? text.deliveryDate : type === "invoice" ? text.dueDate : text.validUntil;
   const isTuboSolarTemplate = pdfTemplate === "tubo-solar";
   const logoSrc = isTuboSolarTemplate ? TUBO_SOLAR_PDF_LOGO : DOCUMENT_PDF_LOGO;
+  const quantityHeader = language === "es" ? "Cant." : text.quantity;
+  const discountHeader = language === "es" ? "Dto." : text.discount;
+  const priceHeader = language === "es" ? "Precio" : text.price;
 
   return (
     <div id={id} className={`quote-pdf-page quote-pdf-page-template${isTuboSolarTemplate ? " quote-pdf-page-tubo-solar" : ""}`}>
@@ -2060,9 +2063,9 @@ function DocumentPdfPage({
             <th className="quote-pdf-line-image-heading" aria-label="Imagen" />
             <th>{text.code}</th>
             <th>{text.concept}</th>
-            <th className="quote-pdf-line-number">{text.quantity}</th>
-            {!isDeliveryNote ? <th className="quote-pdf-line-number">{text.price}</th> : null}
-            {!isDeliveryNote ? <th className="quote-pdf-line-number">{text.discount}</th> : null}
+            <th className="quote-pdf-line-number">{quantityHeader}</th>
+            {!isDeliveryNote ? <th className="quote-pdf-line-number">{priceHeader}</th> : null}
+            {!isDeliveryNote ? <th className="quote-pdf-line-number">{discountHeader}</th> : null}
             {!isDeliveryNote ? <th className="quote-pdf-line-number">{text.total}</th> : null}
           </tr>
         </thead>
