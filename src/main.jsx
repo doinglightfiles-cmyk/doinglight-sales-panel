@@ -1024,9 +1024,18 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         </section>
       </div>
 
-      <button className="global-create-button" type="button" onClick={() => setCreateDrawerOpen(true)} aria-label="Crear nuevo documento o registro">
-        <Plus size={30} />
-      </button>
+      {!createDrawerOpen
+        && !globalInvoiceOpen
+        && !globalQuoteOpen
+        && !globalProformaOpen
+        && !globalDeliveryNoteOpen
+        && !globalPurchaseOpen
+        && !globalContactPickerOpen
+        && !globalContactForm ? (
+          <button className="global-create-button" type="button" onClick={() => setCreateDrawerOpen(true)} aria-label="Crear nuevo documento o registro">
+            <Plus size={30} />
+          </button>
+        ) : null}
 
       {createDrawerOpen ? (
         <CreateActionDrawer
