@@ -1750,8 +1750,8 @@ const DELIVERY_NOTE_STATUS_FILTER_OPTIONS = [
 ];
 
 const REVERSE_CHARGE_TAX_CODE = "reverse_charge";
-const REVERSE_CHARGE_TAX_LABEL = "Inversión del Sujeto Pasivo";
-const REVERSE_CHARGE_PDF_SUBTITLE = "inversión del sujeto pasivo";
+const REVERSE_CHARGE_TAX_LABEL = "Sujeto Pasivo";
+const REVERSE_CHARGE_PDF_SUBTITLE = "SUJETO PASIVO";
 const REVERSE_CHARGE_LEGAL_TEXT = "Operación con inversión del sujeto pasivo conforme al Artículo 84. Uno. 2º de la Ley 37/1992 del IVA";
 
 const DOCUMENT_TAX_OPTIONS = [
@@ -1764,8 +1764,20 @@ const DOCUMENT_TAX_OPTIONS = [
   { value: "19", rate: 19, label: "Alemania · 19%" }
 ];
 
+function normalizedTaxProbe(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function taxOptionFromMode(value) {
   const normalized = String(value ?? "");
+  const folded = normalizedTaxProbe(normalized);
+  if (folded.includes("sujeto") || folded.includes("inversion") || folded.includes("reverse")) {
+    return DOCUMENT_TAX_OPTIONS.find((option) => option.value === REVERSE_CHARGE_TAX_CODE);
+  }
+
   return DOCUMENT_TAX_OPTIONS.find((option) => option.value === normalized)
     || DOCUMENT_TAX_OPTIONS.find((option) => Number.isFinite(Number(normalized)) && option.rate === Number(normalized) && option.value !== REVERSE_CHARGE_TAX_CODE)
     || DOCUMENT_TAX_OPTIONS.find((option) => option.value === "21")
@@ -1782,24 +1794,28 @@ function isReverseChargeTaxMode(value) {
 
 function isReverseChargeDocument(document) {
   if (!document) return false;
-  const probe = [
+  const probe = normalizedTaxProbe([
     document.taxCode,
     document.taxMode,
     document.taxLabel,
     document.taxTreatment,
     document.vatType,
     document.reverseCharge ? REVERSE_CHARGE_TAX_CODE : ""
-  ].filter(Boolean).join(" ").toLowerCase();
+  ].filter(Boolean).join(" "));
 
   return probe.includes("reverse")
     || probe.includes("sujeto pasivo")
-    || probe.includes("inversión");
+    || probe.includes("inversion");
 }
 
 function taxModeFromDocument(document) {
   if (isReverseChargeDocument(document)) return REVERSE_CHARGE_TAX_CODE;
+  const explicitMode = document?.taxMode ?? document?.taxCode ?? document?.taxRate;
+  if (explicitMode !== undefined && explicitMode !== null && explicitMode !== "") {
+    return taxOptionFromMode(explicitMode).value;
+  }
   if (!document?.subtotal) return "21";
-  return String(Math.round((Number(document.taxTotal || 0) / Number(document.subtotal || 1)) * 100));
+  return taxOptionFromMode(Math.round((Number(document.taxTotal || 0) / Number(document.subtotal || 1)) * 100)).value;
 }
 
 const QUOTE_LANGUAGE_OPTIONS = [
@@ -2884,8 +2900,10 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
   const lines = documentLinesForPdf(type === "invoice" ? documentRecord.raw?.main?.lines || [] : documentRecord.lines || []);
   const subtotal = Number(documentRecord.subtotal || 0);
   const total = Number(documentRecord.total || 0);
+  const taxMode = taxModeFromDocument(documentRecord);
   const taxTotal = Math.max(total - subtotal, 0);
-  const taxRate = subtotal ? Math.round((taxTotal / subtotal) * 100) : 0;
+  const taxRate = taxRateFromTaxMode(taxMode);
+  const reverseCharge = isReverseChargeTaxMode(taxMode);
   const selectedLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((item) => item.value === language)?.label || "Español";
 
   function updateDraft(patch) {
@@ -3009,6 +3027,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
               taxRate={taxRate}
               taxTotal={taxTotal}
               total={total}
+              reverseCharge={reverseCharge}
               currency={documentRecord.currency}
               paymentMethod={firstValue(documentRecord.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
               notes={type === "invoice" ? firstValue(documentRecord.raw?.main || {}, ["notes", "observations", "publicNotes"], "") : ""}
@@ -3115,9 +3134,10 @@ function InvoiceDetailModal({ token, invoice, onClose }) {
             clientBlock={documentCounterpartBlock(invoice)}
             lines={documentLinesForPdf(lines)}
             subtotal={invoice.subtotal}
-            taxRate={invoice.subtotal ? Math.round(((invoice.total - invoice.subtotal) / invoice.subtotal) * 100) : 0}
+            taxRate={taxRateFromTaxMode(taxModeFromDocument(invoice))}
             taxTotal={Math.max(invoice.total - invoice.subtotal, 0)}
             total={invoice.total}
+            reverseCharge={isReverseChargeTaxMode(taxModeFromDocument(invoice))}
             currency={invoice.currency}
             paymentMethod={firstValue(invoice.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
             notes={firstValue(invoice.raw?.main || {}, ["notes", "observations", "publicNotes"], "")}
@@ -3765,8 +3785,10 @@ function DeliveryNoteDetailModal({ token, deliveryNote, onClose }) {
             clientBlock={documentCounterpartBlock(deliveryNote)}
             lines={documentLinesForPdf(deliveryNote.lines)}
             subtotal={deliveryNote.subtotal}
+            taxRate={taxRateFromTaxMode(taxModeFromDocument(deliveryNote))}
             taxTotal={Math.max(deliveryNote.total - deliveryNote.subtotal, 0)}
             total={deliveryNote.total}
+            reverseCharge={isReverseChargeTaxMode(taxModeFromDocument(deliveryNote))}
             currency={deliveryNote.currency}
             paymentMethod={firstValue(deliveryNote.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
             notes={firstValue(deliveryNote.raw?.main || {}, ["notes", "observations", "publicNotes"], "")}
@@ -7833,10 +7855,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   });
   const [templatePicker, setTemplatePicker] = useState(template?.id || "");
   const [draggingLineId, setDraggingLineId] = useState("");
-  const [taxRate, setTaxRate] = useState(() => {
-    if (!initialQuote?.subtotal) return 21;
-    return Math.round((Number(initialQuote.taxTotal || 0) / Number(initialQuote.subtotal || 1)) * 100);
-  });
+  const [taxRate, setTaxRate] = useState(() => taxModeFromDocument(initialQuote || { taxMode: "21" }));
   const [notes, setNotes] = useState(initialQuote?.notes || "");
   const [quoteStatus, setQuoteStatus] = useState(initialQuote?.status || "draft");
   const [quoteDate, setQuoteDate] = useState(inputDate(initialQuote?.issueDate || initialQuote?.createdAt || new Date()));
@@ -7914,10 +7933,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
     lastDiscountLeadId.current = selectedLead.id;
     const defaultDiscount = Number(selectedLead.defaultDiscountPercent || 0);
-    if (selectedLead.viesValid || selectedLead.taxIdentifierType === "sujeto_pasivo") {
-      setTaxRate(0);
+    if (selectedLead.taxIdentifierType === "sujeto_pasivo") {
+      setTaxRate(REVERSE_CHARGE_TAX_CODE);
+    } else if (selectedLead.viesValid) {
+      setTaxRate("0");
     } else if (selectedLead.defaultTaxRate !== null && selectedLead.defaultTaxRate !== undefined) {
-      setTaxRate(Number(selectedLead.defaultTaxRate));
+      setTaxRate(taxOptionFromMode(selectedLead.defaultTaxRate).value);
     }
     if (defaultDiscount <= 0) return;
 
@@ -8044,7 +8065,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         defaultTaxRate: isValid ? 0 : (current?.defaultTaxRate ?? 21)
       }));
       if (isValid) {
-        setTaxRate(0);
+        setTaxRate("0");
       }
       setQuoteViesMessage(isValid ? `VIES validado${result?.name ? ` · ${result.name}` : ""}. IVA 0%.` : "No consta como válido en VIES.");
       leads.reload();
@@ -8305,7 +8326,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
-  const taxTotal = subtotal * (Number(taxRate) / 100);
+  const activeTaxOption = taxOptionFromMode(taxRate);
+  const activeTaxRate = taxRateFromTaxMode(taxRate);
+  const reverseCharge = isReverseChargeTaxMode(taxRate);
+  const taxTotal = subtotal * (activeTaxRate / 100);
   const total = subtotal + taxTotal;
   const quoteNumberLabel = currentDocument?.quoteNumber || currentDocument?.documentNumber || currentDocument?.number || "borrador";
   const quotePdfName = `${meta.pdfPrefix}-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
@@ -8406,7 +8430,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       subtotal,
       taxTotal,
       total,
-      taxRate,
+      taxRate: activeTaxRate,
+      taxMode: activeTaxOption.value,
+      taxCode: activeTaxOption.value,
+      reverseCharge,
       pdfTemplate,
       visualTemplate: pdfTemplate,
       attachments: attachments.map((attachment) => ({
@@ -8926,13 +8953,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <section className="quote-totals">
         <label>
           IVA
-          <select value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))}>
-            <option value="0">Exento · 0%</option>
-            <option value="21">España · 21%</option>
-            <option value="23">Portugal · 23%</option>
-            <option value="22">Italia · 22%</option>
-            <option value="20">Francia · 20%</option>
-            <option value="19">Alemania · 19%</option>
+          <select value={taxRate} onChange={(event) => setTaxRate(event.target.value)}>
+            {DOCUMENT_TAX_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </label>
         <div>
@@ -9094,7 +9118,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   clientBlock={quoteClientBlock}
                   lines={quotePdfLines}
                   subtotal={subtotal}
-                  taxRate={taxRate}
+                  taxRate={activeTaxRate}
+                  reverseCharge={reverseCharge}
                   taxTotal={taxTotal}
                   total={total}
                   paymentMethod={paymentMethod}
