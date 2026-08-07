@@ -2012,6 +2012,10 @@ function DocumentPdfPage({
   const quantityHeader = language === "es" ? "Cant." : text.quantity;
   const discountHeader = language === "es" ? "Dto." : text.discount;
   const priceHeader = language === "es" ? "Precio" : text.price;
+  const formatLineQuantity = (value) => {
+    const parsed = Number(value || 0);
+    return Number.isInteger(parsed) ? String(parsed) : tableMoney(parsed);
+  };
 
   return (
     <div id={id} className={`quote-pdf-page quote-pdf-page-template${isTuboSolarTemplate ? " quote-pdf-page-tubo-solar" : ""}`}>
@@ -2048,31 +2052,19 @@ function DocumentPdfPage({
           </div>
         </div>
       </section>
-      <table className={isDeliveryNote ? "quote-pdf-lines-table delivery-pdf-lines-table" : "quote-pdf-lines-table"}>
-        <colgroup>
-          <col className="quote-pdf-image-col" />
-          <col className="quote-pdf-code-col" />
-          <col className="quote-pdf-concept-col" />
-          <col className="quote-pdf-qty-col" />
-          {!isDeliveryNote ? <col className="quote-pdf-price-col" /> : null}
-          {!isDeliveryNote ? <col className="quote-pdf-discount-col" /> : null}
-          {!isDeliveryNote ? <col className="quote-pdf-total-col" /> : null}
-        </colgroup>
-        <thead>
-          <tr>
-            <th className="quote-pdf-line-image-heading" aria-label="Imagen" />
-            <th>{text.code}</th>
-            <th>{text.concept}</th>
-            <th className="quote-pdf-line-number">{quantityHeader}</th>
-            {!isDeliveryNote ? <th className="quote-pdf-line-number">{priceHeader}</th> : null}
-            {!isDeliveryNote ? <th className="quote-pdf-line-number">{discountHeader}</th> : null}
-            {!isDeliveryNote ? <th className="quote-pdf-line-number">{text.total}</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {lines.length ? lines.map((line, index) => (
-            <tr key={`${line.code || "line"}-${index}`}>
-              <td className="quote-pdf-line-image-cell">
+      <section className={isDeliveryNote ? "quote-pdf-lines-grid delivery-pdf-lines-grid" : "quote-pdf-lines-grid"}>
+        <div className="quote-pdf-line-row quote-pdf-lines-head">
+          <span className="quote-pdf-line-image-heading" aria-label="Imagen" />
+          <span>{text.code}</span>
+          <span>{text.concept}</span>
+          <span className="quote-pdf-line-number">{quantityHeader}</span>
+          {!isDeliveryNote ? <span className="quote-pdf-line-number">{priceHeader}</span> : null}
+          {!isDeliveryNote ? <span className="quote-pdf-line-number">{discountHeader}</span> : null}
+          {!isDeliveryNote ? <span className="quote-pdf-line-number">{text.total}</span> : null}
+        </div>
+        {lines.length ? lines.map((line, index) => (
+          <div className="quote-pdf-line-row" key={`${line.code || "line"}-${index}`}>
+            <span className="quote-pdf-line-image-cell">
                 {line.imageUrl ? (
                   <img
                     className="quote-pdf-line-image"
@@ -2081,21 +2073,20 @@ function DocumentPdfPage({
                     crossOrigin="anonymous"
                   />
                 ) : null}
-              </td>
-              <td>{line.code || "-"}</td>
-              <td className="quote-pdf-line-concept">{line.concept || "-"}</td>
-              <td className="quote-pdf-line-number">{tableMoney(line.quantity || 0)}</td>
-              {!isDeliveryNote ? <td className="quote-pdf-line-number">{tableMoney(line.price || 0)}</td> : null}
-              {!isDeliveryNote ? <td className="quote-pdf-line-number">{line.discount ? `${tableMoney(line.discount)}%` : ""}</td> : null}
-              {!isDeliveryNote ? <td className="quote-pdf-line-number">{tableMoney(line.total || 0)}</td> : null}
-            </tr>
-          )) : (
-            <tr>
-              <td colSpan={isDeliveryNote ? 4 : 7}>Sin líneas.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            </span>
+            <span className="quote-pdf-line-code">{line.code || "-"}</span>
+            <span className="quote-pdf-line-concept">{line.concept || "-"}</span>
+            <span className="quote-pdf-line-number">{formatLineQuantity(line.quantity)}</span>
+            {!isDeliveryNote ? <span className="quote-pdf-line-number">{tableMoney(line.price || 0)}</span> : null}
+            {!isDeliveryNote ? <span className="quote-pdf-line-number">{line.discount ? `${tableMoney(line.discount)}%` : "0%"}</span> : null}
+            {!isDeliveryNote ? <span className="quote-pdf-line-number">{tableMoney(line.total || 0)}</span> : null}
+          </div>
+        )) : (
+          <div className="quote-pdf-line-row quote-pdf-line-empty">
+            <span>Sin líneas.</span>
+          </div>
+        )}
+      </section>
       {!isDeliveryNote ? (
         <div className="quote-pdf-totals quote-pdf-summary">
           <span>{text.subtotal}</span>

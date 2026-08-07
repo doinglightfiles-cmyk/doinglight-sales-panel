@@ -5445,19 +5445,19 @@ th {
 }
 
 .quote-pdf-page-tubo-solar .quote-pdf-number-table strong,
-.quote-pdf-page-tubo-solar .quote-pdf-lines-table th,
+.quote-pdf-page-tubo-solar .quote-pdf-lines-head > span,
 .quote-pdf-page-tubo-solar .quote-pdf-validity-table th {
   background: var(--pdf-tubo-blue);
 }
 
 .quote-pdf-page-tubo-solar .quote-pdf-client-box,
 .quote-pdf-page-tubo-solar .quote-pdf-number-table span,
-.quote-pdf-page-tubo-solar .quote-pdf-lines-table td,
+.quote-pdf-page-tubo-solar .quote-pdf-line-row > span,
 .quote-pdf-page-tubo-solar .quote-pdf-validity-table td {
   background: var(--pdf-tubo-blue-soft);
 }
 
-.quote-pdf-page-tubo-solar .quote-pdf-lines-table,
+.quote-pdf-page-tubo-solar .quote-pdf-lines-grid,
 .quote-pdf-page-tubo-solar .quote-pdf-validity-table {
   border-top-color: var(--pdf-tubo-blue-line);
 }
@@ -5479,6 +5479,10 @@ th {
 }
 
 .quote-pdf-page-tubo-solar td {
+  border-bottom-color: #d8ebf8;
+}
+
+.quote-pdf-page-tubo-solar .quote-pdf-line-row > span {
   border-bottom-color: #d8ebf8;
 }
 
@@ -5557,80 +5561,69 @@ th {
   line-height: 1.25;
 }
 
-.quote-pdf-lines-table {
+.quote-pdf-lines-grid {
   width: 100%;
-  table-layout: fixed;
+  display: grid;
   margin-top: 32px;
 }
 
-.quote-pdf-lines-table col.quote-pdf-image-col {
-  width: 34px;
+.quote-pdf-line-row {
+  display: grid;
+  grid-template-columns: 34px minmax(52px, 0.5fr) minmax(178px, 1.55fr) 34px 46px 38px 52px;
+  width: 100%;
+  align-items: stretch;
 }
 
-.quote-pdf-lines-table col.quote-pdf-code-col {
-  width: 54px;
+.delivery-pdf-lines-grid .quote-pdf-line-row {
+  grid-template-columns: 34px minmax(62px, 0.55fr) minmax(0, 1fr) 40px;
 }
 
-.quote-pdf-lines-table col.quote-pdf-qty-col {
-  width: 34px;
-}
-
-.quote-pdf-lines-table col.quote-pdf-price-col {
-  width: 46px;
-}
-
-.quote-pdf-lines-table col.quote-pdf-discount-col {
-  width: 36px;
-}
-
-.quote-pdf-lines-table col.quote-pdf-total-col {
-  width: 50px;
-}
-
-.delivery-pdf-lines-table col.quote-pdf-code-col {
-  width: 60px;
-}
-
-.delivery-pdf-lines-table col.quote-pdf-qty-col {
-  width: 40px;
-}
-
-.quote-pdf-page .quote-pdf-lines-table th {
+.quote-pdf-lines-head > span {
+  min-width: 0;
   padding: 5px 4px;
-  font-size: 7.5px;
-  overflow-wrap: anywhere;
+  color: #fff;
+  background: var(--green);
+  font-size: 7.2px;
+  font-weight: 800;
+  line-height: 1.15;
   text-align: left;
+  text-transform: uppercase;
   white-space: nowrap;
+  overflow: hidden;
 }
 
-.quote-pdf-page .quote-pdf-lines-table td {
+.quote-pdf-line-row > span {
+  min-width: 0;
+  padding: 5px 4px;
   background: #f3f3f3;
   border-bottom: 2px solid #fff;
-  padding: 5px 4px;
+  color: #111;
   font-size: 9px;
   line-height: 1.18;
   overflow-wrap: anywhere;
   word-break: normal;
-  vertical-align: top;
-  text-align: left;
 }
 
-.quote-pdf-page .quote-pdf-lines-table td:nth-child(2),
-.quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-concept {
-  overflow-wrap: anywhere;
-  word-break: break-word;
+.quote-pdf-line-row .quote-pdf-line-image-heading,
+.quote-pdf-line-row .quote-pdf-line-image-cell {
+  padding: 3px;
+  text-align: center;
 }
 
-.quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-number {
-  font-size: 8.5px;
+.quote-pdf-line-row .quote-pdf-line-number {
+  font-size: 8.4px;
   text-align: right;
   white-space: nowrap;
 }
 
-.quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-image-heading,
-.quote-pdf-page .quote-pdf-lines-table .quote-pdf-line-image-cell {
-  padding: 3px;
-  text-align: center;
+.quote-pdf-line-row .quote-pdf-line-code,
+.quote-pdf-line-row .quote-pdf-line-concept {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.quote-pdf-line-empty {
+  grid-template-columns: 1fr;
 }
 
 .quote-pdf-line-image {
