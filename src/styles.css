@@ -4127,6 +4127,29 @@ th {
   align-items: start;
 }
 
+.quote-fd-title-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.quote-document-icon-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--green-dark);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.quote-document-icon-button:hover {
+  background: #eef7d7;
+}
+
 .quote-fd-title-row h4 {
   margin: 0;
   color: var(--ink);
@@ -4660,6 +4683,44 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.quote-client-selected-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 5px;
+}
+
+.quote-client-selected-meta small {
+  color: var(--muted);
+}
+
+.quote-client-level-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--green-dark);
+  background: #eef7d7;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.quote-client-edit-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  border: 0;
+  color: var(--green-dark);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .quote-client-create-button {
@@ -5473,6 +5534,23 @@ th {
   gap: 12px;
   color: var(--muted);
   font-weight: 750;
+}
+
+.quote-send-attachments-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quote-send-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quote-send-attachments > small {
+  font-weight: 500;
 }
 
 .quote-send-attachments label {

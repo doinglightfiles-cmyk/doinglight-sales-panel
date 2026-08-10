@@ -8245,6 +8245,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [leadSearchTouched, setLeadSearchTouched] = useState(false);
   const [selectedLeadSnapshot, setSelectedLeadSnapshot] = useState(null);
   const [leadDraft, setLeadDraft] = useState(null);
+  const [leadEditorOpen, setLeadEditorOpen] = useState(false);
   const [leadSaveStatus, setLeadSaveStatus] = useState("");
   const [leadSaving, setLeadSaving] = useState(false);
   const [quoteViesMessage, setQuoteViesMessage] = useState("");
@@ -8326,6 +8327,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
+  const selectedLeadDefaultDiscount = Number(selectedLead?.defaultDiscountPercent || 0);
   const filteredLeadSuggestions = useMemo(() => {
     const needle = normalizeSearchText(leadSearchQuery);
     const source = needle
@@ -8399,6 +8401,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   useEffect(() => {
     if (!selectedLead) {
       setLeadDraft(null);
+      setLeadEditorOpen(false);
       setLeadSaveStatus("");
       return;
     }
@@ -8423,6 +8426,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     });
     setLeadSaveStatus("");
     setQuoteViesMessage("");
+    setLeadEditorOpen(false);
   }, [selectedLead?.id]);
 
   useEffect(() => {
@@ -8610,7 +8614,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   function createEmptyLine() {
-    return { id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null };
+    return {
+      id: crypto.randomUUID(),
+      skuQuery: "",
+      sku: "",
+      quantity: 1,
+      discountPercent: selectedLeadDefaultDiscount,
+      manualTotal: null
+    };
   }
 
   function applyQuoteTemplate(templateId) {
@@ -8623,7 +8634,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       skuQuery: line.sku,
       sku: line.sku,
       quantity: line.quantity || 1,
-      discountPercent: line.discountPercent || 0,
+      discountPercent: Number(line.discountPercent) > 0
+        ? Number(line.discountPercent)
+        : selectedLeadDefaultDiscount,
       manualTotal: null
     })));
   }
@@ -9018,9 +9031,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         </div>
         <div className="quote-fd-title-row">
           <h4>{documentTitle}</h4>
-          <div className="quote-fd-total">
-            <span>Total</span>
-            <strong>{money(total)}</strong>
+          <div className="quote-fd-title-actions">
+            <div className="quote-fd-total">
+              <span>Total</span>
+              <strong>{money(total)}</strong>
+            </div>
+            <button className="quote-document-icon-button" type="button" onClick={downloadQuotePdf} aria-label="Descargar PDF" title="Descargar PDF">
+              <Download size={20} />
+            </button>
+            <button className="quote-document-icon-button" type="button" onClick={printQuotePdf} aria-label="Imprimir" title="Imprimir">
+              <Printer size={20} />
+            </button>
           </div>
         </div>
       </section>
@@ -9049,30 +9070,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <button type="button" className="quote-client-cancel-button" onClick={() => setClientMode("existing")}>
                 Cancelar
               </button>
-            ) : null}
-            {!isInvoice ? (
-            <div className="attachment-menu-wrap">
-              <button
-                className="attachment-trigger icon-only-attachment"
-                type="button"
-                onClick={() => setAttachmentMenuOpen((value) => !value)}
-                aria-label="Adjuntar archivo"
-                aria-haspopup="menu"
-                aria-expanded={attachmentMenuOpen}
-                title="Adjuntar archivo"
-              >
-                <Paperclip size={18} />
-              </button>
-              {attachmentMenuOpen ? (
-                <div className="attachment-menu" role="menu">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">Subir un archivo</button>
-                  <button type="button" onClick={() => setDocumentPicker("Catálogos")} role="menuitem">Catálogos</button>
-                  <button type="button" onClick={() => setDocumentPicker("Fichas técnicas")} role="menuitem">Fichas técnicas</button>
-                  <button type="button" onClick={() => setDocumentPicker("Certificados")} role="menuitem">Certificados</button>
-                </div>
-              ) : null}
-              <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
-            </div>
             ) : null}
           </div>
         </div>
@@ -9130,14 +9127,25 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   </div>
                 ) : null}
               </div>
-              {selectedLead ? <small>{selectedLead.email || "Sin email"} · {selectedLead.phone || "Sin teléfono"}</small> : null}
+              {selectedLead ? (
+                <div className="quote-client-selected-meta">
+                  <small>{selectedLead.email || "Sin email"} · {selectedLead.phone || selectedLead.mobilePhone || "Sin teléfono"}</small>
+                  <span className="quote-client-level-badge">
+                    {customerLevelLabel(selectedLead.customerLevel)} · {discountLabel(selectedLead.defaultDiscountPercent, selectedLead.defaultDiscountMaxPercent)}
+                  </span>
+                  <button className="quote-client-edit-toggle" type="button" onClick={() => setLeadEditorOpen((value) => !value)}>
+                    <Pencil size={14} />
+                    {leadEditorOpen ? "Cerrar edición" : "Editar cliente"}
+                  </button>
+                </div>
+              ) : null}
             </label>
-            {selectedLead && leadDraft ? (
+            {selectedLead && leadDraft && leadEditorOpen ? (
               <div className="quote-client-quick-edit">
                 <div className="quote-client-quick-edit-head">
                   <div>
                     <strong>Datos rápidos del cliente</strong>
-                    <span>Completa estos campos sin salir del presupuesto.</span>
+                    <span>Completa estos campos sin salir del {documentTitle.toLowerCase()}.</span>
                   </div>
                   <button type="button" onClick={saveSelectedLeadDraft} disabled={leadSaving}>
                     {leadSaving ? "Guardando..." : "Guardar cliente"}
@@ -9421,25 +9429,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <strong>{money(total)}</strong>
         </div>
       </section>
-      {!isInvoice ? (
-      <section className="quote-attachments">
-        {attachments.length ? (
-          <div className="attachment-chip-list">
-            {attachments.map((attachment) => (
-              <span className="attachment-chip" key={attachment.id}>
-                <Paperclip size={14} />
-                {attachment.name}
-                <button type="button" onClick={() => removeAttachment(attachment.id)} aria-label={`Quitar ${attachment.name}`}>
-                  <X size={12} />
-                </button>
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p>Sin adjuntos.</p>
-        )}
-      </section>
-      ) : null}
       </fieldset>
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
@@ -9522,7 +9511,31 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   <textarea value={sendDraft.body} onChange={(event) => updateSendDraft({ body: event.target.value })} />
                 </label>
                 <div className="quote-send-attachments">
-                  <span>Archivos adjuntos</span>
+                  <div className="quote-send-attachments-head">
+                    <span>Archivos adjuntos</span>
+                    <div className="attachment-menu-wrap">
+                      <button
+                        className="attachment-trigger icon-only-attachment"
+                        type="button"
+                        onClick={() => setAttachmentMenuOpen((value) => !value)}
+                        aria-label="Adjuntar archivo"
+                        aria-haspopup="menu"
+                        aria-expanded={attachmentMenuOpen}
+                        title="Adjuntar archivo"
+                      >
+                        <Paperclip size={18} />
+                      </button>
+                      {attachmentMenuOpen ? (
+                        <div className="attachment-menu" role="menu">
+                          <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">Subir un archivo</button>
+                          <button type="button" onClick={() => setDocumentPicker("Catálogos")} role="menuitem">Catálogos</button>
+                          <button type="button" onClick={() => setDocumentPicker("Fichas técnicas")} role="menuitem">Fichas técnicas</button>
+                          <button type="button" onClick={() => setDocumentPicker("Certificados")} role="menuitem">Certificados</button>
+                        </div>
+                      ) : null}
+                      <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
+                    </div>
+                  </div>
                   <label>
                     <input
                       type="checkbox"
@@ -9531,6 +9544,19 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     />
                     <strong>{quotePdfName}</strong>
                   </label>
+                  {attachments.length ? (
+                    <div className="quote-send-attachment-list">
+                      {attachments.map((attachment) => (
+                        <span className="attachment-chip" key={attachment.id}>
+                          <Paperclip size={14} />
+                          {attachment.name}
+                          <button type="button" onClick={() => removeAttachment(attachment.id)} aria-label={`Quitar ${attachment.name}`}>
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : <small>Sin otros adjuntos.</small>}
                 </div>
                 {sendStatus ? <p className="form-success">{sendStatus}</p> : null}
               </section>
@@ -9558,7 +9584,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   </div>
                 </div>
                 <DocumentPdfPage
-                  id={quotePdfElementId}
+                  id={`${quotePdfElementId}-preview`}
                   type={pdfDocumentType}
                   language={quoteLanguage}
                   number={quoteNumberLabel}
@@ -9593,6 +9619,26 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           </form>
         </div>
       ) : null}
+      <div className="hidden-pdf-source" aria-hidden="true">
+        <DocumentPdfPage
+          id={quotePdfElementId}
+          type={pdfDocumentType}
+          language={quoteLanguage}
+          number={quoteNumberLabel}
+          date={quoteDate}
+          dueDate={validUntil}
+          clientBlock={quoteClientBlock}
+          lines={quotePdfLines}
+          subtotal={subtotal}
+          taxRate={activeTaxRate}
+          reverseCharge={reverseCharge}
+          taxTotal={taxTotal}
+          total={total}
+          paymentMethod={paymentMethod}
+          notes={notes || "**Para pagar con tarjeta por favor haga click en el siguiente enlace:**\n\nhttps://sis.redsys.es/sis/p2f?..."}
+          pdfTemplate={pdfTemplate}
+        />
+      </div>
       {documentPicker ? (
         <DocumentAttachmentPicker
           category={documentPicker}
