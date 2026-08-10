@@ -2120,7 +2120,10 @@ function DocumentPdfPage({
                 ) : null}
             </span>
             <span className="quote-pdf-line-code">{line.code || "-"}</span>
-            <span className="quote-pdf-line-concept">{line.concept || "-"}</span>
+            <span className="quote-pdf-line-concept">
+              <span>{line.concept || "-"}</span>
+              {line.customNote ? <em className="quote-pdf-line-custom-note">{line.customNote}</em> : null}
+            </span>
             <span className="quote-pdf-line-number">{formatLineQuantity(line.quantity)}</span>
             {!isDeliveryNote ? <span className="quote-pdf-line-number">{tableMoney(line.price || 0)}</span> : null}
             {!isDeliveryNote ? <span className="quote-pdf-line-number">{line.discount ? `${tableMoney(line.discount)}%` : "0%"}</span> : null}
@@ -2936,6 +2939,7 @@ function documentLinesForPdf(lines = []) {
     return {
       code: firstValue(line, ["code", "productCode", "sku", "reference", "product.code"], ""),
       concept: firstValue(line, ["text", "description", "title", "concept"], ""),
+      customNote: firstValue(line, ["customNote", "custom_note", "productSnapshot.customNote"], ""),
       quantity,
       price,
       discount: normalizeMoneyValue(firstValue(line, ["discount", "discountPercent", "discountPercentage"], 0)),
@@ -8295,7 +8299,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         quantity: line.quantity || 1,
         discountPercent: line.discountPercent || 0,
         unitPriceOverride: line.unitPrice,
-        manualTotal: null
+        manualTotal: null,
+        customNote: line.customNote || line.productSnapshot?.customNote || "",
+        customNoteOpen: Boolean(line.customNote || line.productSnapshot?.customNote)
       }));
     }
 
@@ -8306,11 +8312,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         sku: line.sku,
         quantity: line.quantity || 1,
         discountPercent: line.discountPercent || 0,
-        manualTotal: null
+        manualTotal: null,
+        customNote: line.customNote || "",
+        customNoteOpen: Boolean(line.customNote)
       }));
     }
 
-    return [{ id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null }];
+    return [{ id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null, customNote: "", customNoteOpen: false }];
   });
   const [templatePicker, setTemplatePicker] = useState(template?.id || "");
   const [draggingLineId, setDraggingLineId] = useState("");
@@ -8657,7 +8665,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       sku: "",
       quantity: 1,
       discountPercent: selectedLeadDefaultDiscount,
-      manualTotal: null
+      manualTotal: null,
+      customNote: "",
+      customNoteOpen: false
     };
   }
 
@@ -8674,7 +8684,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       discountPercent: Number(line.discountPercent) > 0
         ? Number(line.discountPercent)
         : selectedLeadDefaultDiscount,
-      manualTotal: null
+      manualTotal: null,
+      customNote: line.customNote || "",
+      customNoteOpen: Boolean(line.customNote)
     })));
   }
 
@@ -8843,6 +8855,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return {
       code: line.skuQuery || line.sku || "-",
       concept: selectedProduct?.title || selectedProduct?.shortDescription || "Producto pendiente",
+      customNote: String(line.customNote || "").trim(),
       imageUrl: imageUrlForDisplay(lineImageUrl, 220),
       quantity,
       price: unitPrice,
@@ -8949,7 +8962,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           sku: line.sku || line.skuQuery.trim(),
           quantity: Number(line.quantity),
           discountPercent: Number(line.discountPercent),
-          unitPrice: unitPriceForSubmit(line)
+          unitPrice: unitPriceForSubmit(line),
+          customNote: String(line.sku || line.skuQuery || "").trim().toUpperCase().startsWith("ZP")
+            ? String(line.customNote || "").trim()
+            : ""
         }))
         .filter((line) => line.sku),
       ...overrides
@@ -9380,6 +9396,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         </header>
         {lines.map((line, index) => {
           const selectedProduct = productForLine(line);
+          const supportsCustomNote = isQuote && String(line.sku || line.skuQuery || "").trim().toUpperCase().startsWith("ZP");
           return (
             <div
               className={index === 0 ? "quote-line-card" : "quote-line-card compact-line"}
@@ -9423,7 +9440,29 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <div className="quote-product-select">
                 <span>Descripción</span>
                 <strong>{selectedProduct?.title || "Producto no seleccionado"}</strong>
-                <span>{selectedProduct?.shortDescription || "Selecciona un producto del catálogo"}</span>
+                <span className="quote-product-description">{selectedProduct?.shortDescription || "Selecciona un producto del catálogo"}</span>
+                {supportsCustomNote ? (
+                  <div className="quote-line-custom-note">
+                    {line.customNoteOpen || line.customNote ? (
+                      <input
+                        type="text"
+                        aria-label={`Descripción personalizada de ${line.sku || line.skuQuery}`}
+                        placeholder="Ej.: Inclinación 35°, base 47 x 47 cm"
+                        value={line.customNote || ""}
+                        onChange={(event) => updateLine(line.id, { customNote: event.target.value })}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="quote-line-custom-note-trigger"
+                        onClick={() => updateLine(line.id, { customNoteOpen: true })}
+                      >
+                        <Plus size={13} />
+                        Descripción personalizada
+                      </button>
+                    )}
+                  </div>
+                ) : null}
               </div>
               <label>
                 <span>Cantidad</span>

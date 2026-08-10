@@ -5197,12 +5197,41 @@ th {
   white-space: nowrap;
 }
 
-.quote-product-select > span:last-child {
+.quote-product-select > .quote-product-description {
   overflow: hidden;
   color: var(--muted);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.quote-line-custom-note {
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.quote-line-custom-note-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border: 0;
+  color: var(--green-dark);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quote-line-custom-note input {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fafbf8;
+  font-size: 12px;
+  font-style: italic;
 }
 
 .quote-line-total input {
@@ -6056,10 +6085,20 @@ th {
 }
 
 .quote-pdf-line-concept {
+  display: grid;
+  gap: 2px;
   font-size: 9px;
   line-height: 1.18;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.quote-pdf-line-custom-note {
+  color: #777;
+  font-size: 7.6px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .quote-pdf-summary {
