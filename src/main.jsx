@@ -6460,6 +6460,7 @@ function DocumentTrace({ trace = [], currentType, currentId, onOpen }) {
 function LeadDetailModal({ lead, token, onClose, onSaved }) {
   const [draft, setDraft] = useState(() => leadToDraft(lead));
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
   const [error, setError] = useState("");
   const [viesMessage, setViesMessage] = useState("");
   const [viesChecking, setViesChecking] = useState(false);
@@ -6480,6 +6481,7 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
   async function saveProfile() {
     if (!token) return;
     setSaving(true);
+    setSaveState("saving");
     setError("");
     try {
       const result = await apiRequest(`/api/sales/leads/${lead.id}`, {
@@ -6494,9 +6496,13 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
         }
       });
       onSaved?.(result.item);
+      setSaveState("saved");
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
       setEditing(false);
+      setSaveState("idle");
     } catch (err) {
       setError(err.message);
+      setSaveState("idle");
     } finally {
       setSaving(false);
     }
@@ -6557,8 +6563,8 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
           </div>
           <div className="modal-header-actions">
             {editing ? (
-              <button className="secondary-button" type="button" onClick={saveProfile} disabled={saving || !token}>
-                {saving ? "Guardando..." : "Guardar cambios"}
+              <button className={`secondary-button ${saveState === "saved" ? "save-confirmed" : ""}`} type="button" onClick={saveProfile} disabled={saving || !token}>
+                {saving ? "Guardando..." : saveState === "saved" ? <><CheckCircle2 size={16} /> Guardado</> : "Guardar cambios"}
               </button>
             ) : null}
             <button className="icon-button" onClick={onClose} aria-label="Cerrar ficha">
@@ -7188,6 +7194,7 @@ function LeadFormFields({
     paymentNotificationsEnabled: !["level_1", "level_2"].includes(defaultLevel.id)
   });
   const [error, setError] = useState("");
+  const [saveState, setSaveState] = useState("idle");
   const [viesMessage, setViesMessage] = useState("");
   const [viesChecking, setViesChecking] = useState(false);
   const [whatsappMessage, setWhatsappMessage] = useState("");
@@ -7196,6 +7203,7 @@ function LeadFormFields({
   async function submit(event) {
     event?.preventDefault();
     setError("");
+    setSaveState("saving");
     try {
       const result = await onSubmit({
         ...form,
@@ -7203,9 +7211,12 @@ function LeadFormFields({
         fullName: fullNameFromDraft(form),
         defaultTaxRate: form.taxIdentifierType === "sujeto_pasivo" || form.viesValid ? 0 : form.defaultTaxRate
       });
+      setSaveState("saved");
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
       onDone?.(result, form);
     } catch (err) {
       setError(err.message);
+      setSaveState("idle");
     }
   }
 
@@ -7265,7 +7276,9 @@ function LeadFormFields({
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
         {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
-        <button className="primary-button" type="submit">{submitLabel}</button>
+        <button className={`primary-button ${saveState === "saved" ? "save-confirmed" : ""}`} type="submit" disabled={saveState === "saving"}>
+          {saveState === "saving" ? "Guardando..." : saveState === "saved" ? <><CheckCircle2 size={16} /> Guardado</> : submitLabel}
+        </button>
       </div>
     </form>
   );
@@ -8248,6 +8261,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [leadEditorOpen, setLeadEditorOpen] = useState(false);
   const [leadSaveStatus, setLeadSaveStatus] = useState("");
   const [leadSaving, setLeadSaving] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
   const [quoteViesMessage, setQuoteViesMessage] = useState("");
   const [quoteViesChecking, setQuoteViesChecking] = useState(false);
   const normalizedLeadSearch = leadSearchQuery.trim();
@@ -8567,6 +8581,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       setLeadSearchQuery(result.item.fullName || result.item.companyName || leadOptionLabel(result.item));
       setLeadSearchTouched(false);
       setLeadSaveStatus("Datos del cliente guardados.");
+      window.setTimeout(() => setLeadSaveStatus(""), 1800);
       leads.reload();
     } catch (err) {
       setLeadSaveStatus(err.message);
@@ -8695,7 +8710,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         body: {
           lineIds: transferLineIds,
           dueDate: validUntil,
-          paymentMethod
+          paymentMethod,
+          leadId: currentDocument?.leadId || selectedLeadId || null
         }
       });
       setTransferLinesOpen(false);
@@ -8715,7 +8731,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${currentDocument.id}`, {
         token,
         method: "POST",
-        body: {}
+        body: { leadId: currentDocument?.leadId || selectedLeadId || null }
       });
       onDone();
     } catch (err) {
@@ -8740,7 +8756,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         method: "POST",
         body: {
           dueDate: validUntil,
-          paymentMethod
+          paymentMethod,
+          leadId: currentDocument?.leadId || selectedLeadId || null
         }
       });
       const deliveryNote = deliveryNoteResult.item;
@@ -8749,7 +8766,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${deliveryNote.id}`, {
         token,
         method: "POST",
-        body: {}
+        body: { leadId: deliveryNote.leadId || currentDocument?.leadId || selectedLeadId || null }
       });
       onDone();
     } catch (err) {
@@ -8957,6 +8974,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         return;
       }
 
+      setSaveState("saving");
       const result = await apiRequest(currentDocument ? `${meta.endpoint}/${currentDocument.id}` : meta.endpoint, {
         token,
         method: currentDocument ? "PATCH" : "POST",
@@ -8984,11 +9002,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         setQuoteStatus(saved.status || quoteStatus);
       }
 
+      setSaveState("saved");
+
       if (!isQuote) {
+        await new Promise((resolve) => window.setTimeout(resolve, 650));
         onDone();
+      } else {
+        window.setTimeout(() => setSaveState("idle"), 1800);
       }
     } catch (err) {
       setError(err.message);
+      setSaveState("idle");
     }
   }
 
@@ -9147,8 +9171,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     <strong>Datos rápidos del cliente</strong>
                     <span>Completa estos campos sin salir del {documentTitle.toLowerCase()}.</span>
                   </div>
-                  <button type="button" onClick={saveSelectedLeadDraft} disabled={leadSaving}>
-                    {leadSaving ? "Guardando..." : "Guardar cliente"}
+                  <button className={leadSaveStatus === "Datos del cliente guardados." ? "save-confirmed" : ""} type="button" onClick={saveSelectedLeadDraft} disabled={leadSaving}>
+                    {leadSaving ? "Guardando..." : leadSaveStatus === "Datos del cliente guardados." ? <><CheckCircle2 size={16} /> Guardado</> : "Guardar cliente"}
                   </button>
                 </div>
                 <div className="quote-client-quick-edit-grid">
@@ -9434,8 +9458,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <div className="form-actions">
         {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
         {!readOnly ? (
-          <button className="primary-button" type="button" onClick={submit}>
-            {createButtonLabel}
+          <button className={`primary-button ${saveState === "saved" ? "save-confirmed" : ""}`} type="button" onClick={submit} disabled={saveState === "saving"}>
+            {saveState === "saving" ? "Guardando..." : saveState === "saved" ? <><CheckCircle2 size={16} /> Guardado</> : createButtonLabel}
           </button>
         ) : null}
         {isDeliveryNote && currentDocument && !readOnly ? (

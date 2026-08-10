@@ -149,6 +149,22 @@ select:focus {
   cursor: not-allowed;
 }
 
+.primary-button.save-confirmed,
+.secondary-button.save-confirmed,
+.quote-client-quick-edit-head button.save-confirmed {
+  color: #3f6700;
+  background: #e5f3be;
+  border-color: #8fbc13;
+  opacity: 1;
+}
+
+.primary-button.save-confirmed:disabled,
+.secondary-button.save-confirmed:disabled,
+.quote-client-quick-edit-head button.save-confirmed:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .spin-icon {
   animation: spin 0.9s linear infinite;
 }
