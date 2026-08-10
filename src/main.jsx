@@ -8240,6 +8240,7 @@ function DownloadsView() {
 }
 
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight" }) {
+  const currentUser = readSession()?.user || null;
   const meta = documentFormMeta(documentType);
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
@@ -8247,6 +8248,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isProforma = documentType === "proforma";
   const [savedDocument, setSavedDocument] = useState(initialQuote || null);
   const currentDocument = savedDocument || initialQuote || null;
+  const [selectedOwnerUserId, setSelectedOwnerUserId] = useState(initialQuote?.ownerUserId || currentUser?.id || "");
+  const [ownerMenuOpen, setOwnerMenuOpen] = useState(false);
   const pdfTemplate = currentDocument?.pdfTemplate || currentDocument?.visualTemplate || currentDocument?.metadata?.pdfTemplate || visualTemplate || "doinglight";
   const documentTitle = meta.title;
   const documentEyebrow = meta.eyebrow;
@@ -8269,6 +8272,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     () => apiRequest(`/api/sales/leads?limit=100&contactKind=client&q=${encodeURIComponent(normalizedLeadSearch)}`, { token }),
     [token, normalizedLeadSearch]
   );
+  const assignableUsers = useResource(() => apiRequest("/api/sales/users", { token }), [token]);
   const paymentSettings = useResource(() => apiRequest("/api/settings", { token }), [token]);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
@@ -8333,6 +8337,18 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const lastDiscountLeadId = useRef("");
 
   const products = catalog.data?.products || [];
+  const ownerUsers = assignableUsers.data?.items || [];
+  const selectedOwner = ownerUsers.find((user) => user.id === selectedOwnerUserId);
+  const selectedOwnerName = selectedOwner?.fullName
+    || currentDocument?.ownerFullName
+    || currentUser?.fullName
+    || currentUser?.email
+    || "Sin asignar";
+
+  useEffect(() => {
+    const nextOwnerId = currentDocument?.ownerUserId || currentUser?.id || "";
+    if (nextOwnerId) setSelectedOwnerUserId(nextOwnerId);
+  }, [currentDocument?.ownerUserId, currentUser?.id]);
   const leadsList = leads.data?.items || [];
   const paymentMethods = useMemo(
     () => normalizePaymentMethods(paymentSettings.data?.item?.paymentMethods),
@@ -8900,6 +8916,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return {
       locale: quoteLanguage || "es",
       leadId: selectedLeadId || null,
+      ownerUserId: selectedOwnerUserId || currentUser?.id || null,
       status: quoteStatus,
       issueDate: quoteDate,
       dueDate: validUntil,
@@ -9051,7 +9068,43 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         <div className="quote-fd-toolbar">
           <span>Operación: <strong>Empresa nacional</strong></span>
           <span>Plantilla: <strong>Tubo Solar</strong></span>
-          <span>Responsable: <strong>-</strong> <button type="button">Cambiar</button></span>
+          <span className="document-owner-control">
+            Responsable: <strong>{selectedOwnerName}</strong>
+            {!readOnly ? (
+              <button
+                type="button"
+                aria-expanded={ownerMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => setOwnerMenuOpen((open) => !open)}
+              >
+                Cambiar responsable
+              </button>
+            ) : null}
+            {ownerMenuOpen && !readOnly ? (
+              <div className="document-owner-menu" role="menu">
+                {assignableUsers.loading ? <p>Cargando usuarios...</p> : null}
+                {assignableUsers.error ? <p>No se pudieron cargar los usuarios.</p> : null}
+                {!assignableUsers.loading && !assignableUsers.error && ownerUsers.length === 0 ? (
+                  <p>No hay usuarios asignables.</p>
+                ) : null}
+                {ownerUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    role="menuitem"
+                    className={user.id === selectedOwnerUserId ? "is-active" : ""}
+                    onClick={() => {
+                      setSelectedOwnerUserId(user.id);
+                      setOwnerMenuOpen(false);
+                    }}
+                  >
+                    <span>{user.fullName || user.email}</span>
+                    <small>{user.email}</small>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </span>
         </div>
         <div className="quote-fd-title-row">
           <h4>{documentTitle}</h4>
