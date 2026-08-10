@@ -9139,12 +9139,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <span>Total</span>
               <strong>{money(total)}</strong>
             </div>
-            <button className="quote-document-icon-button" type="button" onClick={downloadQuotePdf} aria-label="Descargar PDF" title="Descargar PDF">
-              <Download size={20} />
-            </button>
-            <button className="quote-document-icon-button" type="button" onClick={printQuotePdf} aria-label="Imprimir" title="Imprimir">
-              <Printer size={20} />
-            </button>
+            {!isQuote ? (
+              <>
+                <button className="quote-document-icon-button" type="button" onClick={downloadQuotePdf} aria-label="Descargar PDF" title="Descargar PDF">
+                  <Download size={20} />
+                </button>
+                <button className="quote-document-icon-button" type="button" onClick={printQuotePdf} aria-label="Imprimir" title="Imprimir">
+                  <Printer size={20} />
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       </section>
@@ -9563,6 +9567,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <button className={`primary-button ${saveState === "saved" ? "save-confirmed" : ""}`} type="button" onClick={submit} disabled={saveState === "saving"}>
             {saveState === "saving" ? "Guardando..." : saveState === "saved" ? <><CheckCircle2 size={16} /> Guardado</> : createButtonLabel}
           </button>
+        ) : null}
+        {isQuote && currentDocument?.id ? (
+          <>
+            <button className="quote-send-icon-button" type="button" onClick={downloadQuotePdf} aria-label="Descargar PDF" title="Descargar PDF">
+              <Download size={20} />
+            </button>
+            <button className="quote-send-icon-button" type="button" onClick={printQuotePdf} aria-label="Imprimir PDF" title="Imprimir PDF">
+              <Printer size={20} />
+            </button>
+          </>
         ) : null}
         {isDeliveryNote && currentDocument && !readOnly ? (
           <button className="primary-button" type="button" onClick={createInvoiceFromDeliveryNote}>
