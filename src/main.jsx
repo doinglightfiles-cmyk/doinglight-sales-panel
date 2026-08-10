@@ -7717,7 +7717,8 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   const quoteActionsRef = useRef({});
   const finish = onDone || onUpdated || onClose;
   const itemStatus = String(item?.status || "").toLowerCase();
-  const isLockedQuote = activeDocument.documentType === "quote" && ["sent", "transferred", "traspasado"].includes(itemStatus);
+  const isTransferBlockedQuote =
+    activeDocument.documentType === "quote" && isQuoteTransferBlockedStatus(itemStatus);
   const isLockedDeliveryNote = activeDocument.documentType === "delivery_note" && (
     itemStatus.includes("factur") ||
     itemStatus.includes("invoice") ||
@@ -7725,15 +7726,13 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
     itemStatus.includes("anulad") ||
     itemStatus.includes("cancel")
   );
-  const documentLocked = isLockedQuote || isLockedDeliveryNote;
+  const documentLocked = isLockedDeliveryNote;
   const documentNumber = item?.quoteNumber || item?.documentNumber || activeDocument.number || quote.number;
-  const lockMessage = isLockedQuote
-    ? "Presupuesto traspasado. No se puede modificar porque ya ha generado albarán."
-    : isLockedDeliveryNote
-      ? itemStatus.includes("invoice") || itemStatus.includes("factur")
-        ? "Albarán facturado. No se puede modificar ni eliminar."
-        : "Albarán anulado. No se puede modificar ni eliminar."
-      : "";
+  const lockMessage = isLockedDeliveryNote
+    ? itemStatus.includes("invoice") || itemStatus.includes("factur")
+      ? "Albarán facturado. No se puede modificar ni eliminar."
+      : "Albarán anulado. No se puede modificar ni eliminar."
+    : "";
 
   function openQuoteSendFromMenu() {
     if (!quoteActionsRef.current.openSend) throw new Error("Todavía no se ha cargado el presupuesto.");
@@ -7852,12 +7851,12 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
               onDuplicate={duplicateQuoteFromMenu}
               onDuplicateAsQuote={duplicateAsQuoteFromMenu}
               onDuplicateAsDeliveryNote={duplicateAsDeliveryNoteFromMenu}
-              onCreateDeliveryNote={documentLocked ? null : createDeliveryNoteFromQuote}
+              onCreateDeliveryNote={isTransferBlockedQuote ? null : createDeliveryNoteFromQuote}
               onCreateInvoice={createInvoiceFromQuote}
               onVoid={voidDocumentFromMenu}
               onDelete={deleteQuoteFromMenu}
               canModify={!documentLocked}
-              canDelete={activeDocument.documentType !== "delivery_note" && !documentLocked}
+              canDelete={activeDocument.documentType !== "delivery_note" && !isTransferBlockedQuote && !documentLocked}
               canVoid={activeDocument.documentType === "delivery_note" && !documentLocked}
             />
           ) : null}
@@ -8349,6 +8348,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     const nextOwnerId = currentDocument?.ownerUserId || currentUser?.id || "";
     if (nextOwnerId) setSelectedOwnerUserId(nextOwnerId);
   }, [currentDocument?.ownerUserId, currentUser?.id]);
+
+  useEffect(() => {
+    const persistedLeadId = currentDocument?.leadId || initialQuote?.leadId || "";
+    if (persistedLeadId) setSelectedLeadId((current) => current || persistedLeadId);
+  }, [currentDocument?.leadId, initialQuote?.leadId]);
+
   const leadsList = leads.data?.items || [];
   const paymentMethods = useMemo(
     () => normalizePaymentMethods(paymentSettings.data?.item?.paymentMethods),
@@ -8357,6 +8362,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
+  const effectiveLeadId = selectedLeadId || selectedLeadSnapshot?.id || currentDocument?.leadId || initialQuote?.leadId || "";
   const selectedLeadDefaultDiscount = Number(selectedLead?.defaultDiscountPercent || 0);
   const filteredLeadSuggestions = useMemo(() => {
     const needle = normalizeSearchText(leadSearchQuery);
@@ -8727,7 +8733,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           lineIds: transferLineIds,
           dueDate: validUntil,
           paymentMethod,
-          leadId: currentDocument?.leadId || selectedLeadId || null
+          leadId: effectiveLeadId || null
         }
       });
       setTransferLinesOpen(false);
@@ -8747,7 +8753,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${currentDocument.id}`, {
         token,
         method: "POST",
-        body: { leadId: currentDocument?.leadId || selectedLeadId || null }
+        body: { leadId: effectiveLeadId || null }
       });
       onDone();
     } catch (err) {
@@ -8773,7 +8779,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         body: {
           dueDate: validUntil,
           paymentMethod,
-          leadId: currentDocument?.leadId || selectedLeadId || null
+          leadId: effectiveLeadId || null
         }
       });
       const deliveryNote = deliveryNoteResult.item;
@@ -8782,7 +8788,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${deliveryNote.id}`, {
         token,
         method: "POST",
-        body: { leadId: deliveryNote.leadId || currentDocument?.leadId || selectedLeadId || null }
+        body: { leadId: deliveryNote.leadId || effectiveLeadId || null }
       });
       onDone();
     } catch (err) {
@@ -8915,7 +8921,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   function buildQuotePayload(overrides = {}) {
     return {
       locale: quoteLanguage || "es",
-      leadId: selectedLeadId || null,
+      leadId: effectiveLeadId || null,
       ownerUserId: selectedOwnerUserId || currentUser?.id || null,
       status: quoteStatus,
       issueDate: quoteDate,
@@ -8997,9 +9003,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         method: currentDocument ? "PATCH" : "POST",
         body: buildQuotePayload()
       });
-      const saved = result?.item || result;
+      const savedItem = result?.item || result;
+      const saved = savedItem?.id && !savedItem.leadId && effectiveLeadId
+        ? { ...savedItem, leadId: effectiveLeadId }
+        : savedItem;
       if (saved?.id) {
         setSavedDocument(saved);
+        if (saved.leadId) setSelectedLeadId(saved.leadId);
         if (Array.isArray(saved.items)) {
           setLines((currentLines) => currentLines.map((line, index) => {
             const savedLine = saved.items[index];
