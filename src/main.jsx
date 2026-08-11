@@ -5806,6 +5806,7 @@ const PURCHASE_STATUS_OPTIONS = [
 ];
 
 const PURCHASE_TAX_OPTIONS = [
+  { value: "vat_non_deductible", label: "IVA no deducible", rate: 21, kind: "non_deductible" },
   { value: "vat_21", label: "IVA (servicios) 21%", rate: 21, kind: "vat" },
   { value: "vat_10", label: "IVA (servicios) 10%", rate: 10, kind: "vat" },
   { value: "vat_4", label: "IVA (servicios) 4%", rate: 4, kind: "vat" },
@@ -5820,29 +5821,45 @@ function purchaseTaxOption(line = {}) {
   const byCode = PURCHASE_TAX_OPTIONS.find((option) => option.value === (line.taxCode || line.tax_code));
   if (byCode) return byCode;
   const rate = Number(line.taxRate ?? line.tax_rate ?? 21);
+  if (rate === 21) return PURCHASE_TAX_OPTIONS.find((option) => option.value === "vat_21");
   return PURCHASE_TAX_OPTIONS.find((option) => option.rate === rate)
-    || PURCHASE_TAX_OPTIONS[0];
+    || PURCHASE_TAX_OPTIONS.find((option) => option.value === "vat_21");
+}
+
+function legacyPurchaseLineTotal(line, option) {
+  const quantity = Math.max(0, Number(line.quantity) || 0);
+  const unitCost = Math.max(0, Number(line.unitCost ?? line.unit_cost) || 0);
+  const discount = Math.min(100, Math.max(0, Number(line.discountPercent ?? line.discount_percent) || 0));
+  const base = quantity * unitCost * (1 - discount / 100);
+  return option.kind === "disbursement" ? base : base * (1 + option.rate / 100);
 }
 
 function normalizePurchaseLine(line = {}) {
   const option = purchaseTaxOption(line);
-  return { ...line, taxCode: option.value, taxRate: option.rate };
+  const explicitTotal = line.lineTotal ?? line.line_total ?? line.total;
+  const hasExplicitTotal = explicitTotal !== undefined && explicitTotal !== null && explicitTotal !== "";
+  return {
+    ...line,
+    taxCode: option.value,
+    taxRate: option.rate,
+    lineTotal: hasExplicitTotal ? Number(explicitTotal) : legacyPurchaseLineTotal(line, option)
+  };
 }
 
 function purchaseLineAmounts(line = {}) {
-  const quantity = Math.max(0, Number(line.quantity) || 0);
-  const unitCost = Math.max(0, Number(line.unitCost) || 0);
-  const discount = Math.min(100, Math.max(0, Number(line.discountPercent) || 0));
-  const base = quantity * unitCost * (1 - discount / 100);
   const taxOption = purchaseTaxOption(line);
-  const adjustment = base * (taxOption.rate / 100);
+  const total = Math.max(0, Number(line.lineTotal ?? line.line_total ?? line.total) || 0);
+  const divisor = taxOption.kind === "disbursement" ? 1 : 1 + taxOption.rate / 100;
+  const base = divisor > 0 ? total / divisor : total;
+  const adjustment = total - base;
   return {
     base,
     taxOption,
     vat: taxOption.kind === "vat" ? adjustment : 0,
+    nonDeductibleVat: taxOption.kind === "non_deductible" ? adjustment : 0,
     withholding: taxOption.kind === "withholding" ? Math.abs(adjustment) : 0,
-    disbursement: taxOption.kind === "disbursement" ? base : 0,
-    total: base + adjustment
+    disbursement: taxOption.kind === "disbursement" ? total : 0,
+    total
   };
 }
 
@@ -5862,7 +5879,8 @@ function emptyPurchaseLine() {
     unitCost: 0,
     discountPercent: 0,
     taxCode: "vat_21",
-    taxRate: 21
+    taxRate: 21,
+    lineTotal: ""
   };
 }
 
@@ -6039,11 +6057,12 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
     return {
       subtotal: acc.subtotal + (amounts.taxOption.kind === "disbursement" ? 0 : amounts.base),
       vat: acc.vat + amounts.vat,
+      nonDeductibleVat: acc.nonDeductibleVat + amounts.nonDeductibleVat,
       withholding: acc.withholding + amounts.withholding,
       disbursement: acc.disbursement + amounts.disbursement,
       total: acc.total + amounts.total
     };
-  }, { subtotal: 0, vat: 0, withholding: 0, disbursement: 0, total: 0 });
+  }, { subtotal: 0, vat: 0, nonDeductibleVat: 0, withholding: 0, disbursement: 0, total: 0 });
   const canDelete = purchase?.status !== "paid";
 
   function updateLine(index, key, value) {
@@ -6170,17 +6189,12 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
             <button className="secondary-button" type="button" onClick={() => addLine()}><Plus size={16} /> Añadir línea</button>
           </header>
           <div className="purchase-line-header" aria-hidden="true">
-            <span>Referencia</span><span>Descripción</span><span>Cantidad</span><span>Coste</span><span>Dto. %</span><span>Impuesto</span><span>Importe</span><span />
+            <span>Descripción</span><span>Impuesto</span><span>Total</span><span />
           </div>
           {form.lines.map((line, index) => {
-            const amounts = purchaseLineAmounts(line);
             return (
               <div className="purchase-line-row" key={`${index}-${line.id || "new"}`}>
-                <input value={line.reference} onChange={(event) => updateLine(index, "reference", event.target.value)} placeholder="Ref." aria-label="Referencia" />
                 <input value={line.description} onChange={(event) => updateLine(index, "description", event.target.value)} placeholder="Descripción" aria-label="Descripción" />
-                <input type="number" min="0" step="0.01" value={line.quantity} onChange={(event) => updateLine(index, "quantity", event.target.value)} aria-label="Cantidad" />
-                <input type="number" min="0" step="0.01" value={line.unitCost} onChange={(event) => updateLine(index, "unitCost", event.target.value)} aria-label="Coste unitario" />
-                <input type="number" min="0" max="100" step="0.01" value={line.discountPercent} onChange={(event) => updateLine(index, "discountPercent", event.target.value)} aria-label="Descuento" />
                 <select
                   value={line.taxCode}
                   onChange={(event) => {
@@ -6196,7 +6210,16 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
                 >
                   {PURCHASE_TAX_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
-                <strong className="purchase-line-total">{money(amounts.total)}</strong>
+                <input
+                  className="purchase-line-total-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={line.lineTotal ?? ""}
+                  onChange={(event) => updateLine(index, "lineTotal", event.target.value)}
+                  placeholder="0,00"
+                  aria-label="Total de línea"
+                />
                 <div className="purchase-line-actions">
                   <button className="icon-button" type="button" onClick={() => addLine(index)} aria-label="Añadir línea"><Plus size={15} /></button>
                   <button className="icon-button" type="button" onClick={() => removeLine(index)} aria-label="Eliminar línea"><X size={15} /></button>
@@ -6215,6 +6238,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
       <aside className="purchase-summary" aria-label="Resumen de compra">
         <span>Base imponible <strong>{money(totals.subtotal)}</strong></span>
         <span>IVA <strong>{money(totals.vat)}</strong></span>
+        {totals.nonDeductibleVat ? <span>IVA no deducible <strong>{money(totals.nonDeductibleVat)}</strong></span> : null}
         {totals.withholding ? <span>Retenciones <strong>-{money(totals.withholding)}</strong></span> : null}
         {totals.disbursement ? <span>Suplidos <strong>{money(totals.disbursement)}</strong></span> : null}
         <span className="purchase-summary-total">Total <strong>{money(totals.total)}</strong></span>

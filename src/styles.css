@@ -1482,7 +1482,7 @@ select:focus {
 .purchase-line-header,
 .purchase-line-row {
   display: grid;
-  grid-template-columns: minmax(82px, 0.7fr) minmax(170px, 1.8fr) minmax(70px, 0.55fr) minmax(82px, 0.7fr) minmax(68px, 0.55fr) minmax(180px, 1.35fr) minmax(92px, 0.75fr) 82px;
+  grid-template-columns: minmax(280px, 2fr) minmax(210px, 1fr) minmax(130px, 0.7fr) 82px;
   gap: 8px;
   align-items: center;
 }
@@ -1504,9 +1504,9 @@ select:focus {
   min-width: 0;
 }
 
-.purchase-line-total {
+.purchase-line-total-input {
   text-align: right;
-  white-space: nowrap;
+  font-weight: 800;
 }
 
 .purchase-line-actions {
@@ -6435,11 +6435,11 @@ th {
     padding-top: 14px;
   }
 
-  .purchase-line-row > :nth-child(2) {
+  .purchase-line-row > :nth-child(1) {
     grid-column: 1 / -1;
   }
 
-  .purchase-line-total {
+  .purchase-line-total-input {
     text-align: left;
   }
 
