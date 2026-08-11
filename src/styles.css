@@ -1419,6 +1419,100 @@ select:focus {
   gap: 20px;
 }
 
+.purchase-attachment-trigger {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--green-dark);
+  background: var(--white);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.purchase-attachment-trigger:hover {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.purchase-attachment-input {
+  display: none;
+}
+
+.purchase-attachments {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.purchase-attachments > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.purchase-attachments h4,
+.purchase-attachments p {
+  margin: 0;
+}
+
+.purchase-attachments h4 {
+  font-size: 16px;
+}
+
+.purchase-attachments header span,
+.purchase-attachment-info span,
+.purchase-attachment-pending {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.purchase-attachment-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.purchase-attachment-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--white);
+}
+
+.purchase-attachment-info {
+  display: grid;
+  min-width: 0;
+}
+
+.purchase-attachment-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.purchase-attachment-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.purchase-attachment-empty {
+  margin-top: 12px !important;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .purchase-form fieldset {
   min-width: 0;
   margin: 0;
@@ -6453,6 +6547,14 @@ th {
 }
 
 @media (max-width: 560px) {
+  .purchase-attachment-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .purchase-attachment-pending {
+    grid-column: 2 / -1;
+  }
+
   .app-header {
     grid-template-columns: 1fr;
     padding: 12px 14px;

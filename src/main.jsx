@@ -585,6 +585,43 @@ async function apiRequest(path, { token, method = "GET", body } = {}) {
   return payload;
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onerror = () => reject(new Error("No se ha podido leer el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function attachmentSize(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function saveBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "adjunto";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadAuthenticatedFile(path, { token, fileName }) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || `Error HTTP ${response.status}`);
+  }
+  saveBlob(await response.blob(), fileName);
+}
+
 function readSession() {
   try {
     return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
@@ -1056,6 +1093,16 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
             : globalPurchaseOpen.documentType === "expense" ? "Nuevo gasto o tique" : "Nueva factura de compra"}
           eyebrow="Compras"
           size="wide-modal purchase-work-modal"
+          actions={(globalPurchaseOpen.purchase?.documentType || globalPurchaseOpen.documentType) === "supplier_invoice" ? (
+            <label
+              className="purchase-attachment-trigger"
+              htmlFor="purchase-attachment-input"
+              title="Adjuntar factura original"
+              aria-label="Adjuntar factura original"
+            >
+              <Paperclip size={19} />
+            </label>
+          ) : null}
           onClose={() => setGlobalPurchaseOpen(null)}
         >
           <PurchaseForm
@@ -6019,6 +6066,9 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(Boolean(purchase?.id));
   const [error, setError] = useState("");
+  const [attachments, setAttachments] = useState(purchase?.attachments || []);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
   const suppliers = useResource(
     () => apiRequest("/api/sales/leads?contactKind=supplier&limit=500", { token }),
     [token]
@@ -6045,6 +6095,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
           internalNotes: item.internalNotes || "",
           lines: item.lines?.length ? item.lines.map(normalizePurchaseLine) : [emptyPurchaseLine()]
         });
+        setAttachments(item.attachments || []);
       })
       .catch((err) => active && setError(err.message))
       .finally(() => active && setLoadingDetail(false));
@@ -6087,6 +6138,68 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
     }));
   }
 
+  async function addAttachments(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+    setError("");
+    setAttachmentBusy(true);
+    try {
+      for (const file of files) {
+        const extension = file.name.split(".").pop()?.toLowerCase();
+        const mimeType = file.type || (extension === "pdf" ? "application/pdf" : "image/jpeg");
+        if (!["pdf", "jpg", "jpeg"].includes(extension) || !["application/pdf", "image/jpeg"].includes(mimeType)) {
+          throw new Error("Solo se pueden adjuntar archivos PDF, JPG o JPEG.");
+        }
+        if (file.size > 10 * 1024 * 1024) throw new Error("Cada archivo puede ocupar como máximo 10 MB.");
+        const dataBase64 = await fileToBase64(file);
+        const input = { fileName: file.name, mimeType, fileSize: file.size, dataBase64 };
+        if (purchase?.id) {
+          const result = await apiRequest(`/api/purchases/${purchase.id}/attachments`, {
+            token,
+            method: "POST",
+            body: input
+          });
+          setAttachments((current) => [...current, result.item]);
+        } else {
+          setPendingAttachments((current) => [...current, { ...input, localId: crypto.randomUUID() }]);
+        }
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAttachmentBusy(false);
+    }
+  }
+
+  async function downloadAttachment(attachment, pending = false) {
+    setError("");
+    try {
+      if (pending) {
+        const bytes = Uint8Array.from(atob(attachment.dataBase64), (character) => character.charCodeAt(0));
+        saveBlob(new Blob([bytes], { type: attachment.mimeType }), attachment.fileName);
+        return;
+      }
+      await downloadAuthenticatedFile(attachment.url, { token, fileName: attachment.fileName });
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function removeAttachment(attachment, pending = false) {
+    setError("");
+    if (pending) {
+      setPendingAttachments((current) => current.filter((item) => item.localId !== attachment.localId));
+      return;
+    }
+    try {
+      await apiRequest(`/api/purchases/${purchase.id}/attachments/${attachment.id}`, { token, method: "DELETE" });
+      setAttachments((current) => current.filter((item) => item.id !== attachment.id));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function submit(event) {
     event.preventDefault();
     setError("");
@@ -6100,7 +6213,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
     }
     setSaving(true);
     try {
-      await apiRequest(purchase?.id ? `/api/purchases/${purchase.id}` : "/api/purchases", {
+      const result = await apiRequest(purchase?.id ? `/api/purchases/${purchase.id}` : "/api/purchases", {
         token,
         method: purchase?.id ? "PATCH" : "POST",
         body: {
@@ -6110,6 +6223,15 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
           lines: form.lines.filter((line) => String(line.description || "").trim())
         }
       });
+      const purchaseId = result.item?.id || purchase?.id;
+      for (const attachment of pendingAttachments) {
+        await apiRequest(`/api/purchases/${purchaseId}/attachments`, {
+          token,
+          method: "POST",
+          body: attachment
+        });
+      }
+      setPendingAttachments([]);
       onDone?.();
     } catch (err) {
       setError(err.message);
@@ -6136,6 +6258,14 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
   return (
     <form className="purchase-form" onSubmit={submit}>
       <fieldset disabled={saving}>
+        <input
+          id="purchase-attachment-input"
+          className="purchase-attachment-input"
+          type="file"
+          accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+          multiple
+          onChange={addAttachments}
+        />
         <div className="purchase-form-grid">
           <label>
             Tipo de documento
@@ -6173,13 +6303,53 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
           </label>
           <label>
             Método de pago
-            <input value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })} placeholder="Transferencia, tarjeta..." />
+            <select value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })}>
+              <option value="">Seleccionar método de pago</option>
+              {form.paymentMethod && !PAYMENT_METHOD_DEFAULTS.some((option) => option.name === form.paymentMethod) ? (
+                <option value={form.paymentMethod}>{form.paymentMethod}</option>
+              ) : null}
+              {PAYMENT_METHOD_DEFAULTS.map((option) => (
+                <option key={option.name} value={option.name}>
+                  {option.detail ? `${option.name} · ${option.detail}` : option.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="purchase-deductible-field">
             <input type="checkbox" checked={form.deductible} onChange={(event) => setForm({ ...form, deductible: event.target.checked })} />
             IVA deducible
           </label>
         </div>
+
+        {form.documentType === "supplier_invoice" ? (
+          <section className="purchase-attachments">
+            <header>
+              <div>
+                <h4>Factura original</h4>
+                <p>PDF o JPG, hasta 10 MB por archivo.</p>
+              </div>
+              <span>{attachmentBusy ? "Adjuntando..." : `${attachments.length + pendingAttachments.length} archivo(s)`}</span>
+            </header>
+            {attachments.length || pendingAttachments.length ? (
+              <div className="purchase-attachment-list">
+                {[...attachments.map((item) => ({ item, pending: false })), ...pendingAttachments.map((item) => ({ item, pending: true }))].map(({ item, pending }) => (
+                  <div className="purchase-attachment-row" key={item.id || item.localId}>
+                    <FileText size={18} />
+                    <div className="purchase-attachment-info">
+                      <strong>{item.fileName}</strong>
+                      <span>{attachmentSize(item.fileSize)}</span>
+                    </div>
+                    {pending ? <span className="purchase-attachment-pending">Se guardará con la factura</span> : null}
+                    <div className="purchase-attachment-actions">
+                      <button className="icon-button" type="button" title="Descargar" onClick={() => downloadAttachment(item, pending)}><Download size={16} /></button>
+                      <button className="icon-button" type="button" title="Quitar adjunto" onClick={() => removeAttachment(item, pending)}><X size={16} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="purchase-attachment-empty">No hay ninguna factura original adjunta.</p>}
+          </section>
+        ) : null}
 
         <section className="purchase-lines">
           <header>
