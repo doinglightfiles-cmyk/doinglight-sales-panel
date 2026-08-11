@@ -1482,7 +1482,7 @@ select:focus {
 .purchase-line-header,
 .purchase-line-row {
   display: grid;
-  grid-template-columns: minmax(90px, 0.8fr) minmax(190px, 2.2fr) minmax(76px, 0.65fr) minmax(90px, 0.8fr) minmax(72px, 0.65fr) minmax(76px, 0.65fr) minmax(92px, 0.8fr) 82px;
+  grid-template-columns: minmax(82px, 0.7fr) minmax(170px, 1.8fr) minmax(70px, 0.55fr) minmax(82px, 0.7fr) minmax(68px, 0.55fr) minmax(180px, 1.35fr) minmax(92px, 0.75fr) 82px;
   gap: 8px;
   align-items: center;
 }

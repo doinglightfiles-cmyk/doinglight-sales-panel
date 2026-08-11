@@ -5805,6 +5805,47 @@ const PURCHASE_STATUS_OPTIONS = [
   { value: "void", label: "Anulada" }
 ];
 
+const PURCHASE_TAX_OPTIONS = [
+  { value: "vat_21", label: "IVA (servicios) 21%", rate: 21, kind: "vat" },
+  { value: "vat_10", label: "IVA (servicios) 10%", rate: 10, kind: "vat" },
+  { value: "vat_4", label: "IVA (servicios) 4%", rate: 4, kind: "vat" },
+  { value: "vat_5", label: "IVA (servicios) 5%", rate: 5, kind: "vat" },
+  { value: "irpf_15", label: "IRPF 15%", rate: -15, kind: "withholding" },
+  { value: "irpf_7", label: "IRPF 7%", rate: -7, kind: "withholding" },
+  { value: "rent_withholding_19", label: "Retención alquiler urbano 19%", rate: -19, kind: "withholding" },
+  { value: "disbursement", label: "Suplidos", rate: 0, kind: "disbursement" }
+];
+
+function purchaseTaxOption(line = {}) {
+  const byCode = PURCHASE_TAX_OPTIONS.find((option) => option.value === (line.taxCode || line.tax_code));
+  if (byCode) return byCode;
+  const rate = Number(line.taxRate ?? line.tax_rate ?? 21);
+  return PURCHASE_TAX_OPTIONS.find((option) => option.rate === rate)
+    || PURCHASE_TAX_OPTIONS[0];
+}
+
+function normalizePurchaseLine(line = {}) {
+  const option = purchaseTaxOption(line);
+  return { ...line, taxCode: option.value, taxRate: option.rate };
+}
+
+function purchaseLineAmounts(line = {}) {
+  const quantity = Math.max(0, Number(line.quantity) || 0);
+  const unitCost = Math.max(0, Number(line.unitCost) || 0);
+  const discount = Math.min(100, Math.max(0, Number(line.discountPercent) || 0));
+  const base = quantity * unitCost * (1 - discount / 100);
+  const taxOption = purchaseTaxOption(line);
+  const adjustment = base * (taxOption.rate / 100);
+  return {
+    base,
+    taxOption,
+    vat: taxOption.kind === "vat" ? adjustment : 0,
+    withholding: taxOption.kind === "withholding" ? Math.abs(adjustment) : 0,
+    disbursement: taxOption.kind === "disbursement" ? base : 0,
+    total: base + adjustment
+  };
+}
+
 function purchaseStatusLabel(value) {
   return PURCHASE_STATUS_OPTIONS.find((option) => option.value === value)?.label || value;
 }
@@ -5820,6 +5861,7 @@ function emptyPurchaseLine() {
     quantity: 1,
     unitCost: 0,
     discountPercent: 0,
+    taxCode: "vat_21",
     taxRate: 21
   };
 }
@@ -5954,7 +5996,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
     paymentMethod: purchase?.paymentMethod || "",
     notes: purchase?.notes || "",
     internalNotes: purchase?.internalNotes || "",
-    lines: purchase?.lines?.length ? purchase.lines : [emptyPurchaseLine()]
+    lines: purchase?.lines?.length ? purchase.lines.map(normalizePurchaseLine) : [emptyPurchaseLine()]
   });
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(Boolean(purchase?.id));
@@ -5983,7 +6025,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
           paymentMethod: item.paymentMethod || "",
           notes: item.notes || "",
           internalNotes: item.internalNotes || "",
-          lines: item.lines?.length ? item.lines : [emptyPurchaseLine()]
+          lines: item.lines?.length ? item.lines.map(normalizePurchaseLine) : [emptyPurchaseLine()]
         });
       })
       .catch((err) => active && setError(err.message))
@@ -5993,14 +6035,16 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
 
   const supplierItems = suppliers.data?.items || suppliers.data?.leads || [];
   const totals = form.lines.reduce((acc, line) => {
-    const quantity = Math.max(0, Number(line.quantity) || 0);
-    const unitCost = Math.max(0, Number(line.unitCost) || 0);
-    const discount = Math.min(100, Math.max(0, Number(line.discountPercent) || 0));
-    const subtotal = quantity * unitCost * (1 - discount / 100);
-    const tax = subtotal * (Math.max(0, Number(line.taxRate) || 0) / 100);
-    return { subtotal: acc.subtotal + subtotal, tax: acc.tax + tax, total: acc.total + subtotal + tax };
-  }, { subtotal: 0, tax: 0, total: 0 });
-  const readOnly = purchase?.status === "paid";
+    const amounts = purchaseLineAmounts(line);
+    return {
+      subtotal: acc.subtotal + (amounts.taxOption.kind === "disbursement" ? 0 : amounts.base),
+      vat: acc.vat + amounts.vat,
+      withholding: acc.withholding + amounts.withholding,
+      disbursement: acc.disbursement + amounts.disbursement,
+      total: acc.total + amounts.total
+    };
+  }, { subtotal: 0, vat: 0, withholding: 0, disbursement: 0, total: 0 });
+  const canDelete = purchase?.status !== "paid";
 
   function updateLine(index, key, value) {
     setForm((current) => ({
@@ -6072,7 +6116,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
 
   return (
     <form className="purchase-form" onSubmit={submit}>
-      <fieldset disabled={readOnly || saving}>
+      <fieldset disabled={saving}>
         <div className="purchase-form-grid">
           <label>
             Tipo de documento
@@ -6126,10 +6170,10 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
             <button className="secondary-button" type="button" onClick={() => addLine()}><Plus size={16} /> Añadir línea</button>
           </header>
           <div className="purchase-line-header" aria-hidden="true">
-            <span>Referencia</span><span>Descripción</span><span>Cantidad</span><span>Coste</span><span>Dto. %</span><span>IVA %</span><span>Importe</span><span />
+            <span>Referencia</span><span>Descripción</span><span>Cantidad</span><span>Coste</span><span>Dto. %</span><span>Impuesto</span><span>Importe</span><span />
           </div>
           {form.lines.map((line, index) => {
-            const base = Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.unitCost) || 0) * (1 - Math.min(100, Math.max(0, Number(line.discountPercent) || 0)) / 100);
+            const amounts = purchaseLineAmounts(line);
             return (
               <div className="purchase-line-row" key={`${index}-${line.id || "new"}`}>
                 <input value={line.reference} onChange={(event) => updateLine(index, "reference", event.target.value)} placeholder="Ref." aria-label="Referencia" />
@@ -6137,10 +6181,22 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
                 <input type="number" min="0" step="0.01" value={line.quantity} onChange={(event) => updateLine(index, "quantity", event.target.value)} aria-label="Cantidad" />
                 <input type="number" min="0" step="0.01" value={line.unitCost} onChange={(event) => updateLine(index, "unitCost", event.target.value)} aria-label="Coste unitario" />
                 <input type="number" min="0" max="100" step="0.01" value={line.discountPercent} onChange={(event) => updateLine(index, "discountPercent", event.target.value)} aria-label="Descuento" />
-                <select value={line.taxRate} onChange={(event) => updateLine(index, "taxRate", event.target.value)} aria-label="IVA">
-                  <option value="0">0%</option><option value="4">4%</option><option value="10">10%</option><option value="21">21%</option>
+                <select
+                  value={line.taxCode}
+                  onChange={(event) => {
+                    const option = PURCHASE_TAX_OPTIONS.find((item) => item.value === event.target.value) || PURCHASE_TAX_OPTIONS[0];
+                    setForm((current) => ({
+                      ...current,
+                      lines: current.lines.map((item, lineIndex) => lineIndex === index
+                        ? { ...item, taxCode: option.value, taxRate: option.rate }
+                        : item)
+                    }));
+                  }}
+                  aria-label="Impuesto"
+                >
+                  {PURCHASE_TAX_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
-                <strong className="purchase-line-total">{money(base)}</strong>
+                <strong className="purchase-line-total">{money(amounts.total)}</strong>
                 <div className="purchase-line-actions">
                   <button className="icon-button" type="button" onClick={() => addLine(index)} aria-label="Añadir línea"><Plus size={15} /></button>
                   <button className="icon-button" type="button" onClick={() => removeLine(index)} aria-label="Eliminar línea"><X size={15} /></button>
@@ -6158,17 +6214,18 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
 
       <aside className="purchase-summary" aria-label="Resumen de compra">
         <span>Base imponible <strong>{money(totals.subtotal)}</strong></span>
-        <span>IVA <strong>{money(totals.tax)}</strong></span>
+        <span>IVA <strong>{money(totals.vat)}</strong></span>
+        {totals.withholding ? <span>Retenciones <strong>-{money(totals.withholding)}</strong></span> : null}
+        {totals.disbursement ? <span>Suplidos <strong>{money(totals.disbursement)}</strong></span> : null}
         <span className="purchase-summary-total">Total <strong>{money(totals.total)}</strong></span>
       </aside>
 
-      {readOnly ? <p className="purchase-lock-note">La compra está pagada y se conserva bloqueada para evitar cambios contables.</p> : null}
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions purchase-form-actions">
-        {purchase?.id && !readOnly ? <button className="danger-text-button" type="button" onClick={removePurchase}>Eliminar</button> : null}
+        {purchase?.id && canDelete ? <button className="danger-text-button" type="button" onClick={removePurchase}>Eliminar</button> : null}
         <span className="form-actions-spacer" />
         <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button>
-        {!readOnly ? <button className="primary-button" type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar compra"}</button> : null}
+        <button className="primary-button" type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar compra"}</button>
       </div>
     </form>
   );
