@@ -9836,7 +9836,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         </header>
         {lines.map((line, index) => {
           const selectedProduct = productForLine(line);
-          const supportsCustomNote = isQuote && Boolean(String(line.sku || line.skuQuery || "").trim());
+          const supportsCustomNote = Boolean(String(line.sku || line.skuQuery || "").trim());
           return (
             <div
               className={index === 0 ? "quote-line-card" : "quote-line-card compact-line"}
