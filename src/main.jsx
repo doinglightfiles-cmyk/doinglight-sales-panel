@@ -8504,7 +8504,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const currentDocument = savedDocument || initialQuote || null;
   const [selectedOwnerUserId, setSelectedOwnerUserId] = useState(initialQuote?.ownerUserId || currentUser?.id || "");
   const [ownerMenuOpen, setOwnerMenuOpen] = useState(false);
-  const pdfTemplate = currentDocument?.pdfTemplate || currentDocument?.visualTemplate || currentDocument?.metadata?.pdfTemplate || visualTemplate || "doinglight";
+  const [pdfTemplate, setPdfTemplate] = useState(
+    () => currentDocument?.pdfTemplate || currentDocument?.visualTemplate || currentDocument?.metadata?.pdfTemplate || visualTemplate || "doinglight"
+  );
   const documentTitle = meta.title;
   const documentEyebrow = meta.eyebrow;
   const createButtonLabel = currentDocument ? meta.updateLabel : meta.createLabel;
@@ -9343,8 +9345,22 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       {readOnly ? <p className="document-lock-notice">{lockMessage || "Este documento está bloqueado."}</p> : null}
       <section className="quote-fd-header">
         <div className="quote-fd-toolbar">
-          <span>Operación: <strong>Empresa nacional</strong></span>
-          <span>Plantilla: <strong>Tubo Solar</strong></span>
+          {!isQuote ? <span>Operación: <strong>Empresa nacional</strong></span> : null}
+          {isQuote ? (
+            <label className="quote-visual-template-control">
+              <span>Plantilla:</span>
+              <select
+                value={pdfTemplate}
+                disabled={readOnly}
+                onChange={(event) => setPdfTemplate(event.target.value)}
+              >
+                <option value="doinglight">Doinglight</option>
+                <option value="tubo-solar">Tubo Solar</option>
+              </select>
+            </label>
+          ) : (
+            <span>Plantilla: <strong>{pdfTemplate === "tubo-solar" ? "Tubo Solar" : "Doinglight"}</strong></span>
+          )}
           <span className="document-owner-control">
             Responsable: <strong>{selectedOwnerName}</strong>
             {!readOnly ? (

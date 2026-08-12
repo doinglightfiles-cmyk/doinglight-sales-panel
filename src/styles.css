@@ -4230,6 +4230,30 @@ th {
   font-weight: 800;
 }
 
+.quote-visual-template-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.quote-visual-template-control select {
+  min-width: 132px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 1px 24px 3px 2px;
+  color: var(--ink);
+  background-color: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.quote-visual-template-control select:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .document-owner-control {
   position: relative;
   display: inline-flex;
