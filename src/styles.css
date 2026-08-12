@@ -2239,6 +2239,10 @@ select:focus {
   color: #d98200;
 }
 
+.invoice-payment-status.partial {
+  color: #b36b00;
+}
+
 .invoice-payment-status.overdue {
   color: var(--danger);
 }
@@ -2248,7 +2252,9 @@ select:focus {
 }
 
 .invoice-payment-status.draft,
-.invoice-payment-status.voided {
+.invoice-payment-status.voided,
+.invoice-payment-status.rectified,
+.invoice-payment-status.credited {
   color: var(--muted);
 }
 

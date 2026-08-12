@@ -1650,33 +1650,12 @@ function nextInvoiceSequence(series, invoices = []) {
 }
 
 function invoicePaymentState(main, total, fdState = "") {
-  const normalizedFdState = String(fdState || "").trim().toLowerCase();
-  const fdStateLabels = {
-    paid: "Cobrada",
-    pending: "Pendiente",
-    overdue: "Vencida",
-    overpaid: "Sobrepagada",
-    draft: "Borrador",
-    voided: "Abonada",
-    rectified: "Rectificada",
-    credited: "Abonada"
-  };
-
-  if (fdStateLabels[normalizedFdState]) {
-    const normalizedKey = normalizedFdState === "voided" ? "credited" : normalizedFdState;
-    return {
-      key: normalizedKey,
-      label: fdStateLabels[normalizedFdState],
-      pendingBalance: ["pending", "overdue"].includes(normalizedKey) ? total : 0
-    };
-  }
-
   const explicitStatus = String(firstValue(main, [
     "paymentState",
     "paymentStatus",
     "status",
     "state"
-  ], "")).toLowerCase();
+  ], fdState || "")).trim().toLowerCase();
   const pendingBalance = normalizeMoneyValue(firstValue(main, [
     "pendingBalance",
     "pendingAmount",
@@ -1687,7 +1666,7 @@ function invoicePaymentState(main, total, fdState = "") {
     "totals.pendingAmount"
   ], 0));
 
-  if (main.voided || explicitStatus.includes("void") || explicitStatus.includes("cancel")) {
+  if (main.voided || ["voided", "credited", "abonada", "abonado"].includes(explicitStatus) || explicitStatus.includes("cancel")) {
     return { key: "credited", label: "Abonada", pendingBalance: 0 };
   }
   if (explicitStatus.includes("rectif")) {
@@ -1696,14 +1675,18 @@ function invoicePaymentState(main, total, fdState = "") {
   if (explicitStatus.includes("abon") || explicitStatus.includes("credit")) {
     return { key: "credited", label: "Abonada", pendingBalance: 0 };
   }
-  if (main.draft || explicitStatus.includes("draft") || explicitStatus.includes("borrador")) {
-    return { key: "draft", label: "Borrador", pendingBalance: total };
+  if (["paid", "cobrada", "cobrado", "collected", "overpaid", "sobrepagada"].includes(explicitStatus)) {
+    return { key: "paid", label: "Cobrada", pendingBalance: 0 };
+  }
+  if (explicitStatus.includes("partial") || explicitStatus.includes("parcial") || (pendingBalance > 0 && pendingBalance < total)) {
+    return { key: "partial", label: "Parcial", pendingBalance };
   }
   if (pendingBalance > 0 || explicitStatus.includes("pending") || explicitStatus.includes("pendiente")) {
     return { key: "pending", label: "Pendiente", pendingBalance: pendingBalance || total };
   }
 
-  return { key: "paid", label: "Cobrada", pendingBalance: 0 };
+  // Legacy quote and delivery-note states must never leak into invoice workflows.
+  return { key: "pending", label: "Pendiente", pendingBalance: total };
 }
 
 function serializeFacturaDirectaInvoice(item) {
@@ -1916,12 +1899,17 @@ const QUOTE_STATUS_OPTIONS = [
   { value: "rejected", filterKey: "overdue", label: "Rechazado" }
 ];
 
-const INVOICE_STATUS_FILTER_OPTIONS = [
-  { value: "all", label: "Todos los estados" },
+const INVOICE_STATUS_OPTIONS = [
   { value: "pending", label: "Pendiente" },
   { value: "paid", label: "Cobrada" },
+  { value: "partial", label: "Parcial" },
   { value: "rectified", label: "Rectificada" },
   { value: "credited", label: "Abonada" }
+];
+
+const INVOICE_STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "Todos los estados" },
+  ...INVOICE_STATUS_OPTIONS
 ];
 
 const DELIVERY_NOTE_STATUS_FILTER_OPTIONS = [
@@ -2402,7 +2390,7 @@ function serializeInternalSalesDocument(item) {
     status: status.label,
     statusKey: status.key,
     verifactuStatus: "",
-    pendingBalance: status.key === "pending" ? Number(item.total || 0) : 0,
+    pendingBalance: ["pending", "partial"].includes(status.key) ? Number(item.total || 0) : 0,
     subtotal: Number(item.subtotal || 0),
     taxTotal: Number(item.taxTotal || 0),
     total: Number(item.total || 0),
@@ -2443,7 +2431,7 @@ function invoiceRowStatusClass(invoice, today = inputDate()) {
     return "invoice-row-overdue";
   }
 
-  if (statusKey === "pending" || statusLabel === "pendiente") {
+  if (["pending", "partial"].includes(statusKey) || ["pendiente", "parcial"].includes(statusLabel)) {
     const dueDate = inputDate(invoice?.dueDate);
     return dueDate && dueDate < today ? "invoice-row-overdue" : "invoice-row-pending";
   }
@@ -8649,6 +8637,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isInvoice = documentType === "invoice";
   const isDeliveryNote = documentType === "delivery_note";
   const isProforma = documentType === "proforma";
+  const statusOptions = isInvoice ? INVOICE_STATUS_OPTIONS : QUOTE_STATUS_OPTIONS;
   const [savedDocument, setSavedDocument] = useState(initialQuote || null);
   const currentDocument = savedDocument || initialQuote || null;
   const [selectedOwnerUserId, setSelectedOwnerUserId] = useState(initialQuote?.ownerUserId || currentUser?.id || "");
@@ -8726,7 +8715,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [draggingLineId, setDraggingLineId] = useState("");
   const [taxRate, setTaxRate] = useState(() => taxModeFromDocument(initialQuote || { taxMode: "21" }));
   const [notes, setNotes] = useState(initialQuote?.notes || "");
-  const [quoteStatus, setQuoteStatus] = useState(initialQuote?.status || "draft");
+  const [quoteStatus, setQuoteStatus] = useState(() => (
+    isInvoice
+      ? invoicePaymentState({ status: initialQuote?.status }, Number(initialQuote?.total || 0), initialQuote?.status).key
+      : initialQuote?.status || "draft"
+  ));
   const [quoteDate, setQuoteDate] = useState(inputDate(initialQuote?.issueDate || initialQuote?.createdAt || new Date()));
   const [validUntil, setValidUntil] = useState(initialQuote?.dueDate ? inputDate(initialQuote.dueDate) : addDaysInput(initialQuote?.issueDate || initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
@@ -8805,7 +8798,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         leadBillingSource.country
       ].filter(Boolean).join("\n")
     : "Sin datos de facturación";
-  const selectedStatusLabel = QUOTE_STATUS_OPTIONS.find((status) => status.value === quoteStatus)?.label || quoteStatusState(quoteStatus).label || "Pendiente";
+  const selectedStatusLabel = statusOptions.find((status) => status.value === quoteStatus)?.label
+    || (isInvoice
+      ? invoicePaymentState({ status: quoteStatus }, Number(currentDocument?.total || 0), quoteStatus).label
+      : quoteStatusState(quoteStatus).label)
+    || "Pendiente";
   const selectedQuoteLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((language) => language.value === quoteLanguage)?.label || "Español";
   const quotePdfText = QUOTE_PDF_TEXT[quoteLanguage] || QUOTE_PDF_TEXT.es;
   const quoteTransferBlocked = isQuote && isQuoteTransferBlockedStatus(quoteStatus || currentDocument?.status);
@@ -9342,7 +9339,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       locale: quoteLanguage || "es",
       leadId: effectiveLeadId || null,
       ownerUserId: selectedOwnerUserId || currentUser?.id || null,
-      status: quoteStatus,
+      status: isInvoice ? invoicePaymentState({ status: quoteStatus }, total, quoteStatus).key : quoteStatus,
       issueDate: quoteDate,
       dueDate: validUntil,
       paymentMethod,
@@ -9446,7 +9443,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             };
           }));
         }
-        setQuoteStatus(saved.status || quoteStatus);
+        setQuoteStatus(isInvoice
+          ? invoicePaymentState({ status: saved.status || quoteStatus }, Number(saved.total || total), saved.status || quoteStatus).key
+          : saved.status || quoteStatus);
       }
 
       notifySalesDocumentSaved(documentType, saved);
@@ -9756,7 +9755,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             <label>
               <span>Estado del {documentTitle.toLowerCase()}</span>
               <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
-                {QUOTE_STATUS_OPTIONS.map((status) => (
+                {statusOptions.map((status) => (
                   <option key={status.value} value={status.value}>{status.label}</option>
                 ))}
               </select>
