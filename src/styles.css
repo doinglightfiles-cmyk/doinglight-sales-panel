@@ -2159,6 +2159,30 @@ select:focus {
   background: #f8fbef;
 }
 
+.invoice-table .invoice-row-paid td {
+  background: #eef8e7;
+}
+
+.invoice-table .invoice-row-pending td {
+  background: #fff8d9;
+}
+
+.invoice-table .invoice-row-overdue td {
+  background: #fdeaea;
+}
+
+.invoice-table .invoice-row-paid:hover td {
+  background: #e5f4da;
+}
+
+.invoice-table .invoice-row-pending:hover td {
+  background: #fff2bd;
+}
+
+.invoice-table .invoice-row-overdue:hover td {
+  background: #fbdcdc;
+}
+
 .clickable-table-row:focus {
   outline: 2px solid rgba(143, 188, 19, 0.55);
   outline-offset: -2px;
@@ -4863,9 +4887,84 @@ th {
   grid-row: span 2;
 }
 
+.quote-fd-internal-notes {
+  min-width: 0;
+  grid-row: span 2;
+}
+
+.quote-fd-internal-notes.with-carriers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 10px;
+}
+
+.quote-fd-internal-notes .quote-fd-textarea {
+  grid-row: auto;
+}
+
 .quote-fd-textarea.internal-notes textarea {
   border-color: rgba(143, 115, 55, 0.45);
   background: #fff8ea;
+}
+
+.delivery-carrier-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 8px;
+  padding-top: 25px;
+}
+
+.delivery-carrier-button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px;
+  background: #fff;
+  cursor: default;
+  overflow: hidden;
+}
+
+.delivery-carrier-button span {
+  display: block;
+  max-width: 100%;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.delivery-carrier-button.seur {
+  border-color: #d71920;
+  color: #d71920;
+}
+
+.delivery-carrier-button.gls {
+  border-color: #102b54;
+  color: #102b54;
+  box-shadow: inset 0 -5px 0 #f4c400;
+}
+
+.delivery-carrier-button.dhl {
+  border-color: #ffcc00;
+  color: #d40511;
+  background: #ffcc00;
+  font-style: italic;
+}
+
+.delivery-carrier-button.groupage {
+  border-color: #111;
+  color: #fff;
+  background: #111;
+}
+
+.delivery-carrier-button.groupage span {
+  font-size: 10px;
 }
 
 .quote-client-header-actions {
@@ -5727,6 +5826,98 @@ th {
   font-weight: 750;
 }
 
+.quote-send-recipient-field {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.quote-send-recipient-control {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.quote-send-recipient-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.quote-send-recipient-chip {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 7px 4px 10px;
+  border: 1px solid #d5e6a8;
+  border-radius: 999px;
+  color: var(--green-dark);
+  background: #f1f7df;
+  font-weight: 700;
+}
+
+.quote-send-recipient-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-send-recipient-chip button {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--green-dark);
+  background: transparent;
+}
+
+.quote-send-recipient-chip button:hover {
+  background: #dfeabf;
+}
+
+.quote-send-recipient-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.quote-send-fields .quote-send-recipient-entry input {
+  min-height: 44px;
+}
+
+.quote-send-recipient-entry > button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--white);
+  background: var(--green-dark);
+  font: inherit;
+  font-weight: 800;
+}
+
+.quote-send-recipient-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .quote-send-fields input,
 .quote-send-fields select,
 .quote-send-fields textarea {
@@ -6484,6 +6675,15 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .quote-fd-internal-notes.with-carriers {
+    grid-template-columns: 1fr;
+  }
+
+  .delivery-carrier-panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-top: 0;
+  }
+
   .quote-client-tools,
   .quote-line-card,
   .quote-totals {
@@ -6571,6 +6771,10 @@ th {
 }
 
 @media (max-width: 560px) {
+  .delivery-carrier-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .purchase-attachment-row {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }

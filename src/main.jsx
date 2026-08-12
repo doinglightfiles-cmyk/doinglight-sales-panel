@@ -72,6 +72,97 @@ function safeFilePart(value) {
     .replace(/^-+|-+$/g, "") || "documento";
 }
 
+function splitEmailRecipients(value) {
+  const values = Array.isArray(value) ? value : [value];
+  const seen = new Set();
+  return values
+    .flatMap((item) => String(item || "").split(/[\s,;]+/))
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function isValidEmailRecipient(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function EmailRecipientsField({ value, onChange }) {
+  const recipients = splitEmailRecipients(value);
+  const [entry, setEntry] = useState("");
+  const [error, setError] = useState("");
+
+  function addRecipients(rawValue = entry) {
+    const candidates = splitEmailRecipients(rawValue);
+    if (!candidates.length) return;
+    const invalid = candidates.filter((item) => !isValidEmailRecipient(item));
+    if (invalid.length) {
+      setError(`Revisa ${invalid.length === 1 ? "esta dirección" : "estas direcciones"}: ${invalid.join(", ")}`);
+      return;
+    }
+    onChange(splitEmailRecipients([...recipients, ...candidates]));
+    setEntry("");
+    setError("");
+  }
+
+  function removeRecipient(recipient) {
+    onChange(recipients.filter((item) => item.toLowerCase() !== recipient.toLowerCase()));
+    setError("");
+  }
+
+  function handleKeyDown(event) {
+    if (["Enter", ",", ";"].includes(event.key)) {
+      event.preventDefault();
+      addRecipients();
+    }
+  }
+
+  return (
+    <div className="quote-send-recipient-field">
+      <span>Envío a</span>
+      <div className="quote-send-recipient-control">
+        {recipients.length ? (
+          <div className="quote-send-recipient-list" aria-label="Destinatarios del correo">
+            {recipients.map((recipient) => (
+              <span className="quote-send-recipient-chip" key={recipient.toLowerCase()}>
+                <span>{recipient}</span>
+                <button type="button" onClick={() => removeRecipient(recipient)} aria-label={`Quitar ${recipient}`}>
+                  <X size={14} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <div className="quote-send-recipient-entry">
+          <input
+            type="email"
+            value={entry}
+            onChange={(event) => {
+              setEntry(event.target.value);
+              setError("");
+            }}
+            onKeyDown={handleKeyDown}
+            onBlur={() => {
+              if (entry.trim() && isValidEmailRecipient(entry)) addRecipients();
+            }}
+            placeholder="Añadir otro correo"
+            aria-label="Añadir otro correo de destino"
+          />
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => addRecipients()}>
+            <Plus size={17} />
+            Añadir
+          </button>
+        </div>
+      </div>
+      {error ? <small className="quote-send-recipient-error">{error}</small> : null}
+    </div>
+  );
+}
+
 function normalizeSearchText(value) {
   return String(value || "")
     .trim()
@@ -2340,6 +2431,26 @@ function serializeInternalSalesDocument(item) {
   };
 }
 
+function invoiceRowStatusClass(invoice, today = inputDate()) {
+  const statusKey = String(invoice?.statusKey || "").trim().toLowerCase();
+  const statusLabel = String(invoice?.status || "").trim().toLowerCase();
+
+  if (statusKey === "paid" || statusLabel === "cobrada") {
+    return "invoice-row-paid";
+  }
+
+  if (statusKey === "overdue" || statusLabel === "vencida") {
+    return "invoice-row-overdue";
+  }
+
+  if (statusKey === "pending" || statusLabel === "pendiente") {
+    const dueDate = inputDate(invoice?.dueDate);
+    return dueDate && dueDate < today ? "invoice-row-overdue" : "invoice-row-pending";
+  }
+
+  return "";
+}
+
 function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
   const today = inputDate();
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=200&contactKind=client", { token }), [token]);
@@ -2791,6 +2902,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
     () => apiRequest("/api/sales/documents/invoice?limit=500", { token }),
     [token]
   );
+  useSalesDocumentSavedRefresh("invoice", invoicesResource.reload);
   const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesQuery = textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query);
@@ -2878,7 +2990,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
               {visibleInvoices.map((invoice) => (
                 <tr
                   key={invoice.id}
-                  className="clickable-table-row"
+                  className={`clickable-table-row ${invoiceRowStatusClass(invoice)}`.trim()}
                   role="button"
                   tabIndex={0}
                   onClick={() => setSelectedInvoice(invoice)}
@@ -3002,7 +3114,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
     const counterpart = documentRecord.raw?.main?.counterpart || {};
     const typeLabel = type === "invoice" ? "factura" : "albarán";
     return {
-      to: counterpart.email || counterpart.emailAddress || "",
+      to: splitEmailRecipients(counterpart.email || counterpart.emailAddress || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
       subject: `Envío ${typeLabel} ${documentRecord.number}`,
       body: `Estimado cliente:\n\nAdjunto a este correo encontrará nuestro ${typeLabel}.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.`,
@@ -3048,6 +3160,10 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
     event.preventDefault();
     setStatus("Generando y enviando PDF...");
     try {
+      const recipients = splitEmailRecipients(draft.to);
+      if (!recipients.length) throw new Error("Indica al menos un correo de destino.");
+      const invalidRecipients = recipients.filter((item) => !isValidEmailRecipient(item));
+      if (invalidRecipients.length) throw new Error(`Revisa los correos de destino: ${invalidRecipients.join(", ")}`);
       const pdfBase64 = draft.attachPdf
         ? await renderDocumentElementAsPdf(elementId, filename, { save: false })
         : "";
@@ -3058,7 +3174,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
           documentType: type,
           documentNumber: documentRecord.number,
           language,
-          to: draft.to,
+          to: recipients,
           from: draft.from,
           subject: draft.subject,
           body: draft.body,
@@ -3083,10 +3199,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
         </header>
         <div className="quote-send-content">
           <section className="quote-send-fields">
-            <label>
-              <span>Envío a</span>
-              <input value={draft.to} onChange={(event) => updateDraft({ to: event.target.value })} placeholder="cliente@correo.com" />
-            </label>
+            <EmailRecipientsField value={draft.to} onChange={(to) => updateDraft({ to })} />
             <label>
               <span>Remitente</span>
               <select value={draft.from} onChange={(event) => updateDraft({ from: event.target.value })}>
@@ -3282,6 +3395,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
     () => apiRequest("/api/sales/documents/delivery_note?limit=500", { token }),
     [token]
   );
+  useSalesDocumentSavedRefresh("delivery_note", deliveryNotesResource.reload);
   const deliveryNotes = (deliveryNotesResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredDeliveryNotes = deliveryNotes.filter((deliveryNote) => {
     const matchesQuery = textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
@@ -3539,6 +3653,7 @@ function ProformasView({ token, onCreateProforma }) {
     () => apiRequest("/api/sales/documents/proforma?limit=500", { token }),
     [token]
   );
+  useSalesDocumentSavedRefresh("proforma", proformasResource.reload);
   const proformas = (proformasResource.data?.items || []).map(serializeInternalSalesDocument);
   const filteredProformas = proformas.filter((proforma) =>
     textMatchesQuery([proforma.number, proforma.contact, proforma.status, proforma.total, proforma.detail], query)
@@ -4761,6 +4876,39 @@ function useResource(loader, deps) {
   }, deps);
 
   return { ...state, reload: load };
+}
+
+const SALES_DOCUMENT_SAVED_EVENT = "doinglight:sales-document-saved";
+
+function notifySalesDocumentSaved(documentType, documentRecord) {
+  window.dispatchEvent(
+    new CustomEvent(SALES_DOCUMENT_SAVED_EVENT, {
+      detail: {
+        documentType,
+        documentId: documentRecord?.id || null,
+      },
+    })
+  );
+}
+
+function useSalesDocumentSavedRefresh(documentType, reload) {
+  const reloadRef = useRef(reload);
+
+  useEffect(() => {
+    reloadRef.current = reload;
+  }, [reload]);
+
+  useEffect(() => {
+    function handleDocumentSaved(event) {
+      if (event.detail?.documentType !== documentType) return;
+      reloadRef.current?.();
+    }
+
+    window.addEventListener(SALES_DOCUMENT_SAVED_EVENT, handleDocumentSaved);
+    return () => {
+      window.removeEventListener(SALES_DOCUMENT_SAVED_EVENT, handleDocumentSaved);
+    };
+  }, [documentType]);
 }
 
 const DASHBOARD_MARKETS = [
@@ -7597,6 +7745,7 @@ function QuotesView({ token }) {
   const [dateFilter, setDateFilter] = useState("all");
   const quoteSort = useDocumentSort();
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=500", { token }), [token]);
+  useSalesDocumentSavedRefresh("quote", quotes.reload);
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
   const leadsById = useMemo(() => {
     const map = new Map();
@@ -9119,7 +9268,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   function buildDefaultSendDraft() {
     return {
-      to: leadDraft?.email || selectedLead?.email || "",
+      to: splitEmailRecipients(leadDraft?.email || selectedLead?.email || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
       subject: quoteNumberLabel !== "borrador" ? `${meta.subject} ${quoteNumberLabel}` : meta.subject,
       body: meta.body,
@@ -9160,6 +9309,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     event.preventDefault();
     setSendStatus("Generando y enviando PDF...");
     try {
+      const recipients = splitEmailRecipients(sendDraft.to);
+      if (!recipients.length) throw new Error("Indica al menos un correo de destino.");
+      const invalidRecipients = recipients.filter((item) => !isValidEmailRecipient(item));
+      if (invalidRecipients.length) throw new Error(`Revisa los correos de destino: ${invalidRecipients.join(", ")}`);
       const pdfBase64 = sendDraft.attachPdf
         ? await renderDocumentElementAsPdf(quotePdfElementId, quotePdfName, { save: false })
         : "";
@@ -9170,7 +9323,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           documentType,
           documentNumber: quoteNumberLabel,
           language: quoteLanguage,
-          to: sendDraft.to,
+          to: recipients,
           from: sendDraft.from,
           subject: sendDraft.subject,
           body: sendDraft.body,
@@ -9296,6 +9449,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         setQuoteStatus(saved.status || quoteStatus);
       }
 
+      notifySalesDocumentSaved(documentType, saved);
       setSaveState("saved");
 
       if (!isQuote) {
@@ -9617,11 +9771,29 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
               <small>Notas visibles para el cliente</small>
             </label>
-            <label className="quote-fd-textarea internal-notes">
-              <span>Notas internas</span>
-              <textarea value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} />
-              <small>Notas no visibles para el cliente</small>
-            </label>
+            <div className={`quote-fd-internal-notes${isDeliveryNote ? " with-carriers" : ""}`}>
+              <label className="quote-fd-textarea internal-notes">
+                <span>Notas internas</span>
+                <textarea value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} />
+                <small>Notas no visibles para el cliente</small>
+              </label>
+              {isDeliveryNote ? (
+                <aside className="delivery-carrier-panel" aria-label="Opciones de transporte">
+                  <button type="button" className="delivery-carrier-button seur" title="SEUR · Pendiente de configurar" aria-label="SEUR, pendiente de configurar">
+                    <span>SEUR</span>
+                  </button>
+                  <button type="button" className="delivery-carrier-button gls" title="GLS · Pendiente de configurar" aria-label="GLS, pendiente de configurar">
+                    <span>GLS</span>
+                  </button>
+                  <button type="button" className="delivery-carrier-button dhl" title="DHL · Pendiente de configurar" aria-label="DHL, pendiente de configurar">
+                    <span>DHL</span>
+                  </button>
+                  <button type="button" className="delivery-carrier-button groupage" title="Grupaje · Pendiente de configurar" aria-label="Grupaje, pendiente de configurar">
+                    <span>GRUPAJE</span>
+                  </button>
+                </aside>
+              ) : null}
+            </div>
           </div>
         ) : (
           <LeadFormFields
@@ -9895,10 +10067,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             </header>
             <div className="quote-send-content">
               <section className="quote-send-fields">
-                <label>
-                  <span>Envío a</span>
-                  <input value={sendDraft.to} onChange={(event) => updateSendDraft({ to: event.target.value })} placeholder="cliente@correo.com" />
-                </label>
+                <EmailRecipientsField value={sendDraft.to} onChange={(to) => updateSendDraft({ to })} />
                 <label>
                   <span>Remitente</span>
                   <select value={sendDraft.from} onChange={(event) => updateSendDraft({ from: event.target.value })}>
