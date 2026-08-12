@@ -9216,9 +9216,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           quantity: Number(line.quantity),
           discountPercent: Number(line.discountPercent),
           unitPrice: unitPriceForSubmit(line),
-          customNote: String(line.sku || line.skuQuery || "").trim().toUpperCase().startsWith("ZP")
-            ? String(line.customNote || "").trim()
-            : ""
+          customNote: String(line.customNote || "").trim()
         }))
         .filter((line) => line.sku),
       ...overrides
@@ -9667,7 +9665,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         </header>
         {lines.map((line, index) => {
           const selectedProduct = productForLine(line);
-          const supportsCustomNote = isQuote && String(line.sku || line.skuQuery || "").trim().toUpperCase().startsWith("ZP");
+          const supportsCustomNote = isQuote && Boolean(String(line.sku || line.skuQuery || "").trim());
           return (
             <div
               className={index === 0 ? "quote-line-card" : "quote-line-card compact-line"}
@@ -9718,7 +9716,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                       <input
                         type="text"
                         aria-label={`Descripción personalizada de ${line.sku || line.skuQuery}`}
-                        placeholder="Ej.: Inclinación 35°, base 47 x 47 cm"
+                        placeholder="Ej.: Medida, acabado o indicación especial"
                         value={line.customNote || ""}
                         onChange={(event) => updateLine(line.id, { customNote: event.target.value })}
                       />
