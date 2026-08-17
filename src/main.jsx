@@ -6072,6 +6072,9 @@ function PurchasesView({ token, onCreate, onOpen }) {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [revision, setRevision] = useState(0);
+  const [fdInventory, setFdInventory] = useState(null);
+  const [fdInventoryLoading, setFdInventoryLoading] = useState(false);
+  const [fdInventoryError, setFdInventoryError] = useState("");
   const purchases = useResource(
     () => apiRequest("/api/purchases?limit=500", { token }),
     [token, revision]
@@ -6097,6 +6100,19 @@ function PurchasesView({ token, onCreate, onOpen }) {
   });
   const pendingTotal = Number(summary.byStatus?.pending || 0) + Number(summary.byStatus?.overdue || 0);
 
+  async function runFdInventory() {
+    setFdInventoryLoading(true);
+    setFdInventoryError("");
+    try {
+      const result = await apiRequest("/api/facturadirecta/purchases/inventory?limit=20&offset=0", { token });
+      setFdInventory(result);
+    } catch (error) {
+      setFdInventoryError(error.message);
+    } finally {
+      setFdInventoryLoading(false);
+    }
+  }
+
   return (
     <section className="module-page purchases-page">
       <header className="module-page-header purchases-page-header">
@@ -6104,6 +6120,9 @@ function PurchasesView({ token, onCreate, onOpen }) {
           <h3>Compras y gastos</h3>
         </div>
         <div className="purchase-header-actions">
+          <button className="secondary-button" type="button" disabled={fdInventoryLoading} onClick={runFdInventory}>
+            {fdInventoryLoading ? "Revisando..." : "Inventario FD"}
+          </button>
           <button className="secondary-button" type="button" onClick={() => onCreate("expense")}>Gasto / tique</button>
           <button className="primary-button" type="button" onClick={() => onCreate("supplier_invoice")}>
             <Plus size={17} />
@@ -6118,6 +6137,24 @@ function PurchasesView({ token, onCreate, onOpen }) {
         <div className="metric"><span>IVA soportado</span><strong>{money(summary.taxTotal)}</strong></div>
         <div className="metric"><span>Documentos</span><strong>{summary.count || 0}</strong></div>
       </div>
+
+      {fdInventoryError ? <p className="form-error module-message">{fdInventoryError}</p> : null}
+      {fdInventory ? (
+        <div className="fd-inventory-summary" role="status">
+          <div>
+            <strong>Muestra de adjuntos de FacturaDirecta</strong>
+            <span>{fdInventory.scannedBills} facturas revisadas, sin descargar archivos ni modificar datos.</span>
+          </div>
+          <dl>
+            <div><dt>Con adjuntos</dt><dd>{fdInventory.billsWithAttachments}</dd></div>
+            <div><dt>Archivos</dt><dd>{fdInventory.attachmentCount}</dd></div>
+            <div><dt>Tamaño conocido</dt><dd>{fdInventory.knownBytes > 0 ? attachmentSize(fdInventory.knownBytes) : "0 B"}</dd></div>
+            <div><dt>Tamaño desconocido</dt><dd>{fdInventory.unknownSizeCount}</dd></div>
+            <div><dt>Errores</dt><dd>{fdInventory.failureCount}</dd></div>
+          </dl>
+          <small>Tipos: {Object.entries(fdInventory.extensionCounts || {}).map(([type, count]) => `${type}: ${count}`).join(" · ") || "sin datos"}</small>
+        </div>
+      ) : null}
 
       <div className="module-panel">
         <div className="module-toolbar purchases-toolbar">

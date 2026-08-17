@@ -1331,6 +1331,58 @@ select:focus {
   gap: 10px;
 }
 
+.fd-inventory-summary {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid #d8e5bf;
+  border-radius: 8px;
+  background: #f8faf4;
+  color: #27301f;
+}
+
+.fd-inventory-summary > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+}
+
+.fd-inventory-summary > div:first-child span,
+.fd-inventory-summary small {
+  color: #66705e;
+}
+
+.fd-inventory-summary dl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.fd-inventory-summary dl div {
+  display: grid;
+  gap: 3px;
+}
+
+.fd-inventory-summary dt {
+  color: #66705e;
+  font-size: 12px;
+}
+
+.fd-inventory-summary dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .fd-inventory-summary dl {
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+  }
+}
+
 .purchase-filter-controls {
   min-width: 0;
   flex-wrap: wrap;
