@@ -880,8 +880,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
     { id: "purchases", label: "Compras" },
-    { id: "contacts", label: "Contactos" },
-    { id: "banks", label: "Bancos" }
+    { id: "contacts", label: "Contactos" }
   ];
   const moreGroups = [
     {
