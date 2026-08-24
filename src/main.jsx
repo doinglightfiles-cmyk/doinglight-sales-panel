@@ -4167,6 +4167,7 @@ function FacturaDirectaImportPanel({ token }) {
   const [purchaseResumeOffset, setPurchaseResumeOffset] = useState(0);
   const [diagnostics, setDiagnostics] = useState([]);
   const [diagnosticTotals, setDiagnosticTotals] = useState(null);
+  const [purchaseAudit, setPurchaseAudit] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -4362,6 +4363,22 @@ function FacturaDirectaImportPanel({ token }) {
     }
   }
 
+  async function auditPurchases() {
+    setPurchasesBusy(true);
+    setError("");
+    setPurchasesProgress("Comparando compras con FacturaDirecta...");
+    try {
+      const result = await apiRequest("/api/facturadirecta/import/audit-purchases", { token });
+      setPurchaseAudit(result);
+      setPurchasesProgress("Auditoría de compras completada.");
+    } catch (err) {
+      setError(err.message);
+      setPurchasesProgress("");
+    } finally {
+      setPurchasesBusy(false);
+    }
+  }
+
   function salesBreakdown(result) {
     return Object.entries(result?.byResource || {}).map(([resource, values]) => {
       const labels = { estimates: "Presupuestos/proformas", deliveryNotes: "Albaranes", invoices: "Facturas" };
@@ -4425,6 +4442,7 @@ function FacturaDirectaImportPanel({ token }) {
           <button className="primary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={importAllPurchases}>
             {purchasesBusy ? "Procesando..." : purchaseResumeOffset ? `Reanudar compras desde ${purchaseResumeOffset}` : "Importar todas las compras"}
           </button>
+          <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={auditPurchases}>Auditar compras</button>
         </div>
         {purchasesProgress ? <p className="fd-import-progress">{purchasesProgress}</p> : null}
         {purchasesResult ? (
@@ -4435,6 +4453,13 @@ function FacturaDirectaImportPanel({ token }) {
               Almacenamiento de adjuntos: {purchasesResult.attachmentStorageMode === "s3" ? "S3" : "base de datos del panel"}
             </span>
             <span>{purchasesResult.failed || 0} errores · {purchasesResult.unmatchedSuppliers || 0} sin proveedor asociado</span>
+          </div>
+        ) : null}
+        {purchaseAudit ? (
+          <div className="fd-import-result">
+            <strong>{purchaseAudit.remoteCount} en FacturaDirecta · {purchaseAudit.localCount} en el panel</strong>
+            <span>{purchaseAudit.extras?.length || 0} extras · {purchaseAudit.missing?.length || 0} ausentes</span>
+            {(purchaseAudit.extras || []).map((item) => <span key={item.id}>Extra: {item.documentNumber || item.sourceId} · {item.sourceId}</span>)}
           </div>
         ) : null}
       </section>
