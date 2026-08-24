@@ -206,19 +206,31 @@ function parseSortableNumber(value) {
 }
 
 function defaultDocumentSortDirection(key) {
-  return ["date", "pendingBalance", "subtotal", "total"].includes(key) ? "desc" : "asc";
+  return ["date", "issueDate", "dueDate", "pendingBalance", "subtotal", "taxTotal", "total"].includes(key) ? "desc" : "asc";
 }
 
 function documentSortValue(documentRow, key) {
-  if (key === "date") return { type: "number", value: parseSortableDate(documentRow.date) };
-  if (["pendingBalance", "subtotal", "total"].includes(key)) {
+  if (["date", "issueDate", "dueDate"].includes(key)) {
+    return { type: "number", value: parseSortableDate(documentRow[key] || documentRow.date) };
+  }
+  if (["pendingBalance", "subtotal", "taxTotal", "total"].includes(key)) {
     return { type: "number", value: parseSortableNumber(documentRow[key]) };
   }
-  if (key === "number") {
-    return { type: "text", value: normalizeSearchText([documentRow.series, documentRow.number].filter(Boolean).join(" ")) };
+  if (["number", "documentNumber"].includes(key)) {
+    return { type: "text", value: normalizeSearchText([documentRow.series, documentRow[key] || documentRow.number].filter(Boolean).join(" ")) };
   }
-  if (key === "contact") {
-    return { type: "text", value: normalizeSearchText([documentRow.contact, documentRow.detail].filter(Boolean).join(" ")) };
+  if (["contact", "supplier"].includes(key)) {
+    const supplier = documentRow.supplier || {};
+    return {
+      type: "text",
+      value: normalizeSearchText([
+        documentRow.contact,
+        supplier.companyName,
+        supplier.fullName,
+        supplier.taxId,
+        documentRow.detail
+      ].filter(Boolean).join(" "))
+    };
   }
   return { type: "text", value: normalizeSearchText(documentRow[key]) };
 }
@@ -1772,6 +1784,12 @@ function deliveryNoteState(main) {
   if (explicitStatus.includes("invoice") || explicitStatus.includes("factur")) {
     return { key: "invoiced", label: "Albarán facturado" };
   }
+  if (explicitStatus.includes("delivered") || explicitStatus.includes("entregad")) {
+    return { key: "delivered", label: "Entregado" };
+  }
+  if (explicitStatus.includes("rejected") || explicitStatus.includes("rechazad")) {
+    return { key: "rejected", label: "Rechazado" };
+  }
   if (main.draft || explicitStatus.includes("draft") || explicitStatus.includes("borrador")) {
     return { key: "draft", label: "Borrador" };
   }
@@ -1906,6 +1924,13 @@ const INVOICE_STATUS_OPTIONS = [
   { value: "credited", label: "Abonada" }
 ];
 
+const DELIVERY_NOTE_STATUS_OPTIONS = [
+  { value: "pending", label: "Pendiente" },
+  { value: "delivered", label: "Entregado" },
+  { value: "closed", label: "Cerrado" },
+  { value: "rejected", label: "Rechazado" }
+];
+
 const INVOICE_STATUS_FILTER_OPTIONS = [
   { value: "all", label: "Todos los estados" },
   ...INVOICE_STATUS_OPTIONS
@@ -1913,8 +1938,7 @@ const INVOICE_STATUS_FILTER_OPTIONS = [
 
 const DELIVERY_NOTE_STATUS_FILTER_OPTIONS = [
   { value: "all", label: "Todos los estados" },
-  { value: "pending", label: "Pendiente" },
-  { value: "closed", label: "Cerrado" },
+  ...DELIVERY_NOTE_STATUS_OPTIONS,
   { value: "invoiced", label: "Albarán facturado" },
   { value: "voided", label: "Anulado" }
 ];
@@ -6390,6 +6414,7 @@ function PurchasesView({ token, onCreate, onOpen }) {
   const [fdInventory, setFdInventory] = useState(null);
   const [fdInventoryLoading, setFdInventoryLoading] = useState(false);
   const [fdInventoryError, setFdInventoryError] = useState("");
+  const purchaseSort = useDocumentSort("issueDate");
   const purchases = useResource(
     () => apiRequest("/api/purchases?limit=500", { token }),
     [token, revision]
@@ -6413,6 +6438,7 @@ function PurchasesView({ token, onCreate, onOpen }) {
       && (typeFilter === "all" || item.documentType === typeFilter)
       && (statusFilter === "all" || item.status === statusFilter);
   });
+  const sortedItems = sortDocumentRows(filteredItems, purchaseSort.sortConfig);
   const pendingTotal = Number(summary.byStatus?.pending || 0) + Number(summary.byStatus?.overdue || 0);
 
   async function runFdInventory() {
@@ -6495,21 +6521,21 @@ function PurchasesView({ token, onCreate, onOpen }) {
           <table className="module-table purchases-table">
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Número</th>
-                <th>Proveedor / detalle</th>
-                <th>Estado</th>
-                <th>Vencimiento</th>
-                <th className="numeric-cell">Base</th>
-                <th className="numeric-cell">IVA</th>
-                <th className="numeric-cell">Total</th>
+                <SortableDocumentHeader sortKey="issueDate" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort}>Fecha</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="documentType" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort}>Tipo</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="documentNumber" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort}>Número</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="supplier" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort}>Proveedor / detalle</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="status" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort}>Estado</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="dueDate" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort}>Vencimiento</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="subtotal" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort} className="numeric-cell">Base</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="taxTotal" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort} className="numeric-cell">IVA</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="total" sortConfig={purchaseSort.sortConfig} onSort={purchaseSort.requestSort} className="numeric-cell">Total</SortableDocumentHeader>
               </tr>
             </thead>
             <tbody>
               {purchases.loading ? (
                 <tr><td colSpan="9" className="empty-table-cell">Cargando compras...</td></tr>
-              ) : filteredItems.length ? filteredItems.map((item) => {
+              ) : sortedItems.length ? sortedItems.map((item) => {
                 const supplierName = item.supplier?.companyName || item.supplier?.fullName || "Sin proveedor";
                 return (
                   <tr key={item.id} className="clickable-row" onClick={() => onOpen(item)}>
@@ -8989,7 +9015,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isInvoice = documentType === "invoice";
   const isDeliveryNote = documentType === "delivery_note";
   const isProforma = documentType === "proforma";
-  const statusOptions = isInvoice ? INVOICE_STATUS_OPTIONS : QUOTE_STATUS_OPTIONS;
+  const statusOptions = isInvoice
+    ? INVOICE_STATUS_OPTIONS
+    : isDeliveryNote
+      ? DELIVERY_NOTE_STATUS_OPTIONS
+      : QUOTE_STATUS_OPTIONS;
   const [savedDocument, setSavedDocument] = useState(initialQuote || null);
   const currentDocument = savedDocument || initialQuote || null;
   const [selectedOwnerUserId, setSelectedOwnerUserId] = useState(initialQuote?.ownerUserId || currentUser?.id || "");
