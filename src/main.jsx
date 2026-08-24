@@ -4265,7 +4265,14 @@ function FacturaDirectaImportPanel({ token }) {
     let offset = 0;
     let complete = false;
     let batches = 0;
-    const totals = { imported: 0, failed: 0, attachmentCount: 0, importedBytes: 0, unmatchedSuppliers: 0 };
+    const totals = {
+      imported: 0,
+      failed: 0,
+      attachmentCount: 0,
+      importedBytes: 0,
+      unmatchedSuppliers: 0,
+      attachmentStorageConfigured: false
+    };
     try {
       while (!complete) {
         setPurchasesProgress(`Importando compras desde el registro ${offset}...`);
@@ -4279,6 +4286,7 @@ function FacturaDirectaImportPanel({ token }) {
         totals.attachmentCount += Number(result.attachmentCount || 0);
         totals.importedBytes += Number(result.importedBytes || 0);
         totals.unmatchedSuppliers += Number(result.unmatchedSuppliers || 0);
+        totals.attachmentStorageConfigured = Boolean(result.attachmentStorageConfigured);
         const nextOffset = Number(result.nextOffset ?? offset);
         complete = Boolean(result.complete);
         batches += 1;
@@ -4348,6 +4356,7 @@ function FacturaDirectaImportPanel({ token }) {
           <div className="fd-import-result">
             <strong>{purchasesResult.imported || 0} compras procesadas</strong>
             <span>{purchasesResult.attachmentCount || 0} adjuntos · {purchasesResult.importedBytes ? attachmentSize(purchasesResult.importedBytes) : "0 B"}</span>
+            <span>Almacenamiento de adjuntos: {purchasesResult.attachmentStorageConfigured ? "preparado" : "no configurado"}</span>
             <span>{purchasesResult.failed || 0} errores · {purchasesResult.unmatchedSuppliers || 0} sin proveedor asociado</span>
           </div>
         ) : null}
