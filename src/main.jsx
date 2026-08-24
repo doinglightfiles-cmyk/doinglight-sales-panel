@@ -2309,7 +2309,7 @@ function DocumentPdfPage({
 
 function serializeSalesQuote(quote, leadsById) {
   const status = quoteStatusState(quote.status);
-  const lead = leadsById.get(quote.leadId) || {};
+  const lead = leadsById.get(quote.leadId) || quote.lead || {};
   const firstLine = Array.isArray(quote.items) ? quote.items[0] : null;
   const firstLineText = [firstLine?.title, firstLine?.sku].filter(Boolean).join(" · ");
   const detail = [
@@ -2321,7 +2321,7 @@ function serializeSalesQuote(quote, leadsById) {
     id: quote.id,
     leadId: quote.leadId,
     number: quote.quoteNumber || "-",
-    contact: lead.fullName || lead.companyName || "Cliente sin asignar",
+    contact: lead.companyName || lead.fullName || quote.contact || "Cliente sin asignar",
     detail,
     date: quote.createdAt,
     status: status.label,
@@ -9006,7 +9006,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
   const [leadSearchOpen, setLeadSearchOpen] = useState(false);
   const [leadSearchTouched, setLeadSearchTouched] = useState(false);
-  const [selectedLeadSnapshot, setSelectedLeadSnapshot] = useState(null);
+  const [selectedLeadSnapshot, setSelectedLeadSnapshot] = useState(initialQuote?.lead || null);
   const [leadDraft, setLeadDraft] = useState(null);
   const [leadEditorOpen, setLeadEditorOpen] = useState(false);
   const [leadSaveStatus, setLeadSaveStatus] = useState("");
@@ -9043,6 +9043,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         quantity: line.quantity || 1,
         discountPercent: line.discountPercent || 0,
         unitPriceOverride: line.unitPrice,
+        title: line.title || line.productSnapshot?.title || "",
+        productSnapshot: line.productSnapshot || {},
         manualTotal: null,
         customNote: line.customNote || line.productSnapshot?.customNote || "",
         customNoteOpen: Boolean(line.customNote || line.productSnapshot?.customNote)
@@ -9373,7 +9375,20 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   function productForLine(line) {
-    return products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku) || null;
+    const catalogProduct = products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku);
+    if (catalogProduct) return catalogProduct;
+
+    const sku = String(line.skuQuery || line.sku || "").trim();
+    if (!sku) return null;
+    const snapshot = line.productSnapshot || {};
+    const title = snapshot.title || snapshot.shortDescription || snapshot.description || line.title || sku;
+    return {
+      ...snapshot,
+      source: snapshot.source || "facturadirecta",
+      sku,
+      title,
+      shortDescription: snapshot.shortDescription || snapshot.description || line.title || title
+    };
   }
 
   function lineTotal(line) {
@@ -9714,13 +9729,18 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         url: attachment.url
       })),
       items: lines
-        .map((line) => ({
-          sku: line.sku || line.skuQuery.trim(),
-          quantity: Number(line.quantity),
-          discountPercent: Number(line.discountPercent),
-          unitPrice: unitPriceForSubmit(line),
-          customNote: String(line.customNote || "").trim()
-        }))
+        .map((line) => {
+          const product = productForLine(line);
+          return {
+            sku: line.sku || line.skuQuery.trim(),
+            title: product?.title || line.title || line.skuQuery.trim(),
+            quantity: Number(line.quantity),
+            discountPercent: Number(line.discountPercent),
+            unitPrice: unitPriceForSubmit(line),
+            customNote: String(line.customNote || "").trim(),
+            productSnapshot: product || line.productSnapshot || {}
+          };
+        })
         .filter((line) => line.sku),
       ...overrides
     };
