@@ -642,6 +642,40 @@ select:focus {
   margin: 0;
 }
 
+.fd-import-settings .settings-card {
+  gap: 20px;
+}
+
+.fd-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fd-import-progress {
+  margin: 0;
+  color: #526158;
+  font-size: 14px;
+}
+
+.fd-import-result {
+  display: grid;
+  gap: 5px;
+  padding: 16px;
+  border: 1px solid #d9e6dc;
+  border-radius: 12px;
+  background: #f7fbf8;
+}
+
+.fd-import-result strong {
+  color: #176735;
+}
+
+.fd-import-result span {
+  color: #56645b;
+  font-size: 13px;
+}
+
 .settings-card-header h3 {
   color: var(--ink);
   font-size: 24px;

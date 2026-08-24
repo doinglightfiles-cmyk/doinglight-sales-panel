@@ -4035,6 +4035,7 @@ function ComingSoonView({ title }) {
 
 const SETTINGS_SECTIONS = [
   { id: "company", title: "Empresa", description: "Datos fiscales, logo, dirección y factura electrónica", icon: Building2 },
+  { id: "integrations", title: "Integraciones", description: "Importación desde FacturaDirecta", icon: RefreshCw },
   { id: "users", title: "Usuarios y roles", description: "Gestiona usuarios, roles y el propietario de la cuenta", icon: UsersRound },
   { id: "taxes", title: "Impuestos", description: "Operador intracomunitario e impuestos habituales", icon: Landmark },
   { id: "verifactu", title: "VeriFactu", description: "Configura VeriFactu", icon: Fingerprint },
@@ -4143,6 +4144,8 @@ function SettingsView() {
         <main className="settings-content">
           {activeSection === "company" ? (
             <CompanySettingsPanel token={session?.token} />
+          ) : activeSection === "integrations" ? (
+            <FacturaDirectaImportPanel token={session?.token} />
           ) : activeSection === "numbering" ? (
             <NumberingSettingsPanel token={session?.token} />
           ) : (
@@ -4150,6 +4153,207 @@ function SettingsView() {
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+function FacturaDirectaImportPanel({ token }) {
+  const [salesBusy, setSalesBusy] = useState(false);
+  const [purchasesBusy, setPurchasesBusy] = useState(false);
+  const [salesResult, setSalesResult] = useState(null);
+  const [purchasesResult, setPurchasesResult] = useState(null);
+  const [salesProgress, setSalesProgress] = useState("");
+  const [purchasesProgress, setPurchasesProgress] = useState("");
+  const [error, setError] = useState("");
+
+  async function previewSales() {
+    setSalesBusy(true);
+    setError("");
+    setSalesProgress("Revisando una muestra...");
+    try {
+      const result = await apiRequest("/api/facturadirecta/import/sales-documents", {
+        token,
+        method: "POST",
+        body: { commit: false, limitPerResource: 10, batchSize: 10 }
+      });
+      setSalesResult(result);
+      setSalesProgress("Vista previa completada sin modificar datos.");
+    } catch (err) {
+      setError(err.message);
+      setSalesProgress("");
+    } finally {
+      setSalesBusy(false);
+    }
+  }
+
+  async function importAllSales() {
+    if (!window.confirm("Se importarán o actualizarán todos los presupuestos, proformas, albaranes y facturas de venta de FacturaDirecta. La operación evita duplicados. ¿Continuar?")) return;
+    setSalesBusy(true);
+    setError("");
+    const totals = { imported: 0, failed: 0, unmatchedContacts: 0, byResource: {} };
+    try {
+      for (const resource of ["estimates", "deliveryNotes", "invoices"]) {
+        let offset = 0;
+        let complete = false;
+        let batches = 0;
+        while (!complete) {
+          setSalesProgress(`Importando ${resource} desde el registro ${offset}...`);
+          const result = await apiRequest("/api/facturadirecta/import/sales-documents", {
+            token,
+            method: "POST",
+            body: {
+              commit: true,
+              resources: [resource],
+              batchSize: 100,
+              limitPerResource: 100,
+              offsets: { [resource]: offset }
+            }
+          });
+          const resourceResult = result.byResource?.[resource] || {};
+          totals.imported += Number(result.imported || 0);
+          totals.failed += Number(result.failed || 0);
+          totals.unmatchedContacts += Number(result.unmatchedContacts || 0);
+          totals.byResource[resource] = {
+            imported: Number(totals.byResource[resource]?.imported || 0) + Number(resourceResult.imported || 0),
+            failed: Number(totals.byResource[resource]?.failed || 0) + Number(resourceResult.failed || 0),
+            totalAvailable: resourceResult.totalAvailable
+          };
+          const nextOffset = Number(resourceResult.nextOffset ?? offset);
+          complete = Boolean(resourceResult.complete);
+          batches += 1;
+          if (!complete && (nextOffset <= offset || batches > 10000)) {
+            throw new Error(`La importación de ${resource} no pudo avanzar desde el registro ${offset}.`);
+          }
+          offset = nextOffset;
+        }
+      }
+      setSalesResult(totals);
+      setSalesProgress("Importación de ventas completada.");
+      window.dispatchEvent(new CustomEvent(SALES_DOCUMENT_SAVED_EVENT, { detail: { documentType: "all" } }));
+    } catch (err) {
+      setError(err.message);
+      setSalesProgress("Importación detenida. Puede reanudarse sin crear duplicados.");
+    } finally {
+      setSalesBusy(false);
+    }
+  }
+
+  async function previewPurchases() {
+    setPurchasesBusy(true);
+    setError("");
+    setPurchasesProgress("Revisando una muestra de compras y adjuntos...");
+    try {
+      const result = await apiRequest("/api/facturadirecta/import/purchases", {
+        token,
+        method: "POST",
+        body: { commit: false, limit: 10, batchSize: 10 }
+      });
+      setPurchasesResult(result);
+      setPurchasesProgress("Vista previa completada sin modificar datos.");
+    } catch (err) {
+      setError(err.message);
+      setPurchasesProgress("");
+    } finally {
+      setPurchasesBusy(false);
+    }
+  }
+
+  async function importAllPurchases() {
+    if (!window.confirm("Se importarán o actualizarán todas las compras de FacturaDirecta y se copiarán sus archivos adjuntos al almacenamiento del panel. ¿Continuar?")) return;
+    setPurchasesBusy(true);
+    setError("");
+    let offset = 0;
+    let complete = false;
+    let batches = 0;
+    const totals = { imported: 0, failed: 0, attachmentCount: 0, importedBytes: 0, unmatchedSuppliers: 0 };
+    try {
+      while (!complete) {
+        setPurchasesProgress(`Importando compras desde el registro ${offset}...`);
+        const result = await apiRequest("/api/facturadirecta/import/purchases", {
+          token,
+          method: "POST",
+          body: { commit: true, offset, limit: 10, batchSize: 10 }
+        });
+        totals.imported += Number(result.imported || 0);
+        totals.failed += Number(result.failed || 0);
+        totals.attachmentCount += Number(result.attachmentCount || 0);
+        totals.importedBytes += Number(result.importedBytes || 0);
+        totals.unmatchedSuppliers += Number(result.unmatchedSuppliers || 0);
+        const nextOffset = Number(result.nextOffset ?? offset);
+        complete = Boolean(result.complete);
+        batches += 1;
+        if (!complete && (nextOffset <= offset || batches > 10000)) {
+          throw new Error(`La importación de compras no pudo avanzar desde el registro ${offset}.`);
+        }
+        offset = nextOffset;
+      }
+      setPurchasesResult(totals);
+      setPurchasesProgress("Importación de compras y adjuntos completada.");
+      window.dispatchEvent(new CustomEvent("doinglight:purchases-changed"));
+    } catch (err) {
+      setError(err.message);
+      setPurchasesProgress("Importación detenida. Puede reanudarse sin crear duplicados.");
+    } finally {
+      setPurchasesBusy(false);
+    }
+  }
+
+  function salesBreakdown(result) {
+    return Object.entries(result?.byResource || {}).map(([resource, values]) => {
+      const labels = { estimates: "Presupuestos/proformas", deliveryNotes: "Albaranes", invoices: "Facturas" };
+      return `${labels[resource] || resource}: ${values.imported || 0}`;
+    }).join(" · ");
+  }
+
+  return (
+    <div className="settings-card-stack fd-import-settings">
+      <section className="settings-card">
+        <header className="settings-card-header">
+          <div>
+            <h3>Documentos de venta</h3>
+            <p>Presupuestos, proformas, albaranes y facturas de venta. Las repeticiones actualizan el documento existente.</p>
+          </div>
+        </header>
+        <div className="fd-import-actions">
+          <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={previewSales}>Revisar muestra</button>
+          <button className="primary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={importAllSales}>
+            {salesBusy ? "Procesando..." : "Importar todas las ventas"}
+          </button>
+        </div>
+        {salesProgress ? <p className="fd-import-progress">{salesProgress}</p> : null}
+        {salesResult ? (
+          <div className="fd-import-result">
+            <strong>{salesResult.imported || 0} documentos procesados</strong>
+            <span>{salesBreakdown(salesResult) || `${salesResult.scanned || 0} revisados`}</span>
+            <span>{salesResult.failed || 0} errores · {salesResult.unmatchedContacts || 0} sin cliente asociado</span>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="settings-card">
+        <header className="settings-card-header">
+          <div>
+            <h3>Compras y documentos originales</h3>
+            <p>Importa facturas de compra y tiques; copia sus PDF/JPG al almacenamiento configurado del panel.</p>
+          </div>
+        </header>
+        <div className="fd-import-actions">
+          <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={previewPurchases}>Revisar muestra</button>
+          <button className="primary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={importAllPurchases}>
+            {purchasesBusy ? "Procesando..." : "Importar todas las compras"}
+          </button>
+        </div>
+        {purchasesProgress ? <p className="fd-import-progress">{purchasesProgress}</p> : null}
+        {purchasesResult ? (
+          <div className="fd-import-result">
+            <strong>{purchasesResult.imported || 0} compras procesadas</strong>
+            <span>{purchasesResult.attachmentCount || 0} adjuntos · {purchasesResult.importedBytes ? attachmentSize(purchasesResult.importedBytes) : "0 B"}</span>
+            <span>{purchasesResult.failed || 0} errores · {purchasesResult.unmatchedSuppliers || 0} sin proveedor asociado</span>
+          </div>
+        ) : null}
+      </section>
+
+      {error ? <p className="form-error">{error}</p> : null}
     </div>
   );
 }

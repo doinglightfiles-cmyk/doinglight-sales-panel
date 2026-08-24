@@ -12,13 +12,27 @@ El panel está desplegado en `https://gestion.doinglight.es` y el repositorio lo
 
 Rama activa: `main`.
 
-Último hito confirmado por el código, Git y el usuario:
+Último hito desplegado confirmado por el código, Git y el usuario:
 
 ```text
 a6dcfba — Add FacturaDirecta purchase inventory controls
 ```
 
 Ese hito añadió en Compras el botón **Inventario FD**, que consulta una muestra de facturas de compra de FacturaDirecta y presenta cuántas tienen adjuntos, número de archivos, tamaño conocido/desconocido, tipos y errores. La consulta es de inventario: no descarga archivos ni modifica datos.
+
+## Hito local pendiente de publicar
+
+El 24 de agosto de 2026 se preparó, todavía sin desplegar ni ejecutar contra producción:
+
+- Importación idempotente de presupuestos, proformas, albaranes y facturas de venta desde FacturaDirecta.
+- Separación de los presupuestos normales y las proformas mediante `isProforma`.
+- Asociación automática con clientes por NIF/CIF, correo o nombre; los documentos sin coincidencia se conservan igualmente y se contabilizan en el resumen.
+- Importación idempotente de facturas de compra y tiques, asociándolos con proveedores por NIF/CIF, correo o nombre.
+- Copia de los adjuntos originales de compras a almacenamiento S3 compatible, conservando metadatos, tamaño, checksum y estado de importación.
+- Pantalla **Ajustes → Integraciones** con vista previa segura y botones para importar por lotes todas las ventas o todas las compras.
+- Migración backend pendiente: `018_fd_sales_document_import.sql`.
+
+Antes de la importación real hay que publicar frontend y backend, ejecutar migraciones y confirmar que Railway tiene configuradas las credenciales de FacturaDirecta y el almacenamiento S3 compatible de adjuntos.
 
 ## Arquitectura actual
 
@@ -109,6 +123,8 @@ También están pendientes de configuración las acciones logísticas de SEUR, G
 - `/api/purchases`
 - `/api/purchases/:id/attachments`
 - `/api/facturadirecta/purchases/inventory`
+- `/api/facturadirecta/import/purchases`
+- `/api/facturadirecta/import/sales-documents`
 - `/api/catalog/products`
 - `/api/catalog/image/:fileId`
 - `/api/settings`
@@ -133,3 +149,13 @@ Antes de cambiar un contrato, revisar las rutas y servicios correspondientes en 
 6. No desplegar ni hacer `push` salvo petición explícita.
 7. Actualizar este documento si cambia el estado global o el punto de continuación.
 
+## Operación de la importación preparada
+
+Una vez desplegada la versión y ejecutadas las migraciones, un administrador podrá ir a **Ajustes → Integraciones**:
+
+1. Pulsar **Revisar muestra** en Ventas y Compras. No escribe datos y permite comprobar la conexión.
+2. Pulsar **Importar todas las ventas** para incorporar presupuestos, proformas, albaranes y facturas.
+3. Pulsar **Importar todas las compras** para incorporar facturas de proveedor, tiques y sus archivos originales.
+4. Revisar el resumen de errores y documentos sin cliente/proveedor asociado.
+
+Ambas operaciones avanzan por lotes y pueden repetirse o reanudarse sin crear duplicados, usando el identificador de FacturaDirecta como identidad de origen.
