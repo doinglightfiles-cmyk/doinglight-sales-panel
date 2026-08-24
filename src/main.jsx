@@ -4166,7 +4166,7 @@ function FacturaDirectaImportPanel({ token }) {
   const [purchasesProgress, setPurchasesProgress] = useState("");
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupResult, setCleanupResult] = useState(null);
-  const [purchaseResumeOffset, setPurchaseResumeOffset] = useState(0);
+  const [purchaseResumeOffset, setPurchaseResumeOffset] = useState(630);
   const [diagnostics, setDiagnostics] = useState([]);
   const [error, setError] = useState("");
 
