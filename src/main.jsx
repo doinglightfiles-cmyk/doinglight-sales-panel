@@ -4395,6 +4395,7 @@ function FacturaDirectaImportPanel({ token }) {
               <h3>Resumen importado</h3>
               <p>{diagnosticTotals.quotes} presupuestos · {diagnosticTotals.proformas} proformas · {diagnosticTotals.deliveryNotes} albaranes · {diagnosticTotals.invoices} facturas</p>
               <p>{diagnosticTotals.purchases} compras · {diagnosticTotals.attachments} adjuntos · {attachmentSize(diagnosticTotals.attachmentBytes)}</p>
+              <p>{diagnosticTotals.unmatchedClients} ventas sin contacto asociado · {diagnosticTotals.unmatchedSuppliers} compras sin proveedor asociado</p>
             </div>
           </header>
         </section>

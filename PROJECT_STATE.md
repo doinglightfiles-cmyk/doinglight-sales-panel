@@ -12,27 +12,26 @@ El panel está desplegado en `https://gestion.doinglight.es` y el repositorio lo
 
 Rama activa: `main`.
 
-Último hito desplegado confirmado por el código, Git y el usuario:
+## Migración de FacturaDirecta completada
 
-```text
-a6dcfba — Add FacturaDirecta purchase inventory controls
-```
-
-Ese hito añadió en Compras el botón **Inventario FD**, que consulta una muestra de facturas de compra de FacturaDirecta y presenta cuántas tienen adjuntos, número de archivos, tamaño conocido/desconocido, tipos y errores. La consulta es de inventario: no descarga archivos ni modifica datos.
-
-## Hito local pendiente de publicar
-
-El 24 de agosto de 2026 se preparó, todavía sin desplegar ni ejecutar contra producción:
+El 24 de agosto de 2026 se publicó y ejecutó en producción:
 
 - Importación idempotente de presupuestos, proformas, albaranes y facturas de venta desde FacturaDirecta.
 - Separación de los presupuestos normales y las proformas mediante `isProforma`.
 - Asociación automática con clientes por NIF/CIF, correo o nombre; los documentos sin coincidencia se conservan igualmente y se contabilizan en el resumen.
 - Importación idempotente de facturas de compra y tiques, asociándolos con proveedores por NIF/CIF, correo o nombre.
-- Copia de los adjuntos originales de compras a almacenamiento S3 compatible, conservando metadatos, tamaño, checksum y estado de importación.
+- Copia de los adjuntos originales de compras a almacenamiento S3 compatible, conservando metadatos, tamaño, checksum y estado de importación; existe respaldo en PostgreSQL cuando S3 no está disponible.
 - Pantalla **Ajustes → Integraciones** con vista previa segura y botones para importar por lotes todas las ventas o todas las compras.
-- Migración backend pendiente: `018_fd_sales_document_import.sql`.
+- Migración backend `018_fd_sales_document_import.sql`, ejecutada automáticamente por Railway.
+- Limpieza previa de 37 documentos locales de prueba: 12 presupuestos, 19 documentos de venta y 6 compras.
 
-Antes de la importación real hay que publicar frontend y backend, ejecutar migraciones y confirmar que Railway tiene configuradas las credenciales de FacturaDirecta y el almacenamiento S3 compatible de adjuntos.
+Resultado verificado contra producción:
+
+- 16.242 documentos de venta: 7.851 presupuestos, 1.737 proformas, 2.981 albaranes y 3.673 facturas.
+- 2.443 compras y 2.432 adjuntos, con 711,2 MB almacenados.
+- Auditoría por identificador: 2.443 compras en FacturaDirecta y 2.443 en el panel; 0 extras y 0 ausentes.
+- 0 errores de importación pendientes.
+- 879 ventas históricas sin contacto asociado y 10 compras sin proveedor asociado; se conservan sin asignación para evitar relaciones ambiguas.
 
 ## Arquitectura actual
 
@@ -125,6 +124,8 @@ También están pendientes de configuración las acciones logísticas de SEUR, G
 - `/api/facturadirecta/purchases/inventory`
 - `/api/facturadirecta/import/purchases`
 - `/api/facturadirecta/import/sales-documents`
+- `/api/facturadirecta/import/recent-errors`
+- `/api/facturadirecta/import/audit-purchases`
 - `/api/catalog/products`
 - `/api/catalog/image/:fileId`
 - `/api/settings`
@@ -149,13 +150,14 @@ Antes de cambiar un contrato, revisar las rutas y servicios correspondientes en 
 6. No desplegar ni hacer `push` salvo petición explícita.
 7. Actualizar este documento si cambia el estado global o el punto de continuación.
 
-## Operación de la importación preparada
+## Operación de la importación
 
-Una vez desplegada la versión y ejecutadas las migraciones, un administrador podrá ir a **Ajustes → Integraciones**:
+La versión está desplegada y un administrador puede ir a **Ajustes → Integraciones**:
 
 1. Pulsar **Revisar muestra** en Ventas y Compras. No escribe datos y permite comprobar la conexión.
 2. Pulsar **Importar todas las ventas** para incorporar presupuestos, proformas, albaranes y facturas.
 3. Pulsar **Importar todas las compras** para incorporar facturas de proveedor, tiques y sus archivos originales.
 4. Revisar el resumen de errores y documentos sin cliente/proveedor asociado.
+5. Usar **Auditar compras** para comparar los identificadores locales con FacturaDirecta sin modificar datos.
 
 Ambas operaciones avanzan por lotes y pueden repetirse o reanudarse sin crear duplicados, usando el identificador de FacturaDirecta como identidad de origen.
