@@ -4169,7 +4169,6 @@ function FacturaDirectaImportPanel({ token }) {
   const [error, setError] = useState("");
 
   async function cleanupConfirmedTestDocuments() {
-    if (!window.confirm("Se eliminarán definitivamente los 39 documentos locales de prueba confirmados: 12 presupuestos, 21 documentos de venta y 6 compras. La operación se cancelará si las cantidades no coinciden. ¿Continuar?")) return;
     setCleanupBusy(true);
     setError("");
     try {
@@ -4343,12 +4342,12 @@ function FacturaDirectaImportPanel({ token }) {
         <header className="settings-card-header">
           <div>
             <h3>Limpieza previa confirmada</h3>
-            <p>Elimina únicamente los 39 documentos locales de prueba si las cantidades siguen coincidiendo exactamente.</p>
+            <p>Elimina únicamente los 37 documentos de prueba ya confirmados si las cantidades siguen coincidiendo exactamente.</p>
           </div>
         </header>
         <div className="fd-import-actions">
-          <button className="secondary-button" type="button" disabled={cleanupBusy || salesBusy || purchasesBusy || cleanupResult?.totalDeleted === 39} onClick={cleanupConfirmedTestDocuments}>
-            {cleanupBusy ? "Eliminando..." : cleanupResult?.totalDeleted === 39 ? "39 documentos eliminados" : "Eliminar documentos de prueba"}
+          <button className="secondary-button" type="button" disabled={cleanupBusy || salesBusy || purchasesBusy || cleanupResult?.totalDeleted === 37} onClick={cleanupConfirmedTestDocuments}>
+            {cleanupBusy ? "Eliminando..." : cleanupResult?.totalDeleted === 37 ? "37 documentos eliminados" : "Eliminar documentos de prueba"}
           </button>
         </div>
         {cleanupResult ? <p className="fd-import-progress">Limpieza completada: {cleanupResult.totalDeleted} documentos eliminados.</p> : null}
