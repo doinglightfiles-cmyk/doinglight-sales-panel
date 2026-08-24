@@ -1,14 +1,18 @@
-# Doinglight Sales Panel
+# Doinglight Sales Panel — APP DOINGLIGHT V2
 
 Panel web interno para `gestion.doinglight.es`.
 
-## Alcance inicial
+El mapa funcional recuperado, el último hito confirmado y las áreas pendientes están documentados en [`PROJECT_STATE.md`](./PROJECT_STATE.md). Las reglas para continuar el desarrollo sin depender del historial antiguo están en [`AGENTS.md`](./AGENTS.md).
+
+## Alcance actual
 
 - Login real contra el backend Railway.
-- Dashboard con métricas básicas.
-- Catálogo de productos.
-- Leads/clientes.
-- Presupuestos básicos.
+- Dashboard comercial.
+- Clientes y proveedores.
+- Catálogo de productos localizado.
+- Presupuestos, albaranes, proformas y facturas.
+- Compras, gastos y adjuntos.
+- Integración operativa con el backend Doinglight y FacturaDirecta.
 
 ## Variables
 
