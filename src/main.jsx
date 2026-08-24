@@ -4166,7 +4166,17 @@ function FacturaDirectaImportPanel({ token }) {
   const [purchasesProgress, setPurchasesProgress] = useState("");
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupResult, setCleanupResult] = useState(null);
+  const [purchaseResumeOffset, setPurchaseResumeOffset] = useState(0);
+  const [diagnostics, setDiagnostics] = useState([]);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    apiRequest("/api/facturadirecta/import/recent-errors", { token })
+      .then((result) => { if (!cancelled) setDiagnostics(result.errors || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [token]);
 
   async function cleanupConfirmedTestDocuments() {
     setCleanupBusy(true);
@@ -4283,7 +4293,7 @@ function FacturaDirectaImportPanel({ token }) {
     if (!window.confirm("Se importarán o actualizarán todas las compras de FacturaDirecta y se copiarán sus archivos adjuntos al almacenamiento del panel. ¿Continuar?")) return;
     setPurchasesBusy(true);
     setError("");
-    let offset = 0;
+    let offset = purchaseResumeOffset;
     let complete = false;
     let batches = 0;
     const totals = {
@@ -4298,11 +4308,26 @@ function FacturaDirectaImportPanel({ token }) {
     try {
       while (!complete) {
         setPurchasesProgress(`Importando compras desde el registro ${offset}...`);
-        const result = await apiRequest("/api/facturadirecta/import/purchases", {
-          token,
-          method: "POST",
-          body: { commit: true, offset, limit: 10, batchSize: 10 }
-        });
+        let result;
+        let lastRequestError;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          try {
+            result = await apiRequest("/api/facturadirecta/import/purchases", {
+              token,
+              method: "POST",
+              body: { commit: true, offset, limit: 10, batchSize: 10 }
+            });
+            lastRequestError = null;
+            break;
+          } catch (requestError) {
+            lastRequestError = requestError;
+            if (attempt < 3) {
+              setPurchasesProgress(`Reintentando compras desde el registro ${offset} (${attempt}/3)...`);
+              await new Promise((resolve) => window.setTimeout(resolve, attempt * 2000));
+            }
+          }
+        }
+        if (lastRequestError) throw lastRequestError;
         totals.imported += Number(result.imported || 0);
         totals.failed += Number(result.failed || 0);
         totals.attachmentCount += Number(result.attachmentCount || 0);
@@ -4319,9 +4344,11 @@ function FacturaDirectaImportPanel({ token }) {
         offset = nextOffset;
       }
       setPurchasesResult(totals);
+      setPurchaseResumeOffset(0);
       setPurchasesProgress("Importación de compras y adjuntos completada.");
       window.dispatchEvent(new CustomEvent("doinglight:purchases-changed"));
     } catch (err) {
+      setPurchaseResumeOffset(offset);
       setError(err.message);
       setPurchasesProgress("Importación detenida. Puede reanudarse sin crear duplicados.");
     } finally {
@@ -4373,6 +4400,14 @@ function FacturaDirectaImportPanel({ token }) {
             <span>{salesResult.failed || 0} errores · {salesResult.unmatchedContacts || 0} sin cliente asociado</span>
           </div>
         ) : null}
+        {diagnostics.length ? (
+          <div className="fd-import-result">
+            <strong>Diagnóstico de errores recientes</strong>
+            {diagnostics.slice(0, 5).map((item, index) => (
+              <span key={`${item.sourceItemType}-${index}`}>{item.sourceItemType}: {item.occurrences} · {item.error}</span>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="settings-card">
@@ -4385,7 +4420,7 @@ function FacturaDirectaImportPanel({ token }) {
         <div className="fd-import-actions">
           <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={previewPurchases}>Revisar muestra</button>
           <button className="primary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={importAllPurchases}>
-            {purchasesBusy ? "Procesando..." : "Importar todas las compras"}
+            {purchasesBusy ? "Procesando..." : purchaseResumeOffset ? `Reanudar compras desde ${purchaseResumeOffset}` : "Importar todas las compras"}
           </button>
         </div>
         {purchasesProgress ? <p className="fd-import-progress">{purchasesProgress}</p> : null}
