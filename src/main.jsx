@@ -4271,7 +4271,8 @@ function FacturaDirectaImportPanel({ token }) {
       attachmentCount: 0,
       importedBytes: 0,
       unmatchedSuppliers: 0,
-      attachmentStorageConfigured: false
+      attachmentStorageConfigured: false,
+      attachmentStorageMode: ""
     };
     try {
       while (!complete) {
@@ -4287,6 +4288,7 @@ function FacturaDirectaImportPanel({ token }) {
         totals.importedBytes += Number(result.importedBytes || 0);
         totals.unmatchedSuppliers += Number(result.unmatchedSuppliers || 0);
         totals.attachmentStorageConfigured = Boolean(result.attachmentStorageConfigured);
+        totals.attachmentStorageMode = result.attachmentStorageMode || totals.attachmentStorageMode;
         const nextOffset = Number(result.nextOffset ?? offset);
         complete = Boolean(result.complete);
         batches += 1;
@@ -4356,7 +4358,9 @@ function FacturaDirectaImportPanel({ token }) {
           <div className="fd-import-result">
             <strong>{purchasesResult.imported || 0} compras procesadas</strong>
             <span>{purchasesResult.attachmentCount || 0} adjuntos · {purchasesResult.importedBytes ? attachmentSize(purchasesResult.importedBytes) : "0 B"}</span>
-            <span>Almacenamiento de adjuntos: {purchasesResult.attachmentStorageConfigured ? "preparado" : "no configurado"}</span>
+            <span>
+              Almacenamiento de adjuntos: {purchasesResult.attachmentStorageMode === "s3" ? "S3" : "base de datos del panel"}
+            </span>
             <span>{purchasesResult.failed || 0} errores · {purchasesResult.unmatchedSuppliers || 0} sin proveedor asociado</span>
           </div>
         ) : null}
