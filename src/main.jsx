@@ -4164,7 +4164,29 @@ function FacturaDirectaImportPanel({ token }) {
   const [purchasesResult, setPurchasesResult] = useState(null);
   const [salesProgress, setSalesProgress] = useState("");
   const [purchasesProgress, setPurchasesProgress] = useState("");
+  const [cleanupBusy, setCleanupBusy] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState(null);
   const [error, setError] = useState("");
+
+  async function cleanupConfirmedTestDocuments() {
+    if (!window.confirm("Se eliminarán definitivamente los 39 documentos locales de prueba confirmados: 12 presupuestos, 21 documentos de venta y 6 compras. La operación se cancelará si las cantidades no coinciden. ¿Continuar?")) return;
+    setCleanupBusy(true);
+    setError("");
+    try {
+      const result = await apiRequest("/api/facturadirecta/cleanup/confirmed-test-documents", {
+        token,
+        method: "POST",
+        body: { confirmation: "BORRAR 39 DOCUMENTOS DE PRUEBA" }
+      });
+      setCleanupResult(result);
+      window.dispatchEvent(new CustomEvent(SALES_DOCUMENT_SAVED_EVENT, { detail: { documentType: "all" } }));
+      window.dispatchEvent(new CustomEvent("doinglight:purchases-changed"));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCleanupBusy(false);
+    }
+  }
 
   async function previewSales() {
     setSalesBusy(true);
@@ -4317,6 +4339,20 @@ function FacturaDirectaImportPanel({ token }) {
 
   return (
     <div className="settings-card-stack fd-import-settings">
+      <section className="settings-card">
+        <header className="settings-card-header">
+          <div>
+            <h3>Limpieza previa confirmada</h3>
+            <p>Elimina únicamente los 39 documentos locales de prueba si las cantidades siguen coincidiendo exactamente.</p>
+          </div>
+        </header>
+        <div className="fd-import-actions">
+          <button className="secondary-button" type="button" disabled={cleanupBusy || salesBusy || purchasesBusy || cleanupResult?.totalDeleted === 39} onClick={cleanupConfirmedTestDocuments}>
+            {cleanupBusy ? "Eliminando..." : cleanupResult?.totalDeleted === 39 ? "39 documentos eliminados" : "Eliminar documentos de prueba"}
+          </button>
+        </div>
+        {cleanupResult ? <p className="fd-import-progress">Limpieza completada: {cleanupResult.totalDeleted} documentos eliminados.</p> : null}
+      </section>
       <section className="settings-card">
         <header className="settings-card-header">
           <div>
