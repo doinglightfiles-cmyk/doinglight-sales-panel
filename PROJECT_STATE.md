@@ -31,7 +31,7 @@ Resultado verificado contra producción:
 - 2.443 compras y 2.432 adjuntos, con 711,2 MB almacenados.
 - Auditoría por identificador: 2.443 compras en FacturaDirecta y 2.443 en el panel; 0 extras y 0 ausentes.
 - 0 errores de importación pendientes.
-- 879 ventas históricas sin contacto asociado y 10 compras sin proveedor asociado; se conservan sin asignación para evitar relaciones ambiguas.
+- 887 ventas históricas sin contacto asociado y 6 compras sin proveedor asociado; se conservan sin asignación para evitar relaciones ambiguas.
 
 ## Arquitectura actual
 
