@@ -4164,38 +4164,23 @@ function FacturaDirectaImportPanel({ token }) {
   const [purchasesResult, setPurchasesResult] = useState(null);
   const [salesProgress, setSalesProgress] = useState("");
   const [purchasesProgress, setPurchasesProgress] = useState("");
-  const [cleanupBusy, setCleanupBusy] = useState(false);
-  const [cleanupResult, setCleanupResult] = useState(null);
-  const [purchaseResumeOffset, setPurchaseResumeOffset] = useState(630);
+  const [purchaseResumeOffset, setPurchaseResumeOffset] = useState(0);
   const [diagnostics, setDiagnostics] = useState([]);
+  const [diagnosticTotals, setDiagnosticTotals] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     apiRequest("/api/facturadirecta/import/recent-errors", { token })
-      .then((result) => { if (!cancelled) setDiagnostics(result.errors || []); })
+      .then((result) => {
+        if (!cancelled) {
+          setDiagnostics(result.errors || []);
+          setDiagnosticTotals(result.totals || null);
+        }
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [token]);
-
-  async function cleanupConfirmedTestDocuments() {
-    setCleanupBusy(true);
-    setError("");
-    try {
-      const result = await apiRequest("/api/facturadirecta/cleanup/confirmed-test-documents", {
-        token,
-        method: "POST",
-        body: { confirmation: "BORRAR 39 DOCUMENTOS DE PRUEBA" }
-      });
-      setCleanupResult(result);
-      window.dispatchEvent(new CustomEvent(SALES_DOCUMENT_SAVED_EVENT, { detail: { documentType: "all" } }));
-      window.dispatchEvent(new CustomEvent("doinglight:purchases-changed"));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setCleanupBusy(false);
-    }
-  }
 
   async function previewSales() {
     setSalesBusy(true);
@@ -4386,20 +4371,17 @@ function FacturaDirectaImportPanel({ token }) {
 
   return (
     <div className="settings-card-stack fd-import-settings">
-      <section className="settings-card">
-        <header className="settings-card-header">
-          <div>
-            <h3>Limpieza previa confirmada</h3>
-            <p>Elimina únicamente los 37 documentos de prueba ya confirmados si las cantidades siguen coincidiendo exactamente.</p>
-          </div>
-        </header>
-        <div className="fd-import-actions">
-          <button className="secondary-button" type="button" disabled={cleanupBusy || salesBusy || purchasesBusy || cleanupResult?.totalDeleted === 37} onClick={cleanupConfirmedTestDocuments}>
-            {cleanupBusy ? "Eliminando..." : cleanupResult?.totalDeleted === 37 ? "37 documentos eliminados" : "Eliminar documentos de prueba"}
-          </button>
-        </div>
-        {cleanupResult ? <p className="fd-import-progress">Limpieza completada: {cleanupResult.totalDeleted} documentos eliminados.</p> : null}
-      </section>
+      {diagnosticTotals ? (
+        <section className="settings-card">
+          <header className="settings-card-header">
+            <div>
+              <h3>Resumen importado</h3>
+              <p>{diagnosticTotals.quotes} presupuestos · {diagnosticTotals.proformas} proformas · {diagnosticTotals.deliveryNotes} albaranes · {diagnosticTotals.invoices} facturas</p>
+              <p>{diagnosticTotals.purchases} compras · {diagnosticTotals.attachments} adjuntos · {attachmentSize(diagnosticTotals.attachmentBytes)}</p>
+            </div>
+          </header>
+        </section>
+      ) : null}
       <section className="settings-card">
         <header className="settings-card-header">
           <div>
@@ -4443,7 +4425,6 @@ function FacturaDirectaImportPanel({ token }) {
           <button className="primary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={importAllPurchases}>
             {purchasesBusy ? "Procesando..." : purchaseResumeOffset ? `Reanudar compras desde ${purchaseResumeOffset}` : "Importar todas las compras"}
           </button>
-          <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={retryFailedPurchases}>Reparar compras pendientes</button>
         </div>
         {purchasesProgress ? <p className="fd-import-progress">{purchasesProgress}</p> : null}
         {purchasesResult ? (
