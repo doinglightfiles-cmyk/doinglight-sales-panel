@@ -4356,6 +4356,27 @@ function FacturaDirectaImportPanel({ token }) {
     }
   }
 
+  async function retryFailedPurchases() {
+    setPurchasesBusy(true);
+    setError("");
+    setPurchasesProgress("Reintentando únicamente las compras fallidas...");
+    try {
+      const result = await apiRequest("/api/facturadirecta/import/purchases/retry-failed", {
+        token,
+        method: "POST",
+        body: {}
+      });
+      setPurchasesResult(result);
+      setPurchasesProgress("Reintento de compras fallidas completado.");
+      window.dispatchEvent(new CustomEvent("doinglight:purchases-changed"));
+    } catch (err) {
+      setError(err.message);
+      setPurchasesProgress("No se pudieron completar los reintentos.");
+    } finally {
+      setPurchasesBusy(false);
+    }
+  }
+
   function salesBreakdown(result) {
     return Object.entries(result?.byResource || {}).map(([resource, values]) => {
       const labels = { estimates: "Presupuestos/proformas", deliveryNotes: "Albaranes", invoices: "Facturas" };
@@ -4422,6 +4443,9 @@ function FacturaDirectaImportPanel({ token }) {
           <button className="primary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={importAllPurchases}>
             {purchasesBusy ? "Procesando..." : purchaseResumeOffset ? `Reanudar compras desde ${purchaseResumeOffset}` : "Importar todas las compras"}
           </button>
+          {diagnostics.some((item) => item.sourceItemType === "purchase") ? (
+            <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={retryFailedPurchases}>Reintentar compras fallidas</button>
+          ) : null}
         </div>
         {purchasesProgress ? <p className="fd-import-progress">{purchasesProgress}</p> : null}
         {purchasesResult ? (
