@@ -4443,9 +4443,7 @@ function FacturaDirectaImportPanel({ token }) {
           <button className="primary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={importAllPurchases}>
             {purchasesBusy ? "Procesando..." : purchaseResumeOffset ? `Reanudar compras desde ${purchaseResumeOffset}` : "Importar todas las compras"}
           </button>
-          {diagnostics.some((item) => item.sourceItemType === "purchase") ? (
-            <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={retryFailedPurchases}>Reintentar compras fallidas</button>
-          ) : null}
+          <button className="secondary-button" type="button" disabled={salesBusy || purchasesBusy} onClick={retryFailedPurchases}>Reparar compras pendientes</button>
         </div>
         {purchasesProgress ? <p className="fd-import-progress">{purchasesProgress}</p> : null}
         {purchasesResult ? (
