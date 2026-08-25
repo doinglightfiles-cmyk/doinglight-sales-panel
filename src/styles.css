@@ -6627,6 +6627,128 @@ th {
   }
 }
 
+.invoice-series-field {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.invoice-series-trigger {
+  width: 100%;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 12px 7px 14px;
+  color: var(--ink);
+  background: var(--white);
+  text-align: left;
+}
+
+.invoice-series-trigger > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.invoice-series-trigger strong,
+.invoice-series-trigger small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-series-trigger small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.invoice-series-menu {
+  position: absolute;
+  z-index: 40;
+  top: 80px;
+  left: 0;
+  width: min(430px, calc(100vw - 64px));
+  max-height: 470px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: 0 22px 54px rgba(23, 36, 50, 0.2);
+}
+
+.invoice-series-option,
+.invoice-series-add {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px;
+  color: var(--ink);
+  background: transparent;
+  text-align: left;
+}
+
+.invoice-series-option {
+  display: grid;
+  gap: 3px;
+}
+
+.invoice-series-option:hover,
+.invoice-series-option.active,
+.invoice-series-add:hover {
+  background: var(--soft);
+}
+
+.invoice-series-option small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.invoice-series-add {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 0;
+  background: var(--white);
+  font-weight: 750;
+}
+
+.invoice-series-help {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.invoice-series-create-form {
+  display: grid;
+  gap: 16px;
+}
+
+.invoice-series-create-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.invoice-series-create-form input {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: var(--white);
+}
+
 @media (max-width: 1320px) {
   .home-card-grid,
   .country-dashboard {

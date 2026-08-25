@@ -620,8 +620,41 @@ async function renderDocumentElementAsPdf(elementId, filename, { save = true } =
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = 210;
   const pageHeight = 297;
-  const imageHeight = Math.min(pageHeight, (canvas.height * pageWidth) / canvas.width);
-  pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, imageHeight);
+  const pageHeightPixels = Math.floor((canvas.width * pageHeight) / pageWidth);
+  let offsetY = 0;
+  let pageIndex = 0;
+
+  while (offsetY < canvas.height) {
+    const sliceHeight = Math.min(pageHeightPixels, canvas.height - offsetY);
+    const pageCanvas = document.createElement("canvas");
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = sliceHeight;
+    const context = pageCanvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+    context.drawImage(
+      canvas,
+      0,
+      offsetY,
+      canvas.width,
+      sliceHeight,
+      0,
+      0,
+      canvas.width,
+      sliceHeight
+    );
+    if (pageIndex > 0) pdf.addPage("a4", "portrait");
+    pdf.addImage(
+      pageCanvas.toDataURL("image/jpeg", 0.95),
+      "JPEG",
+      0,
+      0,
+      pageWidth,
+      (sliceHeight * pageWidth) / canvas.width
+    );
+    offsetY += sliceHeight;
+    pageIndex += 1;
+  }
   if (save) pdf.save(filename);
   return pdf.output("datauristring").split(",")[1];
 }
@@ -8556,8 +8589,15 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
     const endpoint = activeDocument.documentType === "quote"
       ? `/api/sales/documents/${targetType}/from-quote/${activeDocument.id}`
       : `/api/sales/documents/${targetType}/from-document/${activeDocument.documentType}/${activeDocument.id}`;
-    await apiRequest(endpoint, { token, method: "POST", body: {} });
-    finish();
+    const result = await apiRequest(endpoint, { token, method: "POST", body: {} });
+    const created = result?.item || result;
+    if (!created?.id) throw new Error("No se ha podido abrir el documento creado.");
+    setActionsOpen(false);
+    setActiveDocument({
+      id: created.id,
+      number: created.documentNumber || created.quoteNumber || created.number || "",
+      documentType: targetType
+    });
   }
 
   function createInvoiceFromQuote() {
@@ -9108,6 +9148,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [validUntil, setValidUntil] = useState(initialQuote?.dueDate ? inputDate(initialQuote.dueDate) : addDaysInput(initialQuote?.issueDate || initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
   const [internalNotes, setInternalNotes] = useState(initialQuote?.internalNotes || "");
+  const [documentSeries, setDocumentSeries] = useState(initialQuote?.documentSeries || "");
+  const [seriesMenuOpen, setSeriesMenuOpen] = useState(false);
+  const [seriesCreationOpen, setSeriesCreationOpen] = useState(false);
+  const [seriesSaving, setSeriesSaving] = useState(false);
+  const [seriesError, setSeriesError] = useState("");
+  const [newInvoiceSeries, setNewInvoiceSeries] = useState({ code: "", notes: "" });
   const [quoteLanguage, setQuoteLanguage] = useState(initialQuote?.locale || "es");
   const [quoteLanguageTouched, setQuoteLanguageTouched] = useState(false);
   const catalog = useResource(
@@ -9141,11 +9187,27 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     if (persistedLeadId) setSelectedLeadId((current) => current || persistedLeadId);
   }, [currentDocument?.leadId, initialQuote?.leadId]);
 
+  useEffect(() => {
+    if (currentDocument?.documentSeries !== undefined && currentDocument?.documentSeries !== null) {
+      setDocumentSeries(currentDocument.documentSeries || "");
+    }
+  }, [currentDocument?.documentSeries]);
+
   const leadsList = leads.data?.items || [];
   const paymentMethods = useMemo(
     () => normalizePaymentMethods(paymentSettings.data?.item?.paymentMethods),
     [paymentSettings.data]
   );
+  const numberingSettings = useMemo(
+    () => normalizeNumbering(paymentSettings.data?.item?.numbering),
+    [paymentSettings.data]
+  );
+  const invoiceSeriesRows = useMemo(
+    () => (numberingSettings.series.invoice || []).filter((series) => !series.hidden),
+    [numberingSettings]
+  );
+  const selectedInvoiceSeries = invoiceSeriesRows.find((series) => String(series.code || "") === documentSeries)
+    || { code: documentSeries, notes: "" };
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
@@ -9534,7 +9596,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     }
 
     try {
-      await apiRequest(`/api/sales/documents/delivery_note/from-quote/${currentDocument.id}`, {
+      const result = await apiRequest(`/api/sales/documents/delivery_note/from-quote/${currentDocument.id}`, {
         token,
         method: "POST",
         body: {
@@ -9544,8 +9606,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           leadId: effectiveLeadId || null
         }
       });
+      const created = result?.item || result;
       setTransferLinesOpen(false);
-      onDone();
+      if (created?.id && onOpenTrace) {
+        onOpenTrace({
+          id: created.id,
+          number: created.documentNumber || created.number || "",
+          type: "delivery_note"
+        });
+      } else {
+        onDone();
+      }
     } catch (err) {
       window.alert(err.message || "No se ha podido crear el albarán.");
     }
@@ -9558,12 +9629,21 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     }
 
     try {
-      await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${currentDocument.id}`, {
+      const result = await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${currentDocument.id}`, {
         token,
         method: "POST",
         body: { leadId: effectiveLeadId || null }
       });
-      onDone();
+      const created = result?.item || result;
+      if (created?.id && onOpenTrace) {
+        onOpenTrace({
+          id: created.id,
+          number: created.documentNumber || created.number || "",
+          type: "invoice"
+        });
+      } else {
+        onDone();
+      }
     } catch (err) {
       window.alert(err.message || "No se ha podido crear la factura.");
     }
@@ -9593,12 +9673,21 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       const deliveryNote = deliveryNoteResult.item;
       if (!deliveryNote?.id) throw new Error("No se ha podido crear el albarán previo a la factura.");
 
-      await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${deliveryNote.id}`, {
+      const invoiceResult = await apiRequest(`/api/sales/documents/invoice/from-document/delivery_note/${deliveryNote.id}`, {
         token,
         method: "POST",
         body: { leadId: deliveryNote.leadId || effectiveLeadId || null }
       });
-      onDone();
+      const invoice = invoiceResult?.item || invoiceResult;
+      if (invoice?.id && onOpenTrace) {
+        onOpenTrace({
+          id: invoice.id,
+          number: invoice.documentNumber || invoice.number || "",
+          type: "invoice"
+        });
+      } else {
+        onDone();
+      }
     } catch (err) {
       window.alert(err.message || "No se ha podido facturar el presupuesto.");
     }
@@ -9749,6 +9838,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       taxMode: activeTaxOption.value,
       taxCode: activeTaxOption.value,
       reverseCharge,
+      ...(isInvoice ? { documentSeries } : {}),
       pdfTemplate,
       visualTemplate: pdfTemplate,
       attachments: attachments.map((attachment) => ({
@@ -9783,6 +9873,55 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       body: { items: nextMethods }
     });
     paymentSettings.reload();
+  }
+
+  async function saveNewInvoiceSeries(event) {
+    event?.preventDefault();
+    const code = newInvoiceSeries.code.trim().toUpperCase();
+    if (!code) {
+      setSeriesError("Indica el código de la nueva serie.");
+      return;
+    }
+    if ((numberingSettings.series.invoice || []).some((series) => String(series.code || "").toUpperCase() === code)) {
+      setSeriesError("Ya existe una serie con ese código.");
+      return;
+    }
+
+    setSeriesSaving(true);
+    setSeriesError("");
+    try {
+      const nextSeries = {
+        id: `invoice-${Date.now()}`,
+        code,
+        invoiceType: "Completa",
+        template: "Principal",
+        restart: "Cada año",
+        initialNumber: 1,
+        manual: false,
+        hidden: false,
+        notes: newInvoiceSeries.notes.trim()
+      };
+      await apiRequest("/api/settings/numbering", {
+        token,
+        method: "PATCH",
+        body: {
+          ...numberingSettings,
+          series: {
+            ...numberingSettings.series,
+            invoice: [...(numberingSettings.series.invoice || []), nextSeries]
+          }
+        }
+      });
+      setDocumentSeries(code);
+      setNewInvoiceSeries({ code: "", notes: "" });
+      setSeriesCreationOpen(false);
+      setSeriesMenuOpen(false);
+      paymentSettings.reload();
+    } catch (err) {
+      setSeriesError(err.message || "No se ha podido crear la serie.");
+    } finally {
+      setSeriesSaving(false);
+    }
   }
 
   useEffect(() => {
@@ -10123,16 +10262,76 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <span>Fecha</span>
               <input type="date" value={quoteDate} onChange={(event) => setQuoteDate(event.target.value)} />
             </label>
-            <label>
-              <span>Número de documento</span>
-              <input value={currentDocument?.quoteNumber || currentDocument?.documentNumber || ""} placeholder="Se generará automáticamente" readOnly />
-            </label>
+            {isInvoice ? (
+              <div className="invoice-series-field">
+                <span>Número de documento</span>
+                <button
+                  className="invoice-series-trigger"
+                  type="button"
+                  onClick={() => setSeriesMenuOpen((open) => !open)}
+                  aria-expanded={seriesMenuOpen}
+                  aria-haspopup="listbox"
+                >
+                  <span>
+                    <strong>{invoiceSeriesLabel(documentSeries)}</strong>
+                    <small>{currentDocument?.documentNumber || "Numeración automática"}</small>
+                  </span>
+                  <ChevronDown size={17} />
+                </button>
+                {seriesMenuOpen ? (
+                  <div className="invoice-series-menu" role="listbox" aria-label="Series de factura">
+                    {invoiceSeriesRows.map((series) => {
+                      const code = String(series.code || "");
+                      const active = code === documentSeries;
+                      return (
+                        <button
+                          key={series.id || code || "invoice-no-series"}
+                          className={active ? "invoice-series-option active" : "invoice-series-option"}
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => {
+                            setDocumentSeries(code);
+                            setSeriesMenuOpen(false);
+                          }}
+                        >
+                          <strong>{invoiceSeriesLabel(code)}</strong>
+                          <small>{series.notes || (code ? "Numeración automática" : "Sin serie")}</small>
+                        </button>
+                      );
+                    })}
+                    <button
+                      className="invoice-series-add"
+                      type="button"
+                      onClick={() => {
+                        setSeriesError("");
+                        setSeriesCreationOpen(true);
+                        setSeriesMenuOpen(false);
+                      }}
+                    >
+                      <Plus size={18} />
+                      Añadir nueva serie
+                    </button>
+                  </div>
+                ) : null}
+                <small className="invoice-series-help">
+                  {currentDocument?.documentNumber
+                    ? `Número actual: ${currentDocument.documentNumber}`
+                    : `El siguiente número de ${selectedInvoiceSeries.code || "la serie sin código"} se asignará al guardar.`}
+                </small>
+              </div>
+            ) : (
+              <label>
+                <span>Número de documento</span>
+                <input value={currentDocument?.quoteNumber || currentDocument?.documentNumber || ""} placeholder="Se generará automáticamente" readOnly />
+              </label>
+            )}
             <label>
               <span>Correo electrónico de envío</span>
               <input value={leadDraft?.email || selectedLead?.email || ""} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder="Sin correo electrónico" readOnly={!selectedLead} />
             </label>
             <label>
-              <span>Válido hasta</span>
+              <span>{isInvoice ? "Vencimiento" : isDeliveryNote ? "Fecha de entrega" : "Válido hasta"}</span>
               <input type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
             </label>
             {isQuote || isProforma ? (
@@ -10455,6 +10654,42 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <button className="primary-button" type="button" onClick={confirmTransferLines}>Crear albarán con estas líneas</button>
             </div>
           </div>
+        </ModalShell>
+      ) : null}
+      {seriesCreationOpen ? (
+        <ModalShell
+          title="Nueva serie de facturas"
+          eyebrow="Numeración"
+          size="numbering-modal invoice-series-create-modal"
+          onClose={() => setSeriesCreationOpen(false)}
+        >
+          <form className="invoice-series-create-form" onSubmit={saveNewInvoiceSeries}>
+            <label>
+              <span>Código de serie</span>
+              <input
+                value={newInvoiceSeries.code}
+                onChange={(event) => setNewInvoiceSeries({ ...newInvoiceSeries, code: event.target.value.toUpperCase() })}
+                placeholder="Ej. ES, FR o PT"
+                autoFocus
+              />
+            </label>
+            <label>
+              <span>Descripción</span>
+              <input
+                value={newInvoiceSeries.notes}
+                onChange={(event) => setNewInvoiceSeries({ ...newInvoiceSeries, notes: event.target.value })}
+                placeholder="Descripción opcional"
+              />
+            </label>
+            <p className="form-help">La numeración comenzará en 1, tendrá cinco dígitos y se reiniciará cada año.</p>
+            {seriesError ? <p className="form-error">{seriesError}</p> : null}
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setSeriesCreationOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="submit" disabled={seriesSaving}>
+                {seriesSaving ? "Guardando..." : "Añadir serie"}
+              </button>
+            </div>
+          </form>
         </ModalShell>
       ) : null}
       {sendModalOpen && sendDraft ? (
