@@ -9800,23 +9800,53 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     };
   });
 
-  function buildDefaultSendDraft() {
+  function buildDefaultSendDraft({ document = currentDocument, paymentUrl = redsysPaymentUrl } = {}) {
     const clientName = leadDraft?.fullName || leadDraft?.companyName || selectedLead?.fullName || selectedLead?.companyName || "cliente";
+    const documentNumber = document?.quoteNumber || document?.documentNumber || document?.number || quoteNumberLabel;
     return {
       to: splitEmailRecipients(leadDraft?.email || selectedLead?.email || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
-      subject: quoteNumberLabel !== "borrador" ? `${meta.subject} ${quoteNumberLabel}` : meta.subject,
+      subject: documentNumber !== "borrador" ? `${meta.subject} ${documentNumber}` : meta.subject,
       body: isQuote
-        ? quoteEmailBody({ clientName, quoteNumber: quoteNumberLabel, includePaymentDetails, paymentUrl: redsysPaymentUrl })
+        ? quoteEmailBody({ clientName, quoteNumber: documentNumber, includePaymentDetails, paymentUrl })
         : meta.body,
       attachPdf: true
     };
   }
 
-  function openSendModal() {
-    setSendDraft(buildDefaultSendDraft());
-    setSendStatus("");
-    setSendModalOpen(true);
+  async function openSendModal() {
+    setError("");
+    let documentForSend = currentDocument;
+    let paymentUrl = redsysPaymentUrl.trim();
+
+    try {
+      if (isQuote && includePaymentDetails && !paymentUrl) {
+        if (!documentForSend?.id) {
+          throw new Error("Guarda primero el presupuesto para generar su enlace de pago.");
+        }
+
+        setSaveState("saving");
+        const paymentResult = await apiRequest(`/api/sales/quotes/${documentForSend.id}/payment-link`, {
+          token,
+          method: "POST",
+          body: {}
+        });
+        documentForSend = paymentResult?.item || paymentResult;
+        paymentUrl = String(documentForSend?.redsysPaymentUrl || "").trim();
+        if (!paymentUrl) throw new Error("Redsys no ha devuelto el enlace de pago.");
+
+        setSavedDocument(documentForSend);
+        setRedsysPaymentUrl(paymentUrl);
+        setSaveState("saved");
+      }
+
+      setSendDraft(buildDefaultSendDraft({ document: documentForSend, paymentUrl }));
+      setSendStatus("");
+      setSendModalOpen(true);
+    } catch (err) {
+      setError(err.message || "No se ha podido preparar el envío.");
+      setSaveState("idle");
+    }
   }
 
   function updateSendDraft(patch) {
