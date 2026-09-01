@@ -1,6 +1,18 @@
 # APP DOINGLIGHT V2 — estado recuperado
 
-Actualizado: 24 de agosto de 2026.
+Actualizado: 1 de septiembre de 2026.
+
+## Cambios locales pendientes de despliegue
+
+- Los listados de presupuestos, proformas, albaranes y facturas muestran el icono del tipo de documento en verde para la plantilla Doinglight y azul para Tubo Solar.
+- La APP móvil de gestión muestra la misma distinción mediante una franja lateral en cada tarjeta de venta y respeta el área segura inferior de Android en pantallas y modales.
+- El backend incorpora la migración `019_sales_document_pdf_template.sql` para conservar la plantilla al convertir documentos y recuperar la plantilla de los documentos históricos vinculados a un presupuesto.
+- Los presupuestos incorporan un check persistente para incluir u ocultar en el PDF el IBAN de Doinglight y un enlace público de pago Redsys. El backend lo conserva mediante `020_quote_payment_details.sql` y solicita la generación automática al puente PayGold existente. Antes de publicarlo hay que desplegar también el nuevo endpoint seguro `/api/payment-links` del bridge y configurar en el backend `PAYGOLD_BRIDGE_URL` y `PAYGOLD_BRIDGE_SECRET`.
+- Los compositores de correo de presupuesto, proforma, albarán y factura, tanto en panel como en APP móvil, incluyen por defecto los textos completos de protección de datos y confidencialidad facilitados por Doinglight.
+- El correo de presupuesto usa dos cuerpos: con datos de pago muestra IBAN y enlace PayGold tanto en el texto como en un botón; sin datos de pago muestra un botón verde de aceptación. Los correos llevan el logotipo Doinglight y una firma textual provisional de Administración.
+- La aceptación usa tokens públicos almacenados únicamente como hash y una pantalla de confirmación intermedia para impedir aceptaciones causadas por escáneres automáticos de correo. Al confirmar por primera vez, el presupuesto pasa a `accepted`, se crea una única proforma y se envía automáticamente en PDF al cliente; si el envío falla, la misma pantalla permite reintentarlo sin duplicar documentos.
+- La creación automática de factura tras una confirmación real de pago Redsys sigue pendiente de conectar al callback firmado de PayGold; no debe activarse basándose solamente en que el cliente abra el enlace.
+- Estos cambios están verificados localmente y todavía no se han desplegado.
 
 ## Punto de continuación confirmado
 

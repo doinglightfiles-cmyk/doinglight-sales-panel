@@ -2296,17 +2296,17 @@ select:focus {
   place-items: center;
   border-radius: 999px;
   color: #0e3414;
-  background: #1f7a28;
+  background: #8dcc00;
   font-size: 14px;
   font-weight: 800;
 }
 
-.quote-badge {
-  background: #49aa4d;
+.invoice-kind-badge.template-doinglight {
+  background: #8dcc00;
 }
 
-.delivery-note-badge {
-  background: #82cf83;
+.invoice-kind-badge.template-tubo-solar {
+  background: #079bea;
 }
 
 .invoice-payment-status {
@@ -4550,6 +4550,36 @@ th {
   font-weight: 750;
 }
 
+.quote-payment-details-field {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.quote-fd-grid .quote-payment-details-toggle {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: #fbfcf8;
+  cursor: pointer;
+}
+
+.quote-fd-grid .quote-payment-details-toggle input {
+  width: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--green-dark);
+}
+
+.quote-fd-grid .quote-payment-details-toggle span {
+  color: var(--ink);
+}
+
 .payment-method-field > span {
   color: var(--muted);
 }
@@ -6224,6 +6254,18 @@ th {
   grid-column: 1 / -1;
   margin: 7px 0 0;
   white-space: pre-wrap;
+}
+
+.quote-pdf-payment-details {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+  border: 1px solid #dfe8ca;
+  border-radius: 4px;
+  padding: 9px 11px;
+  color: #35401f;
+  background: #f7faef;
+  overflow-wrap: anywhere;
 }
 
 .quote-pdf-page footer {

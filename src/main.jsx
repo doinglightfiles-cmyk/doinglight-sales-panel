@@ -37,6 +37,22 @@ import "./styles.css";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const SESSION_KEY = "doinglight_panel_session";
 const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
+const DOINGLIGHT_PAYMENT_IBAN = "ES11 3144 5700 2720 1693 9122";
+const EMAIL_LEGAL_FOOTER = `PROTECCIÓN DE DATOS: Responsable: DOINGLIGHT TECHNOLOGIES SLU. Finalidad: Gestionar las comunicaciones realizadas a través del correo electrónico de los servicios prestados, atender sus solicitudes de información y enviarle comunicaciones comerciales. Legitimación: Ejecución de contrato, interés legítimo del responsable o consentimiento del interesado. Destinatarios: No se cederán datos a terceros salvo obligación legal. Derechos: Tiene derecho a acceder, rectificar y suprimir los datos, así como otros derechos, indicados en la información adicional, que puede ejercer dirigiéndose a la dirección del responsable del tratamiento. Información adicional: En un impreso a disposición de los interesados, en POLÍGONO INDUSTRIAL CAMPOLLANO, CALLE E, Nº 24 - 02007 ALBACETE.
+
+CONFIDENCIALIDAD: Este mensaje y sus archivos adjuntos van dirigidos exclusivamente a su destinatario, pudiendo contener información confidencial sometida a secreto profesional. No está permitida su reproducción o distribución sin nuestra autorización expresa. Si usted no es el destinatario final por favor elimínelo e infórmenos por esta vía.`;
+
+function emailBodyWithLegalFooter(message) {
+  return `${message}\n\nAtentamente,\nAdministración Doinglight\nadministracion@doinglight.es\n\n${EMAIL_LEGAL_FOOTER}`;
+}
+
+function quoteEmailBody({ clientName, quoteNumber, includePaymentDetails, paymentUrl }) {
+  const greeting = `Estimado ${clientName || "cliente"}, a continuación le adjuntamos nuestro presupuesto ${quoteNumber || ""}.`.replace(/\s+\.$/, ".");
+  if (includePaymentDetails) {
+    return emailBodyWithLegalFooter(`${greeting}\n\nSi desea realizar el pago de este presupuesto puede hacerlo mediante transferencia bancaria en:\nIBAN ${DOINGLIGHT_PAYMENT_IBAN}\n\nO bien con tarjeta de crédito o débito utilizando nuestra pasarela de pago segura haciendo click en el siguiente enlace de pago:\n${paymentUrl || ""}`.trim());
+  }
+  return emailBodyWithLegalFooter(`${greeting}\n\nPara realizar el pago del mismo, será necesario aceptar previamente este presupuesto y recibirá automáticamente nuestra factura proforma en su email.`);
+}
 const TUBO_SOLAR_PDF_LOGO = "/tubosolar-pdf-logo.png";
 const PAYMENT_METHOD_DEFAULTS = [
   { id: "fd-zero", name: "0", detail: "" },
@@ -2228,6 +2244,9 @@ function DocumentPdfPage({
   currency = "EUR",
   paymentMethod = "",
   notes = "",
+  includePaymentDetails = false,
+  paymentIban = DOINGLIGHT_PAYMENT_IBAN,
+  redsysPaymentUrl = "",
   reverseCharge = false,
   pdfTemplate = "doinglight"
 }) {
@@ -2350,6 +2369,13 @@ function DocumentPdfPage({
       </table>
       <div className="quote-pdf-notes quote-pdf-long-notes">
         {notes ? <p>{notes}</p> : null}
+        {type === "quote" && includePaymentDetails ? (
+          <div className="quote-pdf-payment-details">
+            <strong>Datos de pago</strong>
+            <span>Transferencia bancaria: IBAN {paymentIban}</span>
+            {redsysPaymentUrl ? <span>Pago con tarjeta: {redsysPaymentUrl}</span> : null}
+          </div>
+        ) : null}
         {!isDeliveryNote ? (
           <p>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</p>
         ) : null}
@@ -2385,9 +2411,25 @@ function serializeSalesQuote(quote, leadsById) {
     subtotal: Number(quote.subtotal || 0),
     total: Number(quote.total || 0),
     currency: quote.currency || "EUR",
+    pdfTemplate: salesDocumentTemplate(quote),
     sent: false,
     hasAttachment: false
   };
+}
+
+function salesDocumentTemplate(documentRecord) {
+  const value = documentRecord?.pdfTemplate
+    || documentRecord?.visualTemplate
+    || documentRecord?.metadata?.pdfTemplate
+    || documentRecord?.metadata?.visualTemplate
+    || documentRecord?.raw?.item?.pdfTemplate
+    || documentRecord?.raw?.item?.visualTemplate
+    || "doinglight";
+  return String(value).trim().toLowerCase().replace(/[\s_]+/g, "-") === "tubo-solar" ? "tubo-solar" : "doinglight";
+}
+
+function templateBadgeClass(documentRecord) {
+  return `template-${salesDocumentTemplate(documentRecord)}`;
 }
 
 function internalDocumentState(status = "", documentType = "invoice") {
@@ -2451,6 +2493,7 @@ function serializeInternalSalesDocument(item) {
     taxTotal: Number(item.taxTotal || 0),
     total: Number(item.total || 0),
     currency: item.currency || "EUR",
+    pdfTemplate: salesDocumentTemplate(item),
     sent: false,
     hasAttachment: Boolean(item.attachments?.length),
     responsible: "",
@@ -3053,7 +3096,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                       onKeyDown={(event) => event.stopPropagation()}
                     />
                   </td>
-                  <td className="invoice-kind-column"><span className="invoice-kind-badge">F</span></td>
+                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(invoice)}`}>F</span></td>
                   <td>{dateOnly(invoice.date)}</td>
                   <td>{invoice.verifactuStatus || ""}</td>
                   <td><span className={`invoice-payment-status ${invoice.statusKey}`}>{invoice.status}</span></td>
@@ -3103,6 +3146,8 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
             notes: selectedInvoice.raw?.item?.notes || "",
             internalNotes: selectedInvoice.raw?.item?.internalNotes || "",
             paymentMethod: selectedInvoice.raw?.item?.paymentMethod || "",
+            pdfTemplate: selectedInvoice.pdfTemplate,
+            visualTemplate: selectedInvoice.pdfTemplate,
             issueDate: selectedInvoice.raw?.item?.issueDate || selectedInvoice.date,
             dueDate: selectedInvoice.raw?.item?.dueDate || selectedInvoice.dueDate,
             items: selectedInvoice.raw?.item?.items || [],
@@ -3161,7 +3206,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
       to: splitEmailRecipients(counterpart.email || counterpart.emailAddress || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
       subject: `Envío ${typeLabel} ${documentRecord.number}`,
-      body: `Estimado cliente:\n\nAdjunto a este correo encontrará nuestro ${typeLabel}.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.`,
+      body: emailBodyWithLegalFooter(`Estimado cliente:\n\nAdjunto a este correo encontrará nuestro ${typeLabel}.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.`),
       attachPdf: true
     };
   });
@@ -3619,7 +3664,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                       onKeyDown={(event) => event.stopPropagation()}
                     />
                   </td>
-                  <td className="invoice-kind-column"><span className="invoice-kind-badge delivery-note-badge">A</span></td>
+                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(deliveryNote)}`}>A</span></td>
                   <td>{dateOnly(deliveryNote.date)}</td>
                   <td><span className={`invoice-payment-status ${deliveryNote.statusKey}`}>{deliveryNote.status}</span></td>
                   <td>{deliveryNote.number}</td>
@@ -3671,6 +3716,8 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
             notes: selectedDeliveryNote.raw?.item?.notes || "",
             internalNotes: selectedDeliveryNote.raw?.item?.internalNotes || "",
             paymentMethod: selectedDeliveryNote.raw?.item?.paymentMethod || "",
+            pdfTemplate: selectedDeliveryNote.pdfTemplate,
+            visualTemplate: selectedDeliveryNote.pdfTemplate,
             issueDate: selectedDeliveryNote.raw?.item?.issueDate || selectedDeliveryNote.date,
             dueDate: selectedDeliveryNote.raw?.item?.dueDate || selectedDeliveryNote.dueDate,
             items: selectedDeliveryNote.raw?.item?.items || [],
@@ -3837,7 +3884,7 @@ function ProformasView({ token, onCreateProforma }) {
                       onKeyDown={(event) => event.stopPropagation()}
                     />
                   </td>
-                  <td className="invoice-kind-column"><span className="invoice-kind-badge">P</span></td>
+                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(proforma)}`}>P</span></td>
                   <td>{dateOnly(proforma.date)}</td>
                   <td><span className={`invoice-payment-status ${proforma.statusKey}`}>{proforma.status}</span></td>
                   <td>{proforma.number}</td>
@@ -3879,6 +3926,8 @@ function ProformasView({ token, onCreateProforma }) {
             notes: selectedProforma.raw?.item?.notes || "",
             internalNotes: selectedProforma.raw?.item?.internalNotes || "",
             paymentMethod: selectedProforma.raw?.item?.paymentMethod || "",
+            pdfTemplate: selectedProforma.pdfTemplate,
+            visualTemplate: selectedProforma.pdfTemplate,
             createdAt: selectedProforma.date,
             items: selectedProforma.raw?.item?.items || [],
             attachments: selectedProforma.raw?.item?.attachments || []
@@ -8392,7 +8441,7 @@ function QuotesView({ token }) {
                       onKeyDown={(event) => event.stopPropagation()}
                     />
                   </td>
-                  <td className="invoice-kind-column"><span className="invoice-kind-badge quote-badge">P</span></td>
+                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(quote)}`}>P</span></td>
                   <td>{dateOnly(quote.date)}</td>
                   <td><span className={`invoice-payment-status ${quote.statusKey}`}>{quote.status}</span></td>
                   <td>{quote.number}</td>
@@ -8463,7 +8512,7 @@ const SALES_DOCUMENT_FORM_META = {
     listView: "quotes",
     pdfPrefix: "Presupuesto",
     subject: "Envío presupuesto",
-    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestro presupuesto.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+    body: emailBodyWithLegalFooter("Estimado cliente:\n\nAdjunto a este correo encontrará nuestro presupuesto.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.")
   },
   proforma: {
     type: "proforma",
@@ -8475,7 +8524,7 @@ const SALES_DOCUMENT_FORM_META = {
     listView: "proformas",
     pdfPrefix: "Factura-Proforma",
     subject: "Envío factura proforma",
-    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura proforma.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+    body: emailBodyWithLegalFooter("Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura proforma.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.")
   },
   delivery_note: {
     type: "delivery_note",
@@ -8487,7 +8536,7 @@ const SALES_DOCUMENT_FORM_META = {
     listView: "delivery-notes",
     pdfPrefix: "Albaran",
     subject: "Envío albarán",
-    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestro albarán.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+    body: emailBodyWithLegalFooter("Estimado cliente:\n\nAdjunto a este correo encontrará nuestro albarán.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.")
   },
   invoice: {
     type: "invoice",
@@ -8499,7 +8548,7 @@ const SALES_DOCUMENT_FORM_META = {
     listView: "invoices",
     pdfPrefix: "Factura",
     subject: "Envío factura",
-    body: "Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros."
+    body: emailBodyWithLegalFooter("Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.")
   }
 };
 
@@ -9139,6 +9188,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [draggingLineId, setDraggingLineId] = useState("");
   const [taxRate, setTaxRate] = useState(() => taxModeFromDocument(initialQuote || { taxMode: "21" }));
   const [notes, setNotes] = useState(initialQuote?.notes || "");
+  const [includePaymentDetails, setIncludePaymentDetails] = useState(Boolean(initialQuote?.includePaymentDetails));
+  const [redsysPaymentUrl, setRedsysPaymentUrl] = useState(initialQuote?.redsysPaymentUrl || "");
   const [quoteStatus, setQuoteStatus] = useState(() => (
     isInvoice
       ? invoicePaymentState({ status: initialQuote?.status }, Number(initialQuote?.total || 0), initialQuote?.status).key
@@ -9750,11 +9801,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   });
 
   function buildDefaultSendDraft() {
+    const clientName = leadDraft?.fullName || leadDraft?.companyName || selectedLead?.fullName || selectedLead?.companyName || "cliente";
     return {
       to: splitEmailRecipients(leadDraft?.email || selectedLead?.email || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
       subject: quoteNumberLabel !== "borrador" ? `${meta.subject} ${quoteNumberLabel}` : meta.subject,
-      body: meta.body,
+      body: isQuote
+        ? quoteEmailBody({ clientName, quoteNumber: quoteNumberLabel, includePaymentDetails, paymentUrl: redsysPaymentUrl })
+        : meta.body,
       attachPdf: true
     };
   }
@@ -9810,6 +9864,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           from: sendDraft.from,
           subject: sendDraft.subject,
           body: sendDraft.body,
+          quoteId: isQuote ? currentDocument?.id || null : null,
+          includePaymentDetails: isQuote ? includePaymentDetails : false,
+          paymentUrl: isQuote && includePaymentDetails ? redsysPaymentUrl : "",
           filename: quotePdfName,
           pdfBase64
         }
@@ -9830,6 +9887,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       dueDate: validUntil,
       paymentMethod,
       notes,
+      ...(isQuote ? { includePaymentDetails, redsysPaymentUrl: includePaymentDetails ? redsysPaymentUrl.trim() : "" } : {}),
       internalNotes,
       subtotal,
       taxTotal,
@@ -9962,9 +10020,18 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         body: buildQuotePayload()
       });
       const savedItem = result?.item || result;
-      const saved = savedItem?.id && !savedItem.leadId && effectiveLeadId
+      let saved = savedItem?.id && !savedItem.leadId && effectiveLeadId
         ? { ...savedItem, leadId: effectiveLeadId }
         : savedItem;
+      if (isQuote && includePaymentDetails && saved?.id && !redsysPaymentUrl.trim()) {
+        const paymentResult = await apiRequest(`/api/sales/quotes/${saved.id}/payment-link`, {
+          token,
+          method: "POST",
+          body: {}
+        });
+        saved = paymentResult?.item || paymentResult;
+        setRedsysPaymentUrl(saved.redsysPaymentUrl || "");
+      }
       if (saved?.id) {
         setSavedDocument(saved);
         if (saved.leadId) setSelectedLeadId(saved.leadId);
@@ -10353,6 +10420,30 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 </select>
               </label>
             )}
+            {isQuote ? (
+              <div className="quote-payment-details-field">
+                <label className="quote-payment-details-toggle">
+                  <input
+                    type="checkbox"
+                    checked={includePaymentDetails}
+                    onChange={(event) => setIncludePaymentDetails(event.target.checked)}
+                  />
+                  <span>Incluir datos de pago en el PDF</span>
+                </label>
+                {includePaymentDetails ? (
+                  <label>
+                    <span>Enlace de pago Redsys</span>
+                    <input
+                      type="url"
+                      value={redsysPaymentUrl}
+                      onChange={(event) => setRedsysPaymentUrl(event.target.value)}
+                      placeholder="https://sis.redsys.es/…"
+                    />
+                    <small>{redsysPaymentUrl ? `Se mostrará junto al IBAN ${DOINGLIGHT_PAYMENT_IBAN}` : "Si lo dejas vacío, Redsys generará el enlace al guardar."}</small>
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
             <label>
               <span>Estado del {documentTitle.toLowerCase()}</span>
               <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
@@ -10808,7 +10899,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   taxTotal={taxTotal}
                   total={total}
                   paymentMethod={paymentMethod}
-                  notes={notes || "**Para pagar con tarjeta por favor haga click en el siguiente enlace:**\n\nhttps://sis.redsys.es/sis/p2f?..."}
+                  notes={notes}
+                  includePaymentDetails={includePaymentDetails}
+                  redsysPaymentUrl={redsysPaymentUrl}
                   pdfTemplate={pdfTemplate}
                 />
               </section>
@@ -10845,7 +10938,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           taxTotal={taxTotal}
           total={total}
           paymentMethod={paymentMethod}
-          notes={notes || "**Para pagar con tarjeta por favor haga click en el siguiente enlace:**\n\nhttps://sis.redsys.es/sis/p2f?..."}
+          notes={notes}
+          includePaymentDetails={includePaymentDetails}
+          redsysPaymentUrl={redsysPaymentUrl}
           pdfTemplate={pdfTemplate}
         />
       </div>
