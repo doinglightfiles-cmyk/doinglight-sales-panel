@@ -3211,7 +3211,9 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
     return {
       to: splitEmailRecipients(counterpart.email || counterpart.emailAddress || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
-      subject: `Envío ${typeLabel} ${documentRecord.number}`,
+      subject: type === "invoice"
+        ? `Doinglight Skylights - Factura ${documentRecord.number}`
+        : `Envío ${typeLabel} ${documentRecord.number}`,
       body: emailBodyWithLegalFooter(`Estimado cliente:\n\nAdjunto a este correo encontrará nuestro ${typeLabel}.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.`),
       attachPdf: true
     };
@@ -8517,7 +8519,7 @@ const SALES_DOCUMENT_FORM_META = {
     endpoint: "/api/sales/quotes",
     listView: "quotes",
     pdfPrefix: "Presupuesto",
-    subject: "Envío presupuesto",
+    subject: "Doinglight Skylights - Presupuesto",
     body: emailBodyWithLegalFooter("Estimado cliente:\n\nAdjunto a este correo encontrará nuestro presupuesto.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.")
   },
   proforma: {
@@ -8529,7 +8531,7 @@ const SALES_DOCUMENT_FORM_META = {
     endpoint: "/api/sales/documents/proforma",
     listView: "proformas",
     pdfPrefix: "Factura-Proforma",
-    subject: "Envío factura proforma",
+    subject: "Doinglight Skylights - Fcta.Proforma",
     body: emailBodyWithLegalFooter("Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura proforma.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.")
   },
   delivery_note: {
@@ -8553,7 +8555,7 @@ const SALES_DOCUMENT_FORM_META = {
     endpoint: "/api/sales/documents/invoice",
     listView: "invoices",
     pdfPrefix: "Factura",
-    subject: "Envío factura",
+    subject: "Doinglight Skylights - Factura",
     body: emailBodyWithLegalFooter("Estimado cliente:\n\nAdjunto a este correo encontrará nuestra factura.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.")
   }
 };
