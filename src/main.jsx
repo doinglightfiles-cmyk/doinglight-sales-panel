@@ -931,6 +931,14 @@ function App() {
   );
 }
 
+function NotificationsInbox({token,onClose,onChanged}){
+  const [archived,setArchived]=useState(false);const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState("");
+  async function load(next=archived){setLoading(true);setError("");try{const result=await apiRequest(`/api/notifications?archived=${next}`,{token});setItems(result.items||[]);if(!next){await apiRequest("/api/notifications/read-all",{token,method:"POST",body:{}});onChanged?.();}}catch(e){setError(e.message);}finally{setLoading(false);}}
+  useEffect(()=>{load(archived);},[archived,token]);
+  async function act(item){try{const result=await apiRequest(`/api/notifications/${item.id}/action`,{token,method:"POST",body:{}});if(result.alreadyProcessed)window.alert("Otro usuario ya había creado el albarán de entrega.");else if(result.warehousePending)window.alert("Se ha creado el albarán. El envío al sistema de almacén se activará con el futuro entorno de almacén.");await load(archived);}catch(e){setError(e.message);}}
+  return <div className="notification-modal-backdrop" onMouseDown={onClose}><section className="notification-inbox" onMouseDown={e=>e.stopPropagation()}><header><div><small>Centro de actividad</small><h2>Notificaciones</h2></div><button className="icon-button" onClick={onClose}><X size={20}/></button></header><nav><button className={!archived?"active":""} onClick={()=>setArchived(false)}>Bandeja de entrada</button><button className={archived?"active":""} onClick={()=>setArchived(true)}>Archivadas</button></nav><div className="notification-table-head"><span>Fecha</span><span>Descripción</span><span>Acción</span></div><div className="notification-rows">{loading?<p>Cargando…</p>:null}{error?<p className="form-error">{error}</p>:null}{!loading&&!items.length?<p className="notification-empty">No hay notificaciones en esta pestaña.</p>:items.map(item=><article key={item.id}><time>{new Date(item.createdAt).toLocaleDateString("es-ES")}</time><p>{item.description}</p>{archived?<span className="archived-label">Archivada</span>:<button onClick={()=>act(item)}>{item.actionType==="send_to_preparation"?"Enviar a preparación":"¡Genial!"}</button>}</article>)}</div></section></div>;
+}
+
 function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [contactsInitialFilter, setContactsInitialFilter] = useState("all");
@@ -942,6 +950,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [globalPurchaseOpen, setGlobalPurchaseOpen] = useState(null);
   const [globalContactPickerOpen, setGlobalContactPickerOpen] = useState(false);
   const [globalContactForm, setGlobalContactForm] = useState(null);
+  const [notificationsOpen,setNotificationsOpen]=useState(false);
+  const [notificationCount,setNotificationCount]=useState(0);
+  async function loadNotificationCount(){try{const result=await apiRequest("/api/notifications/unread-count",{token:session.token});setNotificationCount(result.count||0);}catch{}}
+  useEffect(()=>{loadNotificationCount();const timer=window.setInterval(loadNotificationCount,30000);return()=>window.clearInterval(timer);},[session.token]);
   const primaryNav = [
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
@@ -1166,8 +1178,9 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
             <span>{roleLabel(session.user.role)}</span>
           </div>
           <div className="header-actions">
-            <button className="icon-button header-action-button" type="button" aria-label="Notificaciones">
+            <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
               <Bell size={18} />
+              {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
             </button>
             <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
               <Settings size={18} />
@@ -1178,6 +1191,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           </div>
         </div>
       </header>
+      {notificationsOpen ? <NotificationsInbox token={session.token} onClose={()=>{setNotificationsOpen(false);loadNotificationCount();}} onChanged={loadNotificationCount}/> : null}
 
       <div className="main-area">
         <section className="content">

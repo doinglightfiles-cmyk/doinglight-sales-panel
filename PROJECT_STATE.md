@@ -162,6 +162,15 @@ Antes de cambiar un contrato, revisar las rutas y servicios correspondientes en 
 6. No desplegar ni hacer `push` salvo petición explícita.
 7. Actualizar este documento si cambia el estado global o el punto de continuación.
 
+## Hito: notificaciones operativas
+
+- El panel muestra una campana con contador de notificaciones pendientes.
+- La bandeja separa notificaciones activas y archivadas; nunca se eliminan.
+- Las asignaciones de responsable generan una notificación al usuario asignado.
+- Los pagos Redsys confirmados generan avisos para Administración, Marketing e Info.
+- La acción **Enviar a preparación** crea un único albarán aunque actúen varios destinatarios y deja preparada la futura orden del entorno de almacén.
+- El backend conserva las notificaciones y el vínculo entre la orden Redsys y el documento de venta.
+
 ## Operación de la importación
 
 La versión está desplegada y un administrador puede ir a **Ajustes → Integraciones**:
