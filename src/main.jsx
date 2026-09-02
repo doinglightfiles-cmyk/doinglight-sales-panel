@@ -53,6 +53,12 @@ function quoteEmailBody({ clientName, quoteNumber, includePaymentDetails, paymen
   }
   return emailBodyWithLegalFooter(`${greeting}\n\nPara realizar el pago del mismo, será necesario aceptar previamente este presupuesto y recibirá automáticamente nuestra factura proforma en su email.`);
 }
+
+function needsFreshPaymentUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return true;
+  return /^https:\/\/(?:fd-paygold-bridge-production\.up\.railway\.app|pay\.doinglight\.es)\/p\//i.test(url);
+}
 const TUBO_SOLAR_PDF_LOGO = "/tubosolar-pdf-logo.png";
 const PAYMENT_METHOD_DEFAULTS = [
   { id: "fd-zero", name: "0", detail: "" },
@@ -9214,6 +9220,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendDraft, setSendDraft] = useState(null);
   const [sendStatus, setSendStatus] = useState("");
+  const [sendSubmitting, setSendSubmitting] = useState(false);
   const [error, setError] = useState("");
   const lineReferenceRefs = useRef({});
   const fileInputRef = useRef(null);
@@ -9820,7 +9827,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     let paymentUrl = redsysPaymentUrl.trim();
 
     try {
-      if (isQuote && includePaymentDetails && !paymentUrl) {
+      if (isQuote && includePaymentDetails && needsFreshPaymentUrl(paymentUrl)) {
         if (!documentForSend?.id) {
           throw new Error("Guarda primero el presupuesto para generar su enlace de pago.");
         }
@@ -9842,6 +9849,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
       setSendDraft(buildDefaultSendDraft({ document: documentForSend, paymentUrl }));
       setSendStatus("");
+      setSendSubmitting(false);
       setSendModalOpen(true);
     } catch (err) {
       setError(err.message || "No se ha podido preparar el envío.");
@@ -9874,6 +9882,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   async function prepareSend(event) {
     event.preventDefault();
+    if (sendSubmitting) return;
+    setSendSubmitting(true);
     setSendStatus("Generando y enviando PDF...");
     try {
       const recipients = splitEmailRecipients(sendDraft.to);
@@ -9902,8 +9912,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         }
       });
       setSendStatus("Correo enviado correctamente.");
+      window.setTimeout(() => {
+        setSendModalOpen(false);
+        setSendDraft(null);
+        setSendStatus("");
+        setSendSubmitting(false);
+      }, 700);
     } catch (err) {
       setSendStatus(err.message);
+      setSendSubmitting(false);
     }
   }
 
@@ -10053,7 +10070,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       let saved = savedItem?.id && !savedItem.leadId && effectiveLeadId
         ? { ...savedItem, leadId: effectiveLeadId }
         : savedItem;
-      if (isQuote && includePaymentDetails && saved?.id && !redsysPaymentUrl.trim()) {
+      if (isQuote && includePaymentDetails && saved?.id && needsFreshPaymentUrl(redsysPaymentUrl)) {
         const paymentResult = await apiRequest(`/api/sales/quotes/${saved.id}/payment-link`, {
           token,
           method: "POST",
@@ -10944,9 +10961,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <button className="quote-send-icon-button" type="button" onClick={printQuotePdf} aria-label="Imprimir PDF" title="Imprimir PDF">
                 <Printer size={20} />
               </button>
-              <button className="primary-button send-quote-button" type="submit">
+              <button className="primary-button send-quote-button" type="submit" disabled={sendSubmitting}>
                 <Send size={18} />
-                Enviar
+                {sendSubmitting ? "Enviando..." : "Enviar"}
               </button>
             </footer>
           </form>
