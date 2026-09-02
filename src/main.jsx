@@ -24,7 +24,6 @@ import {
   Search,
   Send,
   Settings,
-  Share2,
   Printer,
   Truck,
   History,
@@ -4154,7 +4153,7 @@ const SETTINGS_SECTIONS = [
   { id: "verifactu", title: "VeriFactu", description: "Configura VeriFactu", icon: Fingerprint },
   { id: "sales", title: "Ventas", description: "Cálculo de impuestos, creación de facturas y firma digital", icon: Truck },
   { id: "numbering", title: "Numeración", description: "Numeración y series de facturas, presupuestos y albaranes", icon: History },
-  { id: "accounting", title: "Contabilidad", description: "Cuentas contables y reglas internas pendientes de definir", icon: Share2 }
+  { id: "email-signatures", title: "Firmas Correos", description: "Firmas de correo para usuarios y documentos de venta", icon: Mail }
 ];
 
 const SETTINGS_PANELS = {
@@ -4205,15 +4204,14 @@ const SETTINGS_PANELS = {
       ["Conversión", "Presupuesto → Albarán → Factura"]
     ]
   },
-  accounting: {
-    title: "Contabilidad",
-    description: "Cuentas contables y reglas internas pendientes de definir.",
-    actionLabel: "Modificar",
+  "email-signatures": {
+    title: "Firmas Correos",
+    description: "Configura las firmas que se utilizarán en los correos enviados desde el panel.",
     fields: [
-      ["Ventas", "700000"],
-      ["Clientes", "430000"],
-      ["Compras", "600000"],
-      ["Proveedores", "400000"]
+      ["Firma predeterminada", "Administración Doinglight"],
+      ["Cuentas disponibles", "administracion@doinglight.es · marketing@doinglight.es · info@doinglight.es"],
+      ["Documentos", "Presupuestos, proformas, albaranes y facturas"],
+      ["Estado", "Preparado para incorporar las firmas definitivas"]
     ]
   }
 };
@@ -4594,7 +4592,7 @@ function GenericSettingsPanel({ config }) {
             <h3>{config.title}</h3>
             <p>{config.description}</p>
           </div>
-          <button className="settings-outline-button" type="button">{config.actionLabel}</button>
+          {config.actionLabel ? <button className="settings-outline-button" type="button">{config.actionLabel}</button> : null}
         </header>
 
         <div className="settings-simple-grid">
