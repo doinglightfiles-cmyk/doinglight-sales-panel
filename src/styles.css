@@ -5466,6 +5466,34 @@ th {
   background: var(--white);
 }
 
+.quote-line-card.net-pricing {
+  grid-template-columns: 24px 54px 150px minmax(260px, 1fr) 92px 120px 30px;
+}
+
+.quote-discount-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.quote-discount-heading > button {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--danger);
+  background: #fce8e8;
+}
+
+.quote-discount-heading > button:hover {
+  background: #f6cccc;
+}
+
 .compact-line {
   align-items: center;
   padding-top: 8px;
@@ -5562,6 +5590,22 @@ th {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.quote-line-card input.invalid-reference {
+  border-color: var(--danger);
+  background: #fff4f4;
+}
+
+.quote-custom-product-description {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fafbf8;
+  font: inherit;
 }
 
 .quote-line-custom-note {
@@ -6519,6 +6563,10 @@ th {
   align-items: stretch;
 }
 
+.quote-pdf-no-discount .quote-pdf-line-row {
+  grid-template-columns: 34px minmax(52px, 0.5fr) minmax(178px, 1.55fr) 34px 46px 52px;
+}
+
 .delivery-pdf-lines-grid .quote-pdf-line-row {
   grid-template-columns: 34px minmax(62px, 0.55fr) minmax(0, 1fr) 40px;
 }
@@ -6649,6 +6697,22 @@ th {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.net-pricing-modal {
+  width: min(500px, calc(100vw - 32px));
+}
+
+.net-pricing-confirmation {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.net-pricing-confirmation > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .quote-pdf-line-concept {
@@ -7066,6 +7130,7 @@ th {
 
   .quote-client-tools,
   .quote-line-card,
+  .quote-line-card.net-pricing,
   .quote-totals {
     grid-template-columns: 1fr;
   }

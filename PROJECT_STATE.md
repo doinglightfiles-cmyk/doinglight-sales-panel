@@ -1,9 +1,12 @@
 # APP DOINGLIGHT V2 — estado recuperado
 
-Actualizado: 1 de septiembre de 2026.
+Actualizado: 3 de septiembre de 2026.
 
 ## Cambios locales pendientes de despliegue
 
+- Panel y APP móvil permiten convertir un presupuesto a precios netos desde la X situada junto a Descuento: se confirma la acción, se ponen los descuentos a cero, se oculta la columna y también se omite en el PDF. El backend lo conserva con la migración `023_quote_net_pricing.sql`.
+- Las líneas de PORTES quedan forzadas a descuento cero en panel, APP y backend, independientemente del nivel comercial del cliente.
+- Los presupuestos nuevos creados por `a.jimenez@doinglight.es` arrancan siempre con descuento cero; no se modifica ese comportamiento al editar documentos ya existentes.
 - Los listados de presupuestos, proformas, albaranes y facturas muestran el icono del tipo de documento en verde para la plantilla Doinglight y azul para Tubo Solar.
 - La APP móvil de gestión muestra la misma distinción mediante una franja lateral en cada tarjeta de venta y respeta el área segura inferior de Android en pantallas y modales.
 - El backend incorpora la migración `019_sales_document_pdf_template.sql` para conservar la plantilla al convertir documentos y recuperar la plantilla de los documentos históricos vinculados a un presupuesto.
@@ -187,6 +190,15 @@ Antes de cambiar un contrato, revisar las rutas y servicios correspondientes en 
 - La línea conserva el icono del camión al reabrir el documento y al generar el PDF; también se mantiene al transformar el presupuesto en otros documentos de venta.
 - En presupuestos, la referencia se selecciona exclusivamente entre productos existentes del catálogo y ya no admite texto libre.
 - Panel y backend están verificados localmente; el despliegue queda pendiente de autorización.
+
+## Hito: referencias controladas y producto especial
+
+- El campo de referencia de los presupuestos vuelve a permitir escritura y ofrece las referencias del catálogo como sugerencias.
+- Una referencia escrita que no coincida con un producto real bloquea tanto la creación de otra línea como el guardado del documento.
+- `ALMORCHON` es la única referencia especial admitida fuera del catálogo y habilita descripción y precio manuales.
+- El backend valida también la referencia especial, su descripción y que su importe sea mayor que cero.
+- La app móvil muestra el IVA en formato compacto por país (`ES: 21%`, `PT: 23%`, etc.) y reserva ancho suficiente para evitar texto apilado.
+- Los cambios están comprobados localmente y pendientes de despliegue/compilación nativa.
 
 ## Operación de la importación
 

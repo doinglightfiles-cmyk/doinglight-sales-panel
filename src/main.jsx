@@ -2314,6 +2314,7 @@ function DocumentPdfPage({
   paymentIban = DOINGLIGHT_PAYMENT_IBAN,
   redsysPaymentUrl = "",
   reverseCharge = false,
+  netPricing = false,
   pdfTemplate = "doinglight"
 }) {
   const text = documentPdfText(language, type);
@@ -2364,14 +2365,14 @@ function DocumentPdfPage({
           </div>
         </div>
       </section>
-      <section className={isDeliveryNote ? "quote-pdf-lines-grid delivery-pdf-lines-grid" : "quote-pdf-lines-grid"}>
+      <section className={`${isDeliveryNote ? "quote-pdf-lines-grid delivery-pdf-lines-grid" : "quote-pdf-lines-grid"}${netPricing && !isDeliveryNote ? " quote-pdf-no-discount" : ""}`}>
         <div className="quote-pdf-line-row quote-pdf-lines-head">
           <span className="quote-pdf-line-image-heading" aria-label="Imagen" />
           <span>{text.code}</span>
           <span>{text.concept}</span>
           <span className="quote-pdf-line-number">{quantityHeader}</span>
           {!isDeliveryNote ? <span className="quote-pdf-line-number">{priceHeader}</span> : null}
-          {!isDeliveryNote ? <span className="quote-pdf-line-number">{discountHeader}</span> : null}
+          {!isDeliveryNote && !netPricing ? <span className="quote-pdf-line-number">{discountHeader}</span> : null}
           {!isDeliveryNote ? <span className="quote-pdf-line-number">{text.total}</span> : null}
         </div>
         {lines.length ? lines.map((line, index) => (
@@ -2395,7 +2396,7 @@ function DocumentPdfPage({
             </span>
             <span className="quote-pdf-line-number">{formatLineQuantity(line.quantity)}</span>
             {!isDeliveryNote ? <span className="quote-pdf-line-number">{tableMoney(line.price || 0)}</span> : null}
-            {!isDeliveryNote ? <span className="quote-pdf-line-number">{line.discount ? `${tableMoney(line.discount)}%` : "0%"}</span> : null}
+            {!isDeliveryNote && !netPricing ? <span className="quote-pdf-line-number">{line.discount ? `${tableMoney(line.discount)}%` : "0%"}</span> : null}
             {!isDeliveryNote ? <span className="quote-pdf-line-number">{tableMoney(line.total || 0)}</span> : null}
           </div>
         )) : (
@@ -9180,6 +9181,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isInvoice = documentType === "invoice";
   const isDeliveryNote = documentType === "delivery_note";
   const isProforma = documentType === "proforma";
+  const zeroDiscountByDefault = isQuote
+    && !initialQuote?.id
+    && String(currentUser?.email || "").trim().toLowerCase() === "a.jimenez@doinglight.es";
   const statusOptions = isInvoice
     ? INVOICE_STATUS_OPTIONS
     : isDeliveryNote
@@ -9222,6 +9226,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [shippingModalOpen, setShippingModalOpen] = useState(false);
   const [shippingAmount, setShippingAmount] = useState("");
   const [shippingError, setShippingError] = useState("");
+  const [netPricing, setNetPricing] = useState(Boolean(initialQuote?.netPricing));
+  const [netPricingConfirmOpen, setNetPricingConfirmOpen] = useState(false);
   const [attachments, setAttachments] = useState(() =>
     (initialQuote?.attachments || []).map((attachment) => ({
       id: attachment.id || crypto.randomUUID(),
@@ -9234,12 +9240,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [lines, setLines] = useState(() => {
     if (initialQuote?.items?.length) {
       return initialQuote.items.map((line) => ({
-        lineType: line.productSnapshot?.type === "shipping" ? "shipping" : "product",
+        lineType: line.productSnapshot?.type === "shipping"
+          ? "shipping"
+          : line.productSnapshot?.type === "custom" || String(line.sku || "").toUpperCase() === "ALMORCHON"
+            ? "custom"
+            : "product",
         id: line.id || crypto.randomUUID(),
         skuQuery: line.sku || "",
         sku: line.sku || "",
         quantity: line.quantity || 1,
-        discountPercent: line.discountPercent || 0,
+        discountPercent: zeroDiscountByDefault ? 0 : line.discountPercent || 0,
         unitPriceOverride: line.unitPrice,
         title: line.title || line.productSnapshot?.title || "",
         productSnapshot: line.productSnapshot || {},
@@ -9256,7 +9266,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         skuQuery: line.sku,
         sku: line.sku,
         quantity: line.quantity || 1,
-        discountPercent: line.discountPercent || 0,
+        discountPercent: zeroDiscountByDefault ? 0 : line.discountPercent || 0,
         manualTotal: null,
         customNote: line.customNote || "",
         customNoteOpen: Boolean(line.customNote)
@@ -9345,7 +9355,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
   const effectiveLeadId = selectedLeadId || selectedLeadSnapshot?.id || currentDocument?.leadId || initialQuote?.leadId || "";
-  const selectedLeadDefaultDiscount = Number(selectedLead?.defaultDiscountPercent || 0);
+  const selectedLeadDefaultDiscount = netPricing || zeroDiscountByDefault ? 0 : Number(selectedLead?.defaultDiscountPercent || 0);
   const filteredLeadSuggestions = useMemo(() => {
     const needle = normalizeSearchText(leadSearchQuery);
     const source = needle
@@ -9397,7 +9407,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     if (!selectedLead || lastDiscountLeadId.current === selectedLead.id) return;
 
     lastDiscountLeadId.current = selectedLead.id;
-    const defaultDiscount = Number(selectedLead.defaultDiscountPercent || 0);
+    const defaultDiscount = netPricing || zeroDiscountByDefault ? 0 : Number(selectedLead.defaultDiscountPercent || 0);
     if (selectedLead.taxIdentifierType === "sujeto_pasivo") {
       setTaxRate(REVERSE_CHARGE_TAX_CODE);
     } else if (selectedLead.viesValid) {
@@ -9405,15 +9415,21 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     } else if (selectedLead.defaultTaxRate !== null && selectedLead.defaultTaxRate !== undefined) {
       setTaxRate(taxOptionFromMode(selectedLead.defaultTaxRate).value);
     }
-    if (defaultDiscount <= 0) return;
+    if (defaultDiscount <= 0) {
+      if (netPricing || zeroDiscountByDefault) {
+        setLines((current) => current.map((line) => ({ ...line, discountPercent: 0 })));
+      }
+      return;
+    }
 
     setLines((current) =>
       current.map((line) => {
+        if (line.lineType === "shipping" || line.productSnapshot?.type === "shipping") return { ...line, discountPercent: 0 };
         if (Number(line.discountPercent || 0) > 0) return line;
         return { ...line, discountPercent: defaultDiscount };
       })
     );
-  }, [selectedLead]);
+  }, [selectedLead, netPricing, zeroDiscountByDefault]);
 
   useEffect(() => {
     if (!selectedLead || leadSearchTouched) return;
@@ -9609,10 +9625,20 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         shortDescription: "Gastos de transporte"
       };
     }
+    if (line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON") {
+      return {
+        ...(line.productSnapshot || {}),
+        source: "system",
+        type: "custom",
+        sku: "ALMORCHON",
+        title: String(line.title || line.productSnapshot?.title || "").trim(),
+        shortDescription: String(line.title || line.productSnapshot?.shortDescription || "").trim()
+      };
+    }
     const catalogProduct = products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku);
     if (catalogProduct) return catalogProduct;
 
-    const sku = String(line.skuQuery || line.sku || "").trim();
+    const sku = String(line.sku || "").trim();
     if (!sku) return null;
     const snapshot = line.productSnapshot || {};
     const title = snapshot.title || snapshot.shortDescription || snapshot.description || line.title || sku;
@@ -9694,6 +9720,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   function addLine(focus = false, afterLineId = null) {
+    const invalidLine = isQuote && lines.find((line) => (
+      line.lineType !== "shipping"
+      && String(line.skuQuery || "").trim()
+      && !String(line.sku || "").trim()
+    ));
+    if (invalidLine) {
+      setError(`La referencia ${invalidLine.skuQuery} no existe. Selecciona un producto del catálogo.`);
+      window.setTimeout(() => lineReferenceRefs.current[invalidLine.id]?.focus(), 0);
+      return;
+    }
     const nextLine = createEmptyLine();
     setLines((current) => {
       if (!afterLineId) return [...current, nextLine];
@@ -9747,6 +9783,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       return current.map((line, index) => (index === existingIndex ? shippingLine : line));
     });
     setShippingModalOpen(false);
+  }
+
+  function enableNetPricing() {
+    setLines((current) => current.map((line) => ({ ...line, discountPercent: 0 })));
+    setNetPricing(true);
+    setNetPricingConfirmOpen(false);
+    setError("");
   }
 
   function openTransferLines() {
@@ -10066,6 +10109,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       paymentMethod,
       notes,
       ...(isQuote ? { includePaymentDetails, redsysPaymentUrl: includePaymentDetails ? redsysPaymentUrl.trim() : "" } : {}),
+      ...(isQuote ? { netPricing } : {}),
       internalNotes,
       subtotal,
       taxTotal,
@@ -10087,15 +10131,18 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         .map((line) => {
           const product = productForLine(line);
           const isShippingLine = line.lineType === "shipping" || line.productSnapshot?.type === "shipping";
+          const isCustomLine = line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON";
           return {
-            sku: isShippingLine ? "PORTES" : line.sku || line.skuQuery.trim(),
-            title: isShippingLine ? "Portes" : product?.title || line.title || line.skuQuery.trim(),
+            sku: isShippingLine ? "PORTES" : isCustomLine ? "ALMORCHON" : line.sku,
+            title: isShippingLine ? "Portes" : isCustomLine ? String(line.title || "").trim() : product?.title || line.title || line.sku,
             quantity: Number(line.quantity),
             discountPercent: Number(line.discountPercent),
             unitPrice: unitPriceForSubmit(line),
             customNote: String(line.customNote || "").trim(),
             productSnapshot: isShippingLine
               ? { source: "system", type: "shipping", sku: "PORTES", title: "Portes", shortDescription: "Gastos de transporte" }
+              : isCustomLine
+                ? { source: "system", type: "custom", sku: "ALMORCHON", title: String(line.title || "").trim(), shortDescription: String(line.title || "").trim() }
               : product || line.productSnapshot || {}
           };
         })
@@ -10189,6 +10236,24 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     }
     setError("");
     try {
+      const unresolvedLine = isQuote && lines.find((line) => (
+        line.lineType !== "shipping"
+        && String(line.skuQuery || "").trim()
+        && !String(line.sku || "").trim()
+      ));
+      if (unresolvedLine) {
+        setError(`La referencia ${unresolvedLine.skuQuery} no existe. Selecciona un producto del catálogo.`);
+        lineReferenceRefs.current[unresolvedLine.id]?.focus();
+        return;
+      }
+      const invalidCustomLine = isQuote && lines.find((line) => (
+        line.lineType === "custom"
+        && (!String(line.title || "").trim() || lineTotal(line) <= 0)
+      ));
+      if (invalidCustomLine) {
+        setError("La referencia ALMORCHON necesita una descripción y un precio mayor que cero.");
+        return;
+      }
       if (clientMode === "new") {
         setError("Guarda primero el cliente nuevo desde el bloque de cliente.");
         return;
@@ -10714,10 +10779,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         {lines.map((line, index) => {
           const selectedProduct = productForLine(line);
           const isShippingLine = line.lineType === "shipping" || line.productSnapshot?.type === "shipping";
+          const isCustomLine = line.lineType === "custom" && String(line.sku || line.skuQuery || "").toUpperCase() === "ALMORCHON";
+          const hasInvalidReference = isQuote
+            && !isShippingLine
+            && Boolean(String(line.skuQuery || "").trim())
+            && !Boolean(String(line.sku || "").trim());
           const supportsCustomNote = Boolean(String(line.sku || line.skuQuery || "").trim());
           return (
             <div
-              className={index === 0 ? "quote-line-card" : "quote-line-card compact-line"}
+              className={`${index === 0 ? "quote-line-card" : "quote-line-card compact-line"}${netPricing && isQuote ? " net-pricing" : ""}`}
               key={line.id}
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
@@ -10743,47 +10813,52 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 <span>Referencia</span>
                 {isShippingLine ? (
                   <input value="PORTES" readOnly aria-label="Referencia de portes" />
-                ) : isQuote ? (
-                  <select
-                    ref={(element) => {
-                      if (element) lineReferenceRefs.current[line.id] = element;
-                    }}
-                    value={line.skuQuery}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      const matchedProduct = products.find((product) => product.sku === value);
-                      updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", unitPriceOverride: undefined, manualTotal: null });
-                    }}
-                  >
-                    <option value="">Seleccionar</option>
-                    {line.skuQuery && !products.some((product) => product.sku === line.skuQuery) ? (
-                      <option value={line.skuQuery}>{line.skuQuery}</option>
-                    ) : null}
-                    {products.map((product) => (
-                      <option key={product.sku} value={product.sku}>{product.sku}</option>
-                    ))}
-                  </select>
                 ) : (
                   <input
                     ref={(element) => {
                       if (element) lineReferenceRefs.current[line.id] = element;
                     }}
+                    className={hasInvalidReference ? "invalid-reference" : ""}
                     list="quote-product-suggestions"
-                    placeholder="Referencia"
+                    placeholder="Escribe una referencia"
                     value={line.skuQuery}
                     onChange={(event) => {
                       const value = event.target.value.toUpperCase();
-                      const matchedProduct = products.find((product) => product.sku === value);
-                      updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", unitPriceOverride: undefined, manualTotal: null });
+                      const matchedProduct = products.find((product) => product.sku.toUpperCase() === value.trim());
+                      const isMagicReference = value.trim() === "ALMORCHON";
+                      updateLine(line.id, {
+                        skuQuery: value,
+                        sku: matchedProduct?.sku || (isMagicReference ? "ALMORCHON" : ""),
+                        lineType: isMagicReference ? "custom" : "product",
+                        title: isMagicReference ? line.title || "" : "",
+                        productSnapshot: isMagicReference ? line.productSnapshot || {} : {},
+                        unitPriceOverride: undefined,
+                        manualTotal: null
+                      });
+                      setError("");
                     }}
                   />
                 )}
               </label>
               <div className="quote-product-select">
                 <span>Descripción</span>
-                <strong>{selectedProduct?.title || "Producto no seleccionado"}</strong>
-                <span className="quote-product-description">{selectedProduct?.shortDescription || "Selecciona un producto del catálogo"}</span>
-                {supportsCustomNote && !isShippingLine ? (
+                {isCustomLine ? (
+                  <input
+                    className="quote-custom-product-description"
+                    value={line.title || ""}
+                    onChange={(event) => updateLine(line.id, { title: event.target.value })}
+                    placeholder="Descripción del producto"
+                    aria-label="Descripción de ALMORCHON"
+                  />
+                ) : (
+                  <>
+                    <strong>{selectedProduct?.title || "Producto no seleccionado"}</strong>
+                    <span className="quote-product-description">
+                      {hasInvalidReference ? "Esta referencia no existe en el catálogo" : selectedProduct?.shortDescription || "Selecciona un producto del catálogo"}
+                    </span>
+                  </>
+                )}
+                {supportsCustomNote && !isShippingLine && !isCustomLine ? (
                   <div className="quote-line-custom-note">
                     {line.customNoteOpen || line.customNote ? (
                       <input
@@ -10817,24 +10892,38 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   onChange={(event) => updateLine(line.id, { quantity: event.target.value })}
                 />
               </label>
-              <label>
-                <span>Descuento %</span>
-                <input
-                  aria-label="Descuento"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={line.discountPercent}
-                  readOnly={isShippingLine}
-                  onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })}
-                  onKeyDown={(event) => {
-                    if (event.key === "Tab" && !event.shiftKey && index === lines.length - 1) {
-                      event.preventDefault();
-                      addLine(true);
-                    }
-                  }}
-                />
-              </label>
+              {!netPricing || !isQuote ? (
+                <label>
+                  <span className="quote-discount-heading">
+                    <span>Descuento %</span>
+                    {isQuote && index === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setNetPricingConfirmOpen(true)}
+                        aria-label="Eliminar descuentos y trabajar con precios netos"
+                        title="Trabajar con precios netos"
+                      >
+                        <X size={13} />
+                      </button>
+                    ) : null}
+                  </span>
+                  <input
+                    aria-label="Descuento"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={line.discountPercent}
+                    readOnly={isShippingLine}
+                    onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })}
+                    onKeyDown={(event) => {
+                      if (event.key === "Tab" && !event.shiftKey && index === lines.length - 1) {
+                        event.preventDefault();
+                        addLine(true);
+                      }
+                    }}
+                  />
+                </label>
+              ) : null}
               <div className="quote-line-total">
                 <span>Importe</span>
                 {isShippingLine ? (
@@ -10872,13 +10961,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             </div>
           );
         })}
-        {!isQuote ? (
-          <datalist id="quote-product-suggestions">
-            {products.map((product) => (
-              <option key={product.sku} value={product.sku}>{product.title || product.slug}</option>
-            ))}
-          </datalist>
-        ) : null}
+        <datalist id="quote-product-suggestions">
+          {products.map((product) => (
+            <option key={product.sku} value={product.sku}>{product.title || product.slug}</option>
+          ))}
+          {isQuote ? <option value="ALMORCHON">Producto especial con descripción y precio manuales</option> : null}
+        </datalist>
       </section>
 
       <section className="quote-totals">
@@ -10964,6 +11052,22 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <button className="primary-button" type="submit">Añadir portes</button>
             </div>
           </form>
+        </ModalShell>
+      ) : null}
+      {netPricingConfirmOpen ? (
+        <ModalShell
+          title="¿Convertir este presupuesto a precios netos?"
+          eyebrow="Descuentos"
+          size="net-pricing-modal"
+          onClose={() => setNetPricingConfirmOpen(false)}
+        >
+          <div className="net-pricing-confirmation">
+            <p>Se pondrán todos los descuentos a cero y se eliminará la columna de descuentos de este presupuesto.</p>
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setNetPricingConfirmOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="button" onClick={enableNetPricing}>Convertir a precios netos</button>
+            </div>
+          </div>
         </ModalShell>
       ) : null}
       {transferLinesOpen ? (
@@ -11161,6 +11265,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   notes={notes}
                   includePaymentDetails={includePaymentDetails}
                   redsysPaymentUrl={redsysPaymentUrl}
+                  netPricing={isQuote && netPricing}
                   pdfTemplate={pdfTemplate}
                 />
               </section>
@@ -11200,6 +11305,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           notes={notes}
           includePaymentDetails={includePaymentDetails}
           redsysPaymentUrl={redsysPaymentUrl}
+          netPricing={isQuote && netPricing}
           pdfTemplate={pdfTemplate}
         />
       </div>
