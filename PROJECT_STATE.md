@@ -171,6 +171,23 @@ Antes de cambiar un contrato, revisar las rutas y servicios correspondientes en 
 - La acción **Enviar a preparación** crea un único albarán aunque actúen varios destinatarios y deja preparada la futura orden del entorno de almacén.
 - El backend conserva las notificaciones y el vínculo entre la orden Redsys y el documento de venta.
 
+## Hito: destinatarios de correo vinculados al cliente
+
+- Los modales de envío del panel y de la app precargan el correo principal del cliente en **Para**.
+- Al activar el campo para añadir destinatarios se muestran como sugerencias el correo principal y todos los contactos de comunicación guardados en la ficha de la compañía.
+- Los correos se normalizan sin distinguir mayúsculas de minúsculas y no se duplican.
+- Los documentos de venta internos exponen la ficha completa del cliente para mantener este comportamiento en presupuestos, proformas, albaranes y facturas.
+- Los cambios están verificados localmente; queda pendiente desplegar backend/panel y generar una APK cuando se solicite.
+
+## Hito: línea de portes en presupuestos
+
+- El editor de presupuestos incorpora un botón **PORTES** con icono de camión.
+- El botón abre un modal de importe y crea o actualiza una única línea especial de transporte.
+- Los portes forman parte de la base imponible, del cálculo del IVA y del total final.
+- La línea conserva el icono del camión al reabrir el documento y al generar el PDF; también se mantiene al transformar el presupuesto en otros documentos de venta.
+- En presupuestos, la referencia se selecciona exclusivamente entre productos existentes del catálogo y ya no admite texto libre.
+- Panel y backend están verificados localmente; el despliegue queda pendiente de autorización.
+
 ## Operación de la importación
 
 La versión está desplegada y un administrador puede ir a **Ajustes → Integraciones**:

@@ -4136,12 +4136,25 @@ th {
 
 .quote-transfer-lines-button {
   min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid rgba(82, 116, 11, 0.18);
   border-radius: 7px;
   padding: 0 14px;
   color: var(--green-dark);
   background: #eef7d7;
   font-weight: 800;
+}
+
+.quote-shipping-button {
+  color: #fff;
+  background: var(--green-dark);
+}
+
+.quote-shipping-button:hover {
+  background: #365305;
 }
 
 .quote-transfer-lines-button:hover {
@@ -5485,6 +5498,13 @@ th {
   align-self: end;
 }
 
+.shipping-thumb {
+  display: grid;
+  place-items: center;
+  color: var(--green-dark);
+  background: #eef7d7;
+}
+
 .compact-line .product-thumb {
   align-self: center;
 }
@@ -6035,6 +6055,38 @@ th {
   font-weight: 800;
 }
 
+.quote-send-recipient-suggestions {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.quote-send-recipient-suggestions > small {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.quote-send-recipient-suggestions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.quote-send-recipient-suggestions button {
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid #d5e6a8;
+  border-radius: 999px;
+  color: var(--green-dark);
+  background: #f1f7df;
+  font: inherit;
+  font-weight: 700;
+}
+
+.quote-send-recipient-suggestions button:hover {
+  background: #dfeabf;
+}
+
 .quote-send-recipient-error {
   color: var(--danger);
   font-weight: 700;
@@ -6525,6 +6577,78 @@ th {
   display: block;
   object-fit: contain;
   margin: 0 auto;
+}
+
+.quote-pdf-line-shipping-icon {
+  width: 22px;
+  height: 22px;
+  margin: 2px auto;
+  color: #52740b;
+}
+
+.shipping-modal {
+  width: min(430px, calc(100vw - 32px));
+}
+
+.shipping-form {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.shipping-modal-icon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--green-dark);
+  background: #eef7d7;
+}
+
+.shipping-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.shipping-amount-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  overflow: hidden;
+}
+
+.shipping-amount-field input {
+  min-height: 52px;
+  border: 0;
+  padding: 0 14px;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+}
+
+.shipping-amount-field span {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  color: var(--muted);
+  background: #f3f5ef;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.shipping-form > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .quote-pdf-line-concept {

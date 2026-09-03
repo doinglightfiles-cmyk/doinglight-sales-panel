@@ -112,10 +112,30 @@ function isValidEmailRecipient(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
-function EmailRecipientsField({ value, onChange }) {
+function companyEmailRecipients(company) {
+  const contacts = company?.communicationContacts || company?.communication_contacts || company?.contacts || [];
+  return splitEmailRecipients([
+    company?.email,
+    company?.emailAddress,
+    company?.email_address,
+    ...(Array.isArray(company?.emails) ? company.emails : []),
+    ...(Array.isArray(contacts)
+      ? contacts.flatMap((contact) => [contact?.email, contact?.emailAddress, contact?.email_address])
+      : [])
+  ]).filter(isValidEmailRecipient);
+}
+
+function EmailRecipientsField({ value, onChange, suggestions = [] }) {
   const recipients = splitEmailRecipients(value);
   const [entry, setEntry] = useState("");
   const [error, setError] = useState("");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const recipientKeys = new Set(recipients.map((item) => item.toLowerCase()));
+  const normalizedEntry = entry.trim().toLowerCase();
+  const availableSuggestions = splitEmailRecipients(suggestions)
+    .filter(isValidEmailRecipient)
+    .filter((item) => !recipientKeys.has(item.toLowerCase()))
+    .filter((item) => !normalizedEntry || item.toLowerCase().includes(normalizedEntry));
 
   function addRecipients(rawValue = entry) {
     const candidates = splitEmailRecipients(rawValue);
@@ -162,6 +182,7 @@ function EmailRecipientsField({ value, onChange }) {
           <input
             type="email"
             value={entry}
+            onFocus={() => setSuggestionsOpen(true)}
             onChange={(event) => {
               setEntry(event.target.value);
               setError("");
@@ -169,6 +190,7 @@ function EmailRecipientsField({ value, onChange }) {
             onKeyDown={handleKeyDown}
             onBlur={() => {
               if (entry.trim() && isValidEmailRecipient(entry)) addRecipients();
+              window.setTimeout(() => setSuggestionsOpen(false), 120);
             }}
             placeholder="Añadir otro correo"
             aria-label="Añadir otro correo de destino"
@@ -178,6 +200,23 @@ function EmailRecipientsField({ value, onChange }) {
             Añadir
           </button>
         </div>
+        {suggestionsOpen && availableSuggestions.length ? (
+          <div className="quote-send-recipient-suggestions" aria-label="Correos de la compañía">
+            <small>Correos de la compañía</small>
+            <div>
+              {availableSuggestions.map((email) => (
+                <button
+                  type="button"
+                  key={email.toLowerCase()}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => addRecipients(email)}
+                >
+                  {email}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
       {error ? <small className="quote-send-recipient-error">{error}</small> : null}
     </div>
@@ -840,6 +879,14 @@ function ProductThumbnail({ product, size = "small" }) {
   useEffect(() => {
     setFailed(false);
   }, [imageUrl]);
+
+  if (product?.type === "shipping" || product?.lineType === "shipping") {
+    return (
+      <div className={`product-thumb ${size} shipping-thumb`} aria-label="Portes">
+        <Truck size={size === "large" ? 34 : 21} />
+      </div>
+    );
+  }
 
   if (!imageUrl || failed) {
     return (
@@ -2330,7 +2377,9 @@ function DocumentPdfPage({
         {lines.length ? lines.map((line, index) => (
           <div className="quote-pdf-line-row" key={`${line.code || "line"}-${index}`}>
             <span className="quote-pdf-line-image-cell">
-                {line.imageUrl ? (
+                {line.lineType === "shipping" ? (
+                  <Truck className="quote-pdf-line-shipping-icon" aria-label="Portes" />
+                ) : line.imageUrl ? (
                   <img
                     className="quote-pdf-line-image"
                     src={line.imageUrl}
@@ -2487,6 +2536,8 @@ function serializeInternalSalesDocument(item) {
     discountPercent: line.discountPercent,
     total: line.lineTotal,
     amount: line.lineTotal,
+    lineType: line.productSnapshot?.type || "",
+    productSnapshot: line.productSnapshot || {},
     product: {
       code: line.sku,
       name: line.title,
@@ -2497,6 +2548,7 @@ function serializeInternalSalesDocument(item) {
   return {
     id: item.id,
     leadId: item.leadId,
+    lead: item.lead || null,
     documentType: item.documentType,
     number: numberLabel,
     series: item.documentSeries || "",
@@ -2524,7 +2576,8 @@ function serializeInternalSalesDocument(item) {
         counterpart: {
           name: item.contact || "Sin cliente",
           email: item.contactEmail || "",
-          countryCode: item.contactCountry || ""
+          countryCode: item.contactCountry || "",
+          communicationContacts: item.lead?.communicationContacts || []
         },
         lines: rawLines,
         docNumber: { formattedSeries: item.documentSeries || "", number: item.documentNumber || "" },
@@ -3207,6 +3260,7 @@ function documentLinesForPdf(lines = []) {
       code: firstValue(line, ["code", "productCode", "sku", "reference", "product.code"], ""),
       concept: firstValue(line, ["text", "description", "title", "concept"], ""),
       customNote: firstValue(line, ["customNote", "custom_note", "productSnapshot.customNote"], ""),
+      lineType: firstValue(line, ["lineType", "type", "productSnapshot.type"], ""),
       quantity,
       price,
       discount: normalizeMoneyValue(firstValue(line, ["discount", "discountPercent", "discountPercentage"], 0)),
@@ -3216,13 +3270,15 @@ function documentLinesForPdf(lines = []) {
 }
 
 function DocumentSendModal({ token, documentRecord, type, onClose }) {
+  const company = documentRecord.lead || documentRecord.raw?.item?.lead || documentRecord.raw?.main?.counterpart || {};
+  const companyEmails = companyEmailRecipients(company);
   const [language, setLanguage] = useState(quoteLanguageForCountry(documentRecord.raw?.main?.counterpart?.countryCode || documentRecord.raw?.main?.counterpart?.country || "ES"));
   const [status, setStatus] = useState("");
   const [draft, setDraft] = useState(() => {
     const counterpart = documentRecord.raw?.main?.counterpart || {};
     const typeLabel = type === "invoice" ? "factura" : "albarán";
     return {
-      to: splitEmailRecipients(counterpart.email || counterpart.emailAddress || ""),
+      to: splitEmailRecipients(company.email || counterpart.email || counterpart.emailAddress || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
       subject: type === "invoice"
         ? `Doinglight Skylights - Factura ${documentRecord.number}`
@@ -3309,7 +3365,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
         </header>
         <div className="quote-send-content">
           <section className="quote-send-fields">
-            <EmailRecipientsField value={draft.to} onChange={(to) => updateDraft({ to })} />
+            <EmailRecipientsField value={draft.to} onChange={(to) => updateDraft({ to })} suggestions={companyEmails} />
             <label>
               <span>Remitente</span>
               <select value={draft.from} onChange={(event) => updateDraft({ from: event.target.value })}>
@@ -9163,6 +9219,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [documentPicker, setDocumentPicker] = useState(null);
   const [transferLinesOpen, setTransferLinesOpen] = useState(false);
   const [transferLineIds, setTransferLineIds] = useState([]);
+  const [shippingModalOpen, setShippingModalOpen] = useState(false);
+  const [shippingAmount, setShippingAmount] = useState("");
+  const [shippingError, setShippingError] = useState("");
   const [attachments, setAttachments] = useState(() =>
     (initialQuote?.attachments || []).map((attachment) => ({
       id: attachment.id || crypto.randomUUID(),
@@ -9175,6 +9234,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [lines, setLines] = useState(() => {
     if (initialQuote?.items?.length) {
       return initialQuote.items.map((line) => ({
+        lineType: line.productSnapshot?.type === "shipping" ? "shipping" : "product",
         id: line.id || crypto.randomUUID(),
         skuQuery: line.sku || "",
         sku: line.sku || "",
@@ -9183,7 +9243,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         unitPriceOverride: line.unitPrice,
         title: line.title || line.productSnapshot?.title || "",
         productSnapshot: line.productSnapshot || {},
-        manualTotal: null,
+        manualTotal: line.productSnapshot?.type === "shipping" ? line.lineTotal ?? line.unitPrice ?? 0 : null,
         customNote: line.customNote || line.productSnapshot?.customNote || "",
         customNoteOpen: Boolean(line.customNote || line.productSnapshot?.customNote)
       }));
@@ -9191,6 +9251,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
     if (template?.lines?.length) {
       return template.lines.map((line) => ({
+        lineType: "product",
         id: crypto.randomUUID(),
         skuQuery: line.sku,
         sku: line.sku,
@@ -9202,7 +9263,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       }));
     }
 
-    return [{ id: crypto.randomUUID(), skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null, customNote: "", customNoteOpen: false }];
+    return [{ id: crypto.randomUUID(), lineType: "product", skuQuery: "", sku: "", quantity: 1, discountPercent: 0, manualTotal: null, customNote: "", customNoteOpen: false }];
   });
   const [templatePicker, setTemplatePicker] = useState(template?.id || "");
   const [draggingLineId, setDraggingLineId] = useState("");
@@ -9538,6 +9599,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }
 
   function productForLine(line) {
+    if (line.lineType === "shipping" || line.productSnapshot?.type === "shipping") {
+      return {
+        ...(line.productSnapshot || {}),
+        source: "system",
+        type: "shipping",
+        sku: "PORTES",
+        title: "Portes",
+        shortDescription: "Gastos de transporte"
+      };
+    }
     const catalogProduct = products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku);
     if (catalogProduct) return catalogProduct;
 
@@ -9591,6 +9662,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   function createEmptyLine() {
     return {
       id: crypto.randomUUID(),
+      lineType: "product",
       skuQuery: "",
       sku: "",
       quantity: 1,
@@ -9608,6 +9680,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
     setLines(selectedTemplateItem.lines.map((line) => ({
       id: crypto.randomUUID(),
+      lineType: "product",
       skuQuery: line.sku,
       sku: line.sku,
       quantity: line.quantity || 1,
@@ -9631,6 +9704,49 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     if (focus) {
       window.setTimeout(() => lineReferenceRefs.current[nextLine.id]?.focus(), 0);
     }
+  }
+
+  function openShippingModal() {
+    const currentShippingLine = lines.find((line) => line.lineType === "shipping" || line.productSnapshot?.type === "shipping");
+    setShippingAmount(currentShippingLine ? tableMoney(lineTotal(currentShippingLine)) : "");
+    setShippingError("");
+    setShippingModalOpen(true);
+  }
+
+  function saveShippingLine(event) {
+    event?.preventDefault();
+    const amount = normalizeMoneyValue(shippingAmount);
+    if (amount <= 0) {
+      setShippingError("Introduce un importe de portes mayor que cero.");
+      return;
+    }
+
+    setLines((current) => {
+      const existingIndex = current.findIndex((line) => line.lineType === "shipping" || line.productSnapshot?.type === "shipping");
+      const shippingLine = {
+        id: existingIndex >= 0 ? current[existingIndex].id : crypto.randomUUID(),
+        lineType: "shipping",
+        skuQuery: "PORTES",
+        sku: "PORTES",
+        quantity: 1,
+        discountPercent: 0,
+        unitPriceOverride: amount,
+        manualTotal: amount,
+        title: "Portes",
+        customNote: "",
+        customNoteOpen: false,
+        productSnapshot: {
+          source: "system",
+          type: "shipping",
+          sku: "PORTES",
+          title: "Portes",
+          shortDescription: "Gastos de transporte"
+        }
+      };
+      if (existingIndex < 0) return [...current, shippingLine];
+      return current.map((line, index) => (index === existingIndex ? shippingLine : line));
+    });
+    setShippingModalOpen(false);
   }
 
   function openTransferLines() {
@@ -9814,6 +9930,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       concept: selectedProduct?.title || selectedProduct?.shortDescription || "Producto pendiente",
       customNote: String(line.customNote || "").trim(),
       imageUrl: imageUrlForDisplay(lineImageUrl, 220),
+      lineType: line.lineType || line.productSnapshot?.type || "product",
       quantity,
       price: unitPrice,
       discount: Number(line.discountPercent || 0),
@@ -9969,14 +10086,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       items: lines
         .map((line) => {
           const product = productForLine(line);
+          const isShippingLine = line.lineType === "shipping" || line.productSnapshot?.type === "shipping";
           return {
-            sku: line.sku || line.skuQuery.trim(),
-            title: product?.title || line.title || line.skuQuery.trim(),
+            sku: isShippingLine ? "PORTES" : line.sku || line.skuQuery.trim(),
+            title: isShippingLine ? "Portes" : product?.title || line.title || line.skuQuery.trim(),
             quantity: Number(line.quantity),
             discountPercent: Number(line.discountPercent),
             unitPrice: unitPriceForSubmit(line),
             customNote: String(line.customNote || "").trim(),
-            productSnapshot: product || line.productSnapshot || {}
+            productSnapshot: isShippingLine
+              ? { source: "system", type: "shipping", sku: "PORTES", title: "Portes", shortDescription: "Gastos de transporte" }
+              : product || line.productSnapshot || {}
           };
         })
         .filter((line) => line.sku),
@@ -10566,6 +10686,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <h4>Líneas del documento</h4>
           {isQuote ? (
             <div className="quote-line-tools">
+              <button className="quote-transfer-lines-button quote-shipping-button" type="button" onClick={openShippingModal}>
+                <Truck size={16} />
+                PORTES
+              </button>
               <button
                 className="quote-transfer-lines-button"
                 type="button"
@@ -10589,6 +10713,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         </header>
         {lines.map((line, index) => {
           const selectedProduct = productForLine(line);
+          const isShippingLine = line.lineType === "shipping" || line.productSnapshot?.type === "shipping";
           const supportsCustomNote = Boolean(String(line.sku || line.skuQuery || "").trim());
           return (
             <div
@@ -10616,25 +10741,49 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <ProductThumbnail product={selectedProduct || { sku: line.sku }} />
               <label>
                 <span>Referencia</span>
-                <input
-                  ref={(element) => {
-                    if (element) lineReferenceRefs.current[line.id] = element;
-                  }}
-                  list="quote-product-suggestions"
-                  placeholder="Referencia"
-                  value={line.skuQuery}
-                  onChange={(event) => {
-                    const value = event.target.value.toUpperCase();
-                    const matchedProduct = products.find((product) => product.sku === value);
-                    updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", unitPriceOverride: undefined, manualTotal: null });
-                  }}
-                />
+                {isShippingLine ? (
+                  <input value="PORTES" readOnly aria-label="Referencia de portes" />
+                ) : isQuote ? (
+                  <select
+                    ref={(element) => {
+                      if (element) lineReferenceRefs.current[line.id] = element;
+                    }}
+                    value={line.skuQuery}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const matchedProduct = products.find((product) => product.sku === value);
+                      updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", unitPriceOverride: undefined, manualTotal: null });
+                    }}
+                  >
+                    <option value="">Seleccionar</option>
+                    {line.skuQuery && !products.some((product) => product.sku === line.skuQuery) ? (
+                      <option value={line.skuQuery}>{line.skuQuery}</option>
+                    ) : null}
+                    {products.map((product) => (
+                      <option key={product.sku} value={product.sku}>{product.sku}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    ref={(element) => {
+                      if (element) lineReferenceRefs.current[line.id] = element;
+                    }}
+                    list="quote-product-suggestions"
+                    placeholder="Referencia"
+                    value={line.skuQuery}
+                    onChange={(event) => {
+                      const value = event.target.value.toUpperCase();
+                      const matchedProduct = products.find((product) => product.sku === value);
+                      updateLine(line.id, { skuQuery: value, sku: matchedProduct?.sku || "", unitPriceOverride: undefined, manualTotal: null });
+                    }}
+                  />
+                )}
               </label>
               <div className="quote-product-select">
                 <span>Descripción</span>
                 <strong>{selectedProduct?.title || "Producto no seleccionado"}</strong>
                 <span className="quote-product-description">{selectedProduct?.shortDescription || "Selecciona un producto del catálogo"}</span>
-                {supportsCustomNote ? (
+                {supportsCustomNote && !isShippingLine ? (
                   <div className="quote-line-custom-note">
                     {line.customNoteOpen || line.customNote ? (
                       <input
@@ -10664,6 +10813,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   type="number"
                   min="1"
                   value={line.quantity}
+                  readOnly={isShippingLine}
                   onChange={(event) => updateLine(line.id, { quantity: event.target.value })}
                 />
               </label>
@@ -10675,6 +10825,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   min="0"
                   max="100"
                   value={line.discountPercent}
+                  readOnly={isShippingLine}
                   onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })}
                   onKeyDown={(event) => {
                     if (event.key === "Tab" && !event.shiftKey && index === lines.length - 1) {
@@ -10686,12 +10837,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </label>
               <div className="quote-line-total">
                 <span>Importe</span>
-                <input
-                  aria-label="Importe"
-                  inputMode="decimal"
-                  value={line.manualTotal ?? tableMoney(lineTotal(line))}
-                  onChange={(event) => updateLine(line.id, { manualTotal: event.target.value })}
-                />
+                {isShippingLine ? (
+                  <strong>{money(lineTotal(line))}</strong>
+                ) : (
+                  <input
+                    aria-label="Importe"
+                    inputMode="decimal"
+                    value={line.manualTotal ?? tableMoney(lineTotal(line))}
+                    onChange={(event) => updateLine(line.id, { manualTotal: event.target.value })}
+                  />
+                )}
               </div>
               <div className="quote-line-actions">
                 <button
@@ -10717,13 +10872,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             </div>
           );
         })}
-        <datalist id="quote-product-suggestions">
-          {products.map((product) => (
-            <option key={product.sku} value={product.sku}>
-              {product.title || product.slug}
-            </option>
-          ))}
-        </datalist>
+        {!isQuote ? (
+          <datalist id="quote-product-suggestions">
+            {products.map((product) => (
+              <option key={product.sku} value={product.sku}>{product.title || product.slug}</option>
+            ))}
+          </datalist>
+        ) : null}
       </section>
 
       <section className="quote-totals">
@@ -10776,6 +10931,41 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           Enviar
         </button>
       </div>
+      {shippingModalOpen ? (
+        <ModalShell
+          title="Portes"
+          eyebrow={documentEyebrow}
+          size="shipping-modal"
+          onClose={() => setShippingModalOpen(false)}
+        >
+          <form className="shipping-form" onSubmit={saveShippingLine}>
+            <div className="shipping-modal-icon" aria-hidden="true"><Truck size={25} /></div>
+            <label>
+              <span>Importe de los portes</span>
+              <div className="shipping-amount-field">
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={shippingAmount}
+                  onChange={(event) => {
+                    setShippingAmount(event.target.value);
+                    setShippingError("");
+                  }}
+                  placeholder="0,00"
+                  aria-label="Importe de los portes"
+                />
+                <span>€</span>
+              </div>
+            </label>
+            <p>El importe se añadirá como una línea y formará parte de la base imponible.</p>
+            {shippingError ? <p className="form-error">{shippingError}</p> : null}
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setShippingModalOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="submit">Añadir portes</button>
+            </div>
+          </form>
+        </ModalShell>
+      ) : null}
       {transferLinesOpen ? (
         <ModalShell
           title="Traspasar líneas a albarán"
@@ -10855,7 +11045,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             </header>
             <div className="quote-send-content">
               <section className="quote-send-fields">
-                <EmailRecipientsField value={sendDraft.to} onChange={(to) => updateSendDraft({ to })} />
+                <EmailRecipientsField
+                  value={sendDraft.to}
+                  onChange={(to) => updateSendDraft({ to })}
+                  suggestions={companyEmailRecipients({
+                    ...(selectedLead || {}),
+                    ...(leadDraft || {}),
+                    communicationContacts: leadDraft?.communicationContacts || selectedLead?.communicationContacts || []
+                  })}
+                />
                 <label>
                   <span>Remitente</span>
                   <select value={sendDraft.from} onChange={(event) => updateSendDraft({ from: event.target.value })}>
