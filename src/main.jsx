@@ -2481,7 +2481,7 @@ function serializeSalesQuote(quote, leadsById) {
     total: Number(quote.total || 0),
     currency: quote.currency || "EUR",
     pdfTemplate: salesDocumentTemplate(quote),
-    sent: false,
+    sent: Boolean(quote.emailedAt),
     hasAttachment: false
   };
 }
@@ -8528,7 +8528,7 @@ function QuotesView({ token }) {
                       <span>{quote.detail}</span>
                       <span className="invoice-row-icons">
                         {quote.hasAttachment ? <Paperclip size={17} /> : null}
-                        <Mail size={18} />
+                        {quote.sent ? <Mail size={18} aria-label="Presupuesto enviado por correo" /> : null}
                       </span>
                     </div>
                   </td>

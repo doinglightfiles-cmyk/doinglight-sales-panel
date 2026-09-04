@@ -1,9 +1,10 @@
 # APP DOINGLIGHT V2 — estado recuperado
 
-Actualizado: 3 de septiembre de 2026.
+Actualizado: 4 de septiembre de 2026.
 
 ## Cambios locales pendientes de despliegue
 
+- El sobre del listado general de presupuestos solo se muestra cuando el envío por correo se ha completado correctamente. El backend lo registra de forma persistente mediante `024_quote_email_tracking.sql`; los enlaces de aceptación históricos permiten recuperar los envíos anteriores verificables.
 - Panel y APP móvil permiten convertir un presupuesto a precios netos desde la X situada junto a Descuento: se confirma la acción, se ponen los descuentos a cero, se oculta la columna y también se omite en el PDF. El backend lo conserva con la migración `023_quote_net_pricing.sql`.
 - Las líneas de PORTES quedan forzadas a descuento cero en panel, APP y backend, independientemente del nivel comercial del cliente.
 - Los presupuestos nuevos creados por `a.jimenez@doinglight.es` arrancan siempre con descuento cero; no se modifica ese comportamiento al editar documentos ya existentes.
