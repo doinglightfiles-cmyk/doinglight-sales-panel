@@ -35,6 +35,12 @@ import "./styles.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const SESSION_KEY = "doinglight_panel_session";
+const WAREHOUSE_EMAIL = "almacen@doinglight.es";
+const WAREHOUSE_SENDERS = new Set([
+  "marketing@doinglight.es",
+  "jvtarancon@doinglight.es",
+  "administracion@doinglight.es"
+]);
 const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
 const DOINGLIGHT_PAYMENT_IBAN = "ES11 3144 5700 2720 1693 9122";
 const EMAIL_LEGAL_FOOTER = `PROTECCIÓN DE DATOS: Responsable: DOINGLIGHT TECHNOLOGIES SLU. Finalidad: Gestionar las comunicaciones realizadas a través del correo electrónico de los servicios prestados, atender sus solicitudes de información y enviarle comunicaciones comerciales. Legitimación: Ejecución de contrato, interés legítimo del responsable o consentimiento del interesado. Destinatarios: No se cederán datos a terceros salvo obligación legal. Derechos: Tiene derecho a acceder, rectificar y suprimir los datos, así como otros derechos, indicados en la información adicional, que puede ejercer dirigiéndose a la dirección del responsable del tratamiento. Información adicional: En un impreso a disposición de los interesados, en POLÍGONO INDUSTRIAL CAMPOLLANO, CALLE E, Nº 24 - 02007 ALBACETE.
@@ -649,9 +655,19 @@ function printDocumentElement(elementId, title = "Documento Doinglight") {
         <style>
           ${styles}
           @page { size: A4; margin: 0; }
-          html, body { margin: 0; min-height: 100%; background: #fff; }
-          body { display: flex; justify-content: center; align-items: flex-start; }
-          .quote-pdf-page { width: 210mm !important; min-height: 297mm !important; margin: 0 !important; box-shadow: none !important; }
+          html, body { width: 210mm; min-height: 297mm; margin: 0; background: #fff; }
+          body { display: block; }
+          .quote-pdf-page {
+            width: 209.8mm !important;
+            min-height: 296.8mm !important;
+            height: auto !important;
+            max-height: none !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            overflow: visible !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
         </style>
       </head>
       <body>${element.outerHTML}</body>
@@ -661,7 +677,7 @@ function printDocumentElement(elementId, title = "Documento Doinglight") {
   printWindow.focus();
   window.setTimeout(() => {
     printWindow.print();
-  }, 400);
+  }, 600);
 }
 
 async function renderDocumentElementAsPdf(elementId, filename, { save = true } = {}) {
@@ -680,40 +696,28 @@ async function renderDocumentElementAsPdf(elementId, filename, { save = true } =
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = 210;
   const pageHeight = 297;
-  const pageHeightPixels = Math.floor((canvas.width * pageHeight) / pageWidth);
-  let offsetY = 0;
-  let pageIndex = 0;
+  const pageHeightPixels = (canvas.width * pageHeight) / pageWidth;
+  const roundingTolerance = Math.max(3, Math.ceil(canvas.width * 0.004));
 
-  while (offsetY < canvas.height) {
-    const sliceHeight = Math.min(pageHeightPixels, canvas.height - offsetY);
-    const pageCanvas = document.createElement("canvas");
-    pageCanvas.width = canvas.width;
-    pageCanvas.height = sliceHeight;
-    const context = pageCanvas.getContext("2d");
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-    context.drawImage(
-      canvas,
-      0,
-      offsetY,
-      canvas.width,
-      sliceHeight,
-      0,
-      0,
-      canvas.width,
-      sliceHeight
-    );
-    if (pageIndex > 0) pdf.addPage("a4", "portrait");
-    pdf.addImage(
-      pageCanvas.toDataURL("image/jpeg", 0.95),
-      "JPEG",
-      0,
-      0,
-      pageWidth,
-      (sliceHeight * pageWidth) / canvas.width
-    );
-    offsetY += sliceHeight;
-    pageIndex += 1;
+  if (canvas.height <= pageHeightPixels + roundingTolerance) {
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, pageHeight);
+  } else {
+    let offsetY = 0;
+    let pageIndex = 0;
+    while (offsetY < canvas.height - roundingTolerance) {
+      const sliceHeight = Math.min(Math.floor(pageHeightPixels), canvas.height - offsetY);
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = Math.ceil(pageHeightPixels);
+      const context = pageCanvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      context.drawImage(canvas, 0, offsetY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+      if (pageIndex > 0) pdf.addPage("a4", "portrait");
+      pdf.addImage(pageCanvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, pageHeight);
+      offsetY += sliceHeight;
+      pageIndex += 1;
+    }
   }
   if (save) pdf.save(filename);
   return pdf.output("datauristring").split(",")[1];
@@ -973,8 +977,153 @@ function App() {
     return <LoginView onLogin={setSession} />;
   }
 
+  if (String(session.user?.email || "").trim().toLowerCase() === WAREHOUSE_EMAIL) {
+    return <WarehouseApp session={session} onLogout={logout} />;
+  }
+
   return (
     <PanelShell session={session} activeView={activeView} onNavigate={setActiveView} onLogout={logout} />
+  );
+}
+
+function WarehouseApp({ session, onLogout }) {
+  const [items, setItems] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [incidentOpen, setIncidentOpen] = useState(false);
+  const [incident, setIncident] = useState("");
+
+  async function load() {
+    setError("");
+    try {
+      const result = await apiRequest("/api/warehouse/delivery-notes", { token: session.token });
+      const nextItems = result.items || [];
+      setItems(nextItems);
+      setSelected((current) => current ? nextItems.find((item) => item.id === current.id) || null : null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 30000);
+    return () => window.clearInterval(timer);
+  }, [session.token]);
+
+  async function runAction(action) {
+    if (!selected || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest(`/api/warehouse/delivery-notes/${selected.id}/action`, {
+        token: session.token,
+        method: "POST",
+        body: { action, incident: action === "incident" ? incident : "" }
+      });
+      setIncidentOpen(false);
+      setIncident("");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const statusLabel = (status) => ({
+    pending: "Pendiente",
+    incident: "Incidencia",
+    prepared: "Pedido preparado"
+  }[status] || "Pendiente");
+
+  return (
+    <div className="warehouse-app">
+      <header className="warehouse-header">
+        <button type="button" className="warehouse-refresh" onClick={load} aria-label="Actualizar albaranes">
+          <RefreshCw size={21} />
+        </button>
+        <img src="/logo-backend.png" alt="Doinglight" />
+        <button type="button" className="warehouse-logout" onClick={onLogout} aria-label="Cerrar sesión">
+          <LogOut size={21} />
+        </button>
+      </header>
+      <main className="warehouse-main">
+        <div className="warehouse-title">
+          <div>
+            <small>Almacén</small>
+            <h1>Albaranes entrantes</h1>
+          </div>
+          <span>{items.length}</span>
+        </div>
+        {error ? <p className="form-error">{error}</p> : null}
+        {loading ? <p className="warehouse-empty">Cargando pedidos…</p> : null}
+        {!loading && !items.length ? <p className="warehouse-empty">No hay albaranes pendientes de almacén.</p> : null}
+        <div className="warehouse-list">
+          {items.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              className={`warehouse-card ${item.status || "pending"}`}
+              onClick={() => { setSelected(item); setIncidentOpen(false); setIncident(""); }}
+            >
+              <div>
+                <strong>Albarán {item.documentNumber}</strong>
+                <span>{item.contact}</span>
+                <small>Entrada: {new Date(item.sentAt).toLocaleString("es-ES")}</small>
+              </div>
+              <span className="warehouse-status">{statusLabel(item.status)}</span>
+              <ChevronRight size={22} />
+            </button>
+          ))}
+        </div>
+      </main>
+      {selected ? (
+        <div className="warehouse-detail-backdrop" onMouseDown={() => setSelected(null)}>
+          <section className="warehouse-detail" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <small>Pedido de {selected.contact}</small>
+                <h2>Albarán {selected.documentNumber}</h2>
+              </div>
+              <button type="button" onClick={() => setSelected(null)} aria-label="Cerrar"><X size={22} /></button>
+            </header>
+            <div className="warehouse-lines">
+              {(selected.lines || []).map((line) => (
+                <article key={line.id}>
+                  <div>
+                    <strong>{line.sku || "Sin referencia"}</strong>
+                    <span>{line.title || line.description}</span>
+                  </div>
+                  <b>{tableMoney(line.quantity)} ud.</b>
+                </article>
+              ))}
+            </div>
+            {selected.internalNotes ? <p className="warehouse-notes"><strong>Notas internas:</strong> {selected.internalNotes}</p> : null}
+            {selected.incident ? <p className="warehouse-existing-incident"><strong>Incidencia:</strong> {selected.incident}</p> : null}
+            {incidentOpen ? (
+              <div className="warehouse-incident-form">
+                <label htmlFor="warehouse-incident">Describe la incidencia</label>
+                <textarea id="warehouse-incident" autoFocus value={incident} onChange={(event) => setIncident(event.target.value)} />
+                <div>
+                  <button type="button" className="secondary-button" onClick={() => setIncidentOpen(false)}>Cancelar</button>
+                  <button type="button" className="warehouse-incident-submit" disabled={saving || !incident.trim()} onClick={() => runAction("incident")}>Enviar incidencia</button>
+                </div>
+              </div>
+            ) : (
+              <footer>
+                <button type="button" className="warehouse-incident-button" onClick={() => setIncidentOpen(true)}>INCIDENCIA</button>
+                <button type="button" className="warehouse-ready-button" disabled={saving} onClick={() => runAction("prepared")}>PEDIDO FINALIZADO</button>
+              </footer>
+            )}
+          </section>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -982,7 +1131,7 @@ function NotificationsInbox({token,onClose,onChanged}){
   const [archived,setArchived]=useState(false);const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState("");
   async function load(next=archived){setLoading(true);setError("");try{const result=await apiRequest(`/api/notifications?archived=${next}`,{token});setItems(result.items||[]);if(!next){await apiRequest("/api/notifications/read-all",{token,method:"POST",body:{}});onChanged?.();}}catch(e){setError(e.message);}finally{setLoading(false);}}
   useEffect(()=>{load(archived);},[archived,token]);
-  async function act(item){try{const result=await apiRequest(`/api/notifications/${item.id}/action`,{token,method:"POST",body:{}});if(result.alreadyProcessed)window.alert("Otro usuario ya había creado el albarán de entrega.");else if(result.warehousePending)window.alert("Se ha creado el albarán. El envío al sistema de almacén se activará con el futuro entorno de almacén.");await load(archived);}catch(e){setError(e.message);}}
+  async function act(item){try{const result=await apiRequest(`/api/notifications/${item.id}/action`,{token,method:"POST",body:{}});if(result.alreadyProcessed)window.alert("Otro usuario ya había creado el albarán de entrega.");else if(result.warehousePending)window.alert("Se ha creado el albarán y se ha enviado a almacén.");await load(archived);}catch(e){setError(e.message);}}
   return <div className="notification-modal-backdrop" onMouseDown={onClose}><section className="notification-inbox" onMouseDown={e=>e.stopPropagation()}><header><div><small>Centro de actividad</small><h2>Notificaciones</h2></div><button className="icon-button" onClick={onClose}><X size={20}/></button></header><nav><button className={!archived?"active":""} onClick={()=>setArchived(false)}>Bandeja de entrada</button><button className={archived?"active":""} onClick={()=>setArchived(true)}>Archivadas</button></nav><div className="notification-table-head"><span>Fecha</span><span>Descripción</span><span>Acción</span></div><div className="notification-rows">{loading?<p>Cargando…</p>:null}{error?<p className="form-error">{error}</p>:null}{!loading&&!items.length?<p className="notification-empty">No hay notificaciones en esta pestaña.</p>:items.map(item=><article key={item.id}><time>{new Date(item.createdAt).toLocaleDateString("es-ES")}</time><p>{item.description}</p>{archived?<span className="archived-label">Archivada</span>:<button onClick={()=>act(item)}>{item.actionType==="send_to_preparation"?"Enviar a preparación":"¡Genial!"}</button>}</article>)}</div></section></div>;
 }
 
@@ -2482,6 +2631,7 @@ function serializeSalesQuote(quote, leadsById) {
     currency: quote.currency || "EUR",
     pdfTemplate: salesDocumentTemplate(quote),
     sent: Boolean(quote.emailedAt),
+    generatedDocuments: Array.isArray(quote.generatedDocuments) ? quote.generatedDocuments : [],
     hasAttachment: false
   };
 }
@@ -2499,6 +2649,25 @@ function salesDocumentTemplate(documentRecord) {
 
 function templateBadgeClass(documentRecord) {
   return `template-${salesDocumentTemplate(documentRecord)}`;
+}
+
+function GeneratedDocumentBadges({ documentRecord }) {
+  const labels = { proforma: "P", delivery_note: "A", invoice: "F" };
+  const seen = new Set();
+  const documents = (documentRecord.generatedDocuments || []).filter((item) => {
+    if (!labels[item?.type] || seen.has(item.type)) return false;
+    seen.add(item.type);
+    return true;
+  });
+  return documents.map((item) => (
+    <span
+      key={item.type}
+      className={`generated-document-badge ${templateBadgeClass(documentRecord)}`}
+      title={`${item.type === "invoice" ? "Factura" : item.type === "delivery_note" ? "Albarán" : "Proforma"} ${item.number || ""}`.trim()}
+    >
+      {labels[item.type]}
+    </span>
+  ));
 }
 
 function internalDocumentState(status = "", documentType = "invoice") {
@@ -2566,7 +2735,10 @@ function serializeInternalSalesDocument(item) {
     total: Number(item.total || 0),
     currency: item.currency || "EUR",
     pdfTemplate: salesDocumentTemplate(item),
-    sent: false,
+    sent: Boolean(item.emailedAt),
+    warehouseStatus: item.warehouseStatus || null,
+    warehouseSentAt: item.warehouseSentAt || null,
+    warehouseIncident: item.warehouseIncident || "",
     hasAttachment: Boolean(item.attachments?.length),
     responsible: "",
     lines: rawLines,
@@ -3180,7 +3352,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                       <span>{invoice.detail}</span>
                       <span className="invoice-row-icons">
                         {invoice.hasAttachment ? <Paperclip size={17} /> : null}
-                        <Mail size={18} />
+                        {invoice.sent ? <Mail size={18} aria-label="Documento enviado por correo" /> : null}
                       </span>
                     </div>
                   </td>
@@ -3340,6 +3512,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
         body: {
           documentType: type,
           documentNumber: documentRecord.number,
+          documentId: documentRecord.id,
           language,
           to: recipients,
           from: draft.from,
@@ -3756,6 +3929,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                     <span className="invoice-row-icons inline-icons">
                       {deliveryNote.hasAttachment ? <Paperclip size={17} /> : null}
                       <FileText size={18} />
+                      {deliveryNote.sent ? <Mail size={18} aria-label="Documento enviado por correo" /> : null}
                       {deliveryNote.responsible ? <span className="document-owner-pill">{deliveryNote.responsible}</span> : null}
                     </span>
                   </td>
@@ -3970,6 +4144,9 @@ function ProformasView({ token, onCreateProforma }) {
                     <div className="invoice-detail-cell">
                       <strong>{proforma.contact}</strong>
                       <span>{proforma.detail}</span>
+                      {proforma.sent ? (
+                        <span className="invoice-row-icons"><Mail size={18} aria-label="Documento enviado por correo" /></span>
+                      ) : null}
                     </div>
                   </td>
                   <td>{tableMoney(proforma.subtotal)}</td>
@@ -7279,7 +7456,7 @@ function DocumentActionsMenu({
     : [
         { label: "Duplicar", action: onDuplicate || unavailable("Duplicar") },
         { label: "Duplicar como presupuesto", action: onDuplicateAsQuote || onDuplicate || unavailable("Duplicar como presupuesto") },
-        ...(type === "quote" ? [{ label: "Crear albarán", action: onCreateDeliveryNote || unavailable("Crear albarán") }] : []),
+        ...(["quote", "proforma"].includes(type) ? [{ label: "Crear albarán", action: onCreateDeliveryNote || unavailable("Crear albarán") }] : []),
         { label: "Crear factura", action: onCreateInvoice || unavailable("Crear factura") }
       ];
   const documentActions = isInvoice
@@ -8529,6 +8706,7 @@ function QuotesView({ token }) {
                       <span className="invoice-row-icons">
                         {quote.hasAttachment ? <Paperclip size={17} /> : null}
                         {quote.sent ? <Mail size={18} aria-label="Presupuesto enviado por correo" /> : null}
+                        <GeneratedDocumentBadges documentRecord={quote} />
                       </span>
                     </div>
                   </td>
@@ -9226,6 +9404,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [shippingModalOpen, setShippingModalOpen] = useState(false);
   const [shippingAmount, setShippingAmount] = useState("");
   const [shippingError, setShippingError] = useState("");
+  const [warehouseSending, setWarehouseSending] = useState(false);
   const [netPricing, setNetPricing] = useState(Boolean(initialQuote?.netPricing));
   const [netPricingConfirmOpen, setNetPricingConfirmOpen] = useState(false);
   const [attachments, setAttachments] = useState(() =>
@@ -9880,6 +10059,50 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     }
   }
 
+  async function createDocumentFromProforma(targetType) {
+    if (!isProforma || !currentDocument?.id) {
+      window.alert("Guarda primero la proforma para poder crear el documento con trazabilidad.");
+      return;
+    }
+    try {
+      const result = await apiRequest(`/api/sales/documents/${targetType}/from-document/proforma/${currentDocument.id}`, {
+        token,
+        method: "POST",
+        body: { leadId: effectiveLeadId || null }
+      });
+      const created = result?.item || result;
+      if (created?.id && onOpenTrace) {
+        onOpenTrace({
+          id: created.id,
+          number: created.documentNumber || created.number || "",
+          type: targetType
+        });
+      } else {
+        onDone();
+      }
+    } catch (err) {
+      window.alert(err.message || `No se ha podido crear ${targetType === "invoice" ? "la factura" : "el albarán"}.`);
+    }
+  }
+
+  async function sendDeliveryNoteToWarehouse() {
+    if (!isDeliveryNote || !currentDocument?.id || warehouseSending) return;
+    setWarehouseSending(true);
+    setError("");
+    try {
+      const result = await apiRequest(`/api/warehouse/delivery-notes/${currentDocument.id}/send`, {
+        token,
+        method: "POST",
+        body: {}
+      });
+      setSavedDocument((current) => ({ ...(current || currentDocument), ...(result.item || {}) }));
+    } catch (err) {
+      setError(err.message || "No se ha podido enviar el albarán a almacén.");
+    } finally {
+      setWarehouseSending(false);
+    }
+  }
+
   async function invoiceQuoteDirectly() {
     if (quoteTransferBlocked) {
       window.alert("Este presupuesto ya está traspasado y no se puede facturar de nuevo desde el presupuesto.");
@@ -10079,6 +10302,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           subject: sendDraft.subject,
           body: sendDraft.body,
           quoteId: isQuote ? currentDocument?.id || null : null,
+          documentId: !isQuote ? currentDocument?.id || null : null,
           includePaymentDetails: isQuote ? includePaymentDetails : false,
           paymentUrl: isQuote && includePaymentDetails ? redsysPaymentUrl : "",
           filename: quotePdfName,
@@ -10749,30 +10973,40 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <section className="form-section">
         <header className="form-section-header">
           <h4>Líneas del documento</h4>
-          {isQuote ? (
+          {!readOnly ? (
             <div className="quote-line-tools">
               <button className="quote-transfer-lines-button quote-shipping-button" type="button" onClick={openShippingModal}>
                 <Truck size={16} />
                 PORTES
               </button>
-              <button
-                className="quote-transfer-lines-button"
-                type="button"
-                onClick={openTransferLines}
-                disabled={quoteTransferBlocked}
-                title={quoteTransferBlocked ? "Este presupuesto ya está traspasado." : undefined}
-              >
-                Traspasar líneas a albarán
-              </button>
-              <button
-                className="quote-transfer-lines-button"
-                type="button"
-                onClick={invoiceQuoteDirectly}
-                disabled={quoteTransferBlocked}
-                title={quoteTransferBlocked ? "Este presupuesto ya está traspasado." : undefined}
-              >
-                Facturar presupuesto
-              </button>
+              {isQuote ? (
+                <>
+                  <button
+                    className="quote-transfer-lines-button"
+                    type="button"
+                    onClick={openTransferLines}
+                    disabled={quoteTransferBlocked}
+                    title={quoteTransferBlocked ? "Este presupuesto ya está traspasado." : undefined}
+                  >
+                    Traspasar líneas a albarán
+                  </button>
+                  <button
+                    className="quote-transfer-lines-button"
+                    type="button"
+                    onClick={invoiceQuoteDirectly}
+                    disabled={quoteTransferBlocked}
+                    title={quoteTransferBlocked ? "Este presupuesto ya está traspasado." : undefined}
+                  >
+                    Facturar presupuesto
+                  </button>
+                </>
+              ) : null}
+              {isProforma ? (
+                <>
+                  <button className="quote-transfer-lines-button" type="button" onClick={() => createDocumentFromProforma("delivery_note")}>Crear albarán</button>
+                  <button className="quote-transfer-lines-button" type="button" onClick={() => createDocumentFromProforma("invoice")}>Facturar</button>
+                </>
+              ) : null}
             </div>
           ) : null}
         </header>
@@ -11013,6 +11247,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         {isDeliveryNote && currentDocument && !readOnly ? (
           <button className="primary-button" type="button" onClick={createInvoiceFromDeliveryNote}>
             Facturar
+          </button>
+        ) : null}
+        {isDeliveryNote && currentDocument?.id && WAREHOUSE_SENDERS.has(String(currentUser?.email || "").trim().toLowerCase()) ? (
+          <button
+            className="warehouse-send-button"
+            type="button"
+            onClick={sendDeliveryNoteToWarehouse}
+            disabled={warehouseSending || Boolean(currentDocument.warehouseSentAt)}
+          >
+            <Truck size={18} />
+            {warehouseSending ? "ENVIANDO…" : currentDocument.warehouseSentAt ? "ENVIADO A ALMACÉN" : "ENVIAR A ALMACÉN"}
           </button>
         ) : null}
         <button className="primary-button send-quote-button" type="button" onClick={openSendModal}>

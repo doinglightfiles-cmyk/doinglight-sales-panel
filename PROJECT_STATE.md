@@ -1,9 +1,15 @@
 # APP DOINGLIGHT V2 — estado recuperado
 
-Actualizado: 4 de septiembre de 2026.
+Actualizado: 9 de septiembre de 2026.
 
 ## Cambios locales pendientes de despliegue
 
+- La trazabilidad visual separa los envíos reales de las conversiones: el sobre depende exclusivamente de `emailedAt`; los presupuestos muestran círculos `P`, `A` o `F` según los documentos generados, respetando el verde Doinglight o azul Tubo Solar.
+- Las facturas proforma permiten crear tanto un albarán como una factura desde el propio documento.
+- Los albaranes incluyen «ENVIAR A ALMACÉN» exclusivamente para `marketing@doinglight.es`, `jvtarancon@doinglight.es` y `administracion@doinglight.es`, con la misma restricción aplicada en la API.
+- `almacen@doinglight.es` dispone de una interfaz exclusiva con cabecera verde, cola de albaranes por fecha de entrada, detalle de líneas y acciones «PEDIDO FINALIZADO» e «INCIDENCIA». Los pedidos preparados se colorean en verde, las incidencias en rojo, y ambas acciones notifican a Administración, Marketing y J. V. Tarancón. Falta crear o activar la cuenta de almacén con su contraseña antes de utilizarla.
+- El botón PORTES está disponible al crear o editar cualquiera de los cuatro documentos de venta: presupuestos, proformas, albaranes y facturas. Conserva una única línea especial de transporte, siempre a precio neto y sin descuento.
+- Los PDF de presupuestos, proformas, albaranes y facturas aprovechan mejor el A4 con textos y tablas más legibles. La descarga tolera el redondeo del navegador para no generar una segunda página vacía, pero pagina los documentos largos sin recortar contenido; las tablas respetan el ancho imprimible y el pie legal conserva su espacio.
 - El sobre del listado general de presupuestos solo se muestra cuando el envío por correo se ha completado correctamente. El backend lo registra de forma persistente mediante `024_quote_email_tracking.sql`; los enlaces de aceptación históricos permiten recuperar los envíos anteriores verificables.
 - Panel y APP móvil permiten convertir un presupuesto a precios netos desde la X situada junto a Descuento: se confirma la acción, se ponen los descuentos a cero, se oculta la columna y también se omite en el PDF. El backend lo conserva con la migración `023_quote_net_pricing.sql`.
 - Las líneas de PORTES quedan forzadas a descuento cero en panel, APP y backend, independientemente del nivel comercial del cliente.
