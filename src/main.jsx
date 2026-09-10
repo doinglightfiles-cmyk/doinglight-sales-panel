@@ -18,6 +18,7 @@ import {
   MessageCircle,
   MoreVertical,
   Paperclip,
+  Package,
   Pencil,
   Plus,
   RefreshCw,
@@ -26,6 +27,7 @@ import {
   Settings,
   Printer,
   Truck,
+  Factory,
   History,
   UsersRound,
   X,
@@ -41,6 +43,9 @@ const WAREHOUSE_SENDERS = new Set([
   "jvtarancon@doinglight.es",
   "administracion@doinglight.es"
 ]);
+const SHOPPING_LIST_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es", "marketing@doinglight.es"]);
+const CHAT_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es", "marketing@doinglight.es", "administracion@doinglight.es"]);
+const MANUFACTURING_USER = "jvtarancon@doinglight.es";
 const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
 const DOINGLIGHT_PAYMENT_IBAN = "ES11 3144 5700 2720 1693 9122";
 const EMAIL_LEGAL_FOOTER = `PROTECCIÓN DE DATOS: Responsable: DOINGLIGHT TECHNOLOGIES SLU. Finalidad: Gestionar las comunicaciones realizadas a través del correo electrónico de los servicios prestados, atender sus solicitudes de información y enviarle comunicaciones comerciales. Legitimación: Ejecución de contrato, interés legítimo del responsable o consentimiento del interesado. Destinatarios: No se cederán datos a terceros salvo obligación legal. Derechos: Tiene derecho a acceder, rectificar y suprimir los datos, así como otros derechos, indicados en la información adicional, que puede ejercer dirigiéndose a la dirección del responsable del tratamiento. Información adicional: En un impreso a disposición de los interesados, en POLÍGONO INDUSTRIAL CAMPOLLANO, CALLE E, Nº 24 - 02007 ALBACETE.
@@ -994,6 +999,11 @@ function WarehouseApp({ session, onLogout }) {
   const [error, setError] = useState("");
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [incident, setIncident] = useState("");
+  const [shoppingOpen, setShoppingOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [manufacturingOpen, setManufacturingOpen] = useState(false);
+  const [chatCount, setChatCount] = useState(0);
+  const [manufacturingCount, setManufacturingCount] = useState(0);
 
   async function load() {
     setError("");
@@ -1012,6 +1022,23 @@ function WarehouseApp({ session, onLogout }) {
   useEffect(() => {
     load();
     const timer = window.setInterval(load, 30000);
+    return () => window.clearInterval(timer);
+  }, [session.token]);
+
+  async function loadOperationCounts() {
+    try {
+      const [chatResult, manufacturingResult] = await Promise.all([
+        apiRequest("/api/operations/chat/unread-count", { token: session.token }),
+        apiRequest("/api/operations/manufacturing/unread-count", { token: session.token })
+      ]);
+      setChatCount(chatResult.count || 0);
+      setManufacturingCount(manufacturingResult.count || 0);
+    } catch {}
+  }
+
+  useEffect(() => {
+    loadOperationCounts();
+    const timer = window.setInterval(loadOperationCounts, 15000);
     return () => window.clearInterval(timer);
   }, [session.token]);
 
@@ -1044,9 +1071,16 @@ function WarehouseApp({ session, onLogout }) {
   return (
     <div className="warehouse-app">
       <header className="warehouse-header">
-        <button type="button" className="warehouse-refresh" onClick={load} aria-label="Actualizar albaranes">
-          <RefreshCw size={21} />
-        </button>
+        <div className="warehouse-header-tools">
+          <button type="button" className="warehouse-refresh" onClick={load} aria-label="Actualizar albaranes"><RefreshCw size={21} /></button>
+          <button type="button" className="warehouse-refresh" onClick={() => setShoppingOpen(true)} aria-label="Catálogo y lista de la compra"><Package size={21} /></button>
+          <button type="button" className={`warehouse-refresh operation-badge-button ${chatCount ? "has-count" : ""}`} onClick={() => setChatOpen(true)} aria-label="Chat interno">
+            <MessageCircle size={21} />{chatCount ? <span>{chatCount > 99 ? "99+" : chatCount}</span> : null}
+          </button>
+          <button type="button" className={`warehouse-refresh operation-badge-button ${manufacturingCount ? "has-count" : ""}`} onClick={() => setManufacturingOpen(true)} aria-label="Órdenes de fabricación">
+            <Factory size={21} />{manufacturingCount ? <span>{manufacturingCount > 99 ? "99+" : manufacturingCount}</span> : null}
+          </button>
+        </div>
         <img src="/logo-backend.png" alt="Doinglight" />
         <button type="button" className="warehouse-logout" onClick={onLogout} aria-label="Cerrar sesión">
           <LogOut size={21} />
@@ -1123,16 +1157,219 @@ function WarehouseApp({ session, onLogout }) {
           </section>
         </div>
       ) : null}
+      {shoppingOpen ? <ShoppingListsModal token={session.token} user={session.user} onClose={() => setShoppingOpen(false)} /> : null}
+      {chatOpen ? <InternalChatModal token={session.token} user={session.user} onClose={() => { setChatOpen(false); loadOperationCounts(); }} /> : null}
+      {manufacturingOpen ? <ManufacturingModal token={session.token} user={session.user} onClose={() => { setManufacturingOpen(false); loadOperationCounts(); }} /> : null}
     </div>
   );
 }
 
-function NotificationsInbox({token,onClose,onChanged}){
+function OperationCount({ count }) {
+  return count ? <span className="operation-count">{count > 99 ? "99+" : count}</span> : null;
+}
+
+function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
+  const email = String(user?.email || "").trim().toLowerCase();
+  const isWarehouse = email === WAREHOUSE_EMAIL;
+  const [lists, setLists] = useState([]);
+  const [selectedId, setSelectedId] = useState(initialListId);
+  const [catalog, setCatalog] = useState([]);
+  const [specials, setSpecials] = useState([]);
+  const [query, setQuery] = useState("");
+  const [specialName, setSpecialName] = useState("");
+  const [cart, setCart] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadLists(preferredId = "") {
+    const result = await apiRequest("/api/operations/shopping-lists", { token });
+    const next = result.items || [];
+    setLists(next);
+    setSelectedId((current) => preferredId || current || next[0]?.id || "");
+  }
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const requests = [apiRequest("/api/operations/shopping-lists", { token })];
+        if (isWarehouse) {
+          requests.push(apiRequest(`/api/catalog/products?locale=${encodeURIComponent(user?.locale || "es")}&channel=warehouse`, { token }));
+          requests.push(apiRequest("/api/operations/special-products", { token }));
+        }
+        const [listResult, catalogResult, specialResult] = await Promise.all(requests);
+        if (!active) return;
+        const nextLists = listResult.items || [];
+        setLists(nextLists);
+        setSelectedId(initialListId || nextLists[0]?.id || "");
+        setCatalog(catalogResult?.products || []);
+        setSpecials(specialResult?.items || []);
+      } catch (err) {
+        if (active) setError(err.message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [token, isWarehouse, initialListId, user?.locale]);
+
+  const selected = lists.find((list) => list.id === selectedId) || lists[0];
+  const filteredCatalog = useMemo(() => catalog.filter((product) => textMatchesQuery([
+    product.sku,
+    product.title,
+    product.family,
+    product.subcategory
+  ], query)).slice(0, 120), [catalog, query]);
+
+  function addToCart(item) {
+    const key = item.catalogSku ? `catalog:${item.catalogSku}` : `special:${item.specialProductId}`;
+    setCart((current) => {
+      const existing = current.find((entry) => entry.key === key);
+      if (existing) return current.map((entry) => entry.key === key ? { ...entry, quantity: entry.quantity + 1 } : entry);
+      return [...current, { ...item, key, quantity: 1 }];
+    });
+  }
+
+  async function createSpecial(event) {
+    event.preventDefault();
+    if (!specialName.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await apiRequest("/api/operations/special-products", { token, method: "POST", body: { name: specialName } });
+      setSpecials((current) => [...current.filter((item) => item.id !== result.item.id), result.item].sort((a, b) => a.name.localeCompare(b.name)));
+      addToCart({ specialProductId: result.item.id, label: result.item.name });
+      setSpecialName("");
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  async function sendList() {
+    if (!cart.length || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await apiRequest("/api/operations/shopping-lists", {
+        token,
+        method: "POST",
+        body: { items: cart.map(({ key, ...item }) => item) }
+      });
+      setCart([]);
+      await loadLists(result.item.id);
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  async function toggleItem(item, checked) {
+    setError("");
+    try {
+      await apiRequest(`/api/operations/shopping-items/${item.id}`, { token, method: "PATCH", body: { checked } });
+      await loadLists(selected?.id);
+    } catch (err) { setError(err.message); }
+  }
+
+  return (
+    <div className="operation-modal-backdrop" onMouseDown={onClose}>
+      <section className="operation-modal shopping-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <header><div><small>Almacén y oficinas</small><h2>{isWarehouse ? "Catálogo y lista de la compra" : "Listas de la compra"}</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></header>
+        {error ? <p className="operation-error">{error}</p> : null}
+        {loading ? <p className="operation-empty">Cargando…</p> : null}
+        {!loading && isWarehouse ? (
+          <div className="shopping-builder">
+            <section className="shopping-catalog">
+              <div className="operation-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar producto por referencia o nombre" /></div>
+              <form className="special-product-form" onSubmit={createSpecial}>
+                <input value={specialName} onChange={(event) => setSpecialName(event.target.value)} placeholder="Crear producto especial, por ejemplo Tornillos roscachapa" />
+                <button type="submit" disabled={saving || !specialName.trim()}><Plus size={17} /> Crear</button>
+              </form>
+              {specials.length ? <div className="special-products"><strong>Productos especiales</strong><div>{specials.map((item) => <button type="button" key={item.id} onClick={() => addToCart({ specialProductId: item.id, label: item.name })}><Plus size={14} /> {item.name}</button>)}</div></div> : null}
+              <div className="shopping-catalog-grid">
+                {filteredCatalog.map((product) => (
+                  <button type="button" key={product.sku} onClick={() => addToCart({ catalogSku: product.sku, label: product.title || product.slug || product.sku, catalogSnapshot: { sku: product.sku, title: product.title, mainImageUrl: product.mainImageUrl } })}>
+                    <ProductThumbnail product={product} /><span><strong>{product.sku}</strong><small>{product.title || product.slug}</small></span><Plus size={17} />
+                  </button>
+                ))}
+              </div>
+            </section>
+            <aside className="shopping-cart">
+              <h3>Lista actual <span>{cart.length}</span></h3>
+              {!cart.length ? <p>Añade productos del catálogo o del inventario especial.</p> : cart.map((item) => (
+                <article key={item.key}><span>{item.label}</span><div><button type="button" onClick={() => setCart((current) => current.map((entry) => entry.key === item.key ? { ...entry, quantity: Math.max(1, entry.quantity - 1) } : entry))}>−</button><b>{item.quantity}</b><button type="button" onClick={() => setCart((current) => current.map((entry) => entry.key === item.key ? { ...entry, quantity: entry.quantity + 1 } : entry))}>+</button><button type="button" className="remove" onClick={() => setCart((current) => current.filter((entry) => entry.key !== item.key))}><X size={15} /></button></div></article>
+              ))}
+              <button type="button" className="shopping-send" disabled={!cart.length || saving} onClick={sendList}>{saving ? "Enviando…" : "Enviar lista de la compra"}</button>
+            </aside>
+          </div>
+        ) : null}
+        {!loading && !isWarehouse ? (
+          <div className="shopping-office-view">
+            <nav>{lists.map((list) => <button type="button" key={list.id} className={list.id === selected?.id ? "active" : ""} onClick={() => setSelectedId(list.id)}><strong>{new Date(list.createdAt).toLocaleDateString("es-ES")}</strong><span>{list.items.filter((item) => item.checkedAt).length}/{list.items.length} comprados</span></button>)}</nav>
+            <section>
+              {selected ? <><header><h3>Lista del {new Date(selected.createdAt).toLocaleDateString("es-ES")}</h3><span>{selected.createdByName}</span></header><div className="shopping-check-list">{selected.items.map((item) => <label key={item.id} className={item.checkedAt ? "checked" : ""}><input type="checkbox" checked={Boolean(item.checkedAt)} onChange={(event) => toggleItem(item, event.target.checked)} /><span>{item.quantity !== 1 ? `${item.quantity} × ` : ""}{item.label}</span></label>)}</div></> : <p className="operation-empty">Todavía no hay listas de compra.</p>}
+            </section>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function InternalChatModal({ token, user, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [body, setBody] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesRef = useRef(null);
+
+  async function load() {
+    try {
+      const result = await apiRequest("/api/operations/chat", { token });
+      setMessages(result.items || []);
+      await apiRequest("/api/operations/chat/read", { token, method: "POST", body: {} });
+    } catch (err) { setError(err.message); }
+  }
+
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 5000);
+    return () => window.clearInterval(timer);
+  }, [token]);
+  useEffect(() => { messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight }); }, [messages.length]);
+
+  async function sendMessage(event) {
+    event.preventDefault();
+    if (!body.trim() || sending) return;
+    setSending(true);
+    setError("");
+    try {
+      await apiRequest("/api/operations/chat", { token, method: "POST", body: { body } });
+      setBody("");
+      await load();
+    } catch (err) { setError(err.message); }
+    finally { setSending(false); }
+  }
+
+  return <div className="operation-modal-backdrop" onMouseDown={onClose}><section className="operation-modal chat-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>Almacén ↔ oficinas</small><h2>Chat interno</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></header>{error ? <p className="operation-error">{error}</p> : null}<div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : message.senderName}</strong><p>{message.body}</p><time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}</div><form className="chat-composer" onSubmit={sendMessage}><textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Escribe un mensaje…" /><button type="submit" disabled={sending || !body.trim()}><Send size={18} /></button></form></section></div>;
+}
+
+function ManufacturingModal({ token, user, onClose }) {
+  const canCreate = String(user?.email || "").trim().toLowerCase() === MANUFACTURING_USER;
+  const [orders, setOrders] = useState([]);
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  async function load() { try { const result = await apiRequest(`/api/operations/manufacturing?markRead=${canCreate ? "false" : "true"}`, { token }); setOrders(result.items || []); } catch (err) { setError(err.message); } }
+  useEffect(() => { load(); }, [token]);
+  async function createOrder(event) { event.preventDefault(); if (!description.trim() || saving) return; setSaving(true); setError(""); try { await apiRequest("/api/operations/manufacturing", { token, method: "POST", body: { description } }); setDescription(""); await load(); } catch (err) { setError(err.message); } finally { setSaving(false); } }
+  return <div className="operation-modal-backdrop" onMouseDown={onClose}><section className="operation-modal manufacturing-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>Producción</small><h2>Órdenes de fabricación</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></header>{error ? <p className="operation-error">{error}</p> : null}{canCreate ? <form className="manufacturing-form" onSubmit={createOrder}><label>Nueva orden de fabricación<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe qué debe fabricarse…" /></label><button type="submit" disabled={saving || !description.trim()}>{saving ? "Creando…" : "Crear orden numerada"}</button></form> : null}<div className="manufacturing-list">{orders.map((order) => <article key={order.id}><div><strong>{order.orderNumber}</strong><time>{new Date(order.createdAt).toLocaleString("es-ES")}</time></div><p>{order.description}</p></article>)}{!orders.length ? <p className="operation-empty">No hay órdenes de fabricación.</p> : null}</div></section></div>;
+}
+
+function NotificationsInbox({token,onClose,onChanged,onOpenShoppingList}){
   const [archived,setArchived]=useState(false);const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState("");
   async function load(next=archived){setLoading(true);setError("");try{const result=await apiRequest(`/api/notifications?archived=${next}`,{token});setItems(result.items||[]);if(!next){await apiRequest("/api/notifications/read-all",{token,method:"POST",body:{}});onChanged?.();}}catch(e){setError(e.message);}finally{setLoading(false);}}
   useEffect(()=>{load(archived);},[archived,token]);
   async function act(item){try{const result=await apiRequest(`/api/notifications/${item.id}/action`,{token,method:"POST",body:{}});if(result.alreadyProcessed)window.alert("Otro usuario ya había creado el albarán de entrega.");else if(result.warehousePending)window.alert("Se ha creado el albarán y se ha enviado a almacén.");await load(archived);}catch(e){setError(e.message);}}
-  return <div className="notification-modal-backdrop" onMouseDown={onClose}><section className="notification-inbox" onMouseDown={e=>e.stopPropagation()}><header><div><small>Centro de actividad</small><h2>Notificaciones</h2></div><button className="icon-button" onClick={onClose}><X size={20}/></button></header><nav><button className={!archived?"active":""} onClick={()=>setArchived(false)}>Bandeja de entrada</button><button className={archived?"active":""} onClick={()=>setArchived(true)}>Archivadas</button></nav><div className="notification-table-head"><span>Fecha</span><span>Descripción</span><span>Acción</span></div><div className="notification-rows">{loading?<p>Cargando…</p>:null}{error?<p className="form-error">{error}</p>:null}{!loading&&!items.length?<p className="notification-empty">No hay notificaciones en esta pestaña.</p>:items.map(item=><article key={item.id}><time>{new Date(item.createdAt).toLocaleDateString("es-ES")}</time><p>{item.description}</p>{archived?<span className="archived-label">Archivada</span>:<button onClick={()=>act(item)}>{item.actionType==="send_to_preparation"?"Enviar a preparación":"¡Genial!"}</button>}</article>)}</div></section></div>;
+  return <div className="notification-modal-backdrop" onMouseDown={onClose}><section className="notification-inbox" onMouseDown={e=>e.stopPropagation()}><header><div><small>Centro de actividad</small><h2>Notificaciones</h2></div><button className="icon-button" onClick={onClose}><X size={20}/></button></header><nav><button className={!archived?"active":""} onClick={()=>setArchived(false)}>Bandeja de entrada</button><button className={archived?"active":""} onClick={()=>setArchived(true)}>Archivadas</button></nav><div className="notification-table-head"><span>Fecha</span><span>Descripción</span><span>Acción</span></div><div className="notification-rows">{loading?<p>Cargando…</p>:null}{error?<p className="form-error">{error}</p>:null}{!loading&&!items.length?<p className="notification-empty">No hay notificaciones en esta pestaña.</p>:items.map(item=><article key={item.id}><time>{new Date(item.createdAt).toLocaleDateString("es-ES")}</time><p>{item.description}</p>{archived?<span className="archived-label">Archivada</span>:<div className="notification-row-actions">{item.actionType==="open_shopping_list"?<button className="notification-secondary-action" onClick={()=>{onOpenShoppingList?.(item.actionPayload?.listId);onClose();}}>La lista de la compra</button>:null}<button onClick={()=>act(item)}>{item.actionType==="send_to_preparation"?"Enviar a preparación":"¡Genial!"}</button></div>}</article>)}</div></section></div>;
 }
 
 function PanelShell({ session, activeView, onNavigate, onLogout }) {
@@ -1148,8 +1385,19 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [globalContactForm, setGlobalContactForm] = useState(null);
   const [notificationsOpen,setNotificationsOpen]=useState(false);
   const [notificationCount,setNotificationCount]=useState(0);
+  const [shoppingOpen,setShoppingOpen]=useState(false);
+  const [shoppingInitialId,setShoppingInitialId]=useState("");
+  const [chatOpen,setChatOpen]=useState(false);
+  const [chatCount,setChatCount]=useState(0);
+  const [manufacturingOpen,setManufacturingOpen]=useState(false);
+  const userEmail=String(session.user?.email||"").trim().toLowerCase();
+  const canUseShopping=SHOPPING_LIST_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
+  const canUseChat=CHAT_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
+  const canUseManufacturing=userEmail===MANUFACTURING_USER;
   async function loadNotificationCount(){try{const result=await apiRequest("/api/notifications/unread-count",{token:session.token});setNotificationCount(result.count||0);}catch{}}
   useEffect(()=>{loadNotificationCount();const timer=window.setInterval(loadNotificationCount,30000);return()=>window.clearInterval(timer);},[session.token]);
+  async function loadChatCount(){if(!canUseChat)return;try{const result=await apiRequest("/api/operations/chat/unread-count",{token:session.token});setChatCount(result.count||0);}catch{}}
+  useEffect(()=>{loadChatCount();if(!canUseChat)return undefined;const timer=window.setInterval(loadChatCount,15000);return()=>window.clearInterval(timer);},[session.token,canUseChat]);
   const primaryNav = [
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
@@ -1374,6 +1622,9 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
             <span>{roleLabel(session.user.role)}</span>
           </div>
           <div className="header-actions">
+            {canUseShopping ? <button className="icon-button header-action-button" type="button" aria-label="Listas de la compra" onClick={()=>{setShoppingInitialId("");setShoppingOpen(true);}}><Package size={18}/></button> : null}
+            {canUseManufacturing ? <button className="icon-button header-action-button" type="button" aria-label="Órdenes de fabricación" onClick={()=>setManufacturingOpen(true)}><Factory size={18}/></button> : null}
+            {canUseChat ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>setChatOpen(true)}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
             <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
               <Bell size={18} />
               {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
@@ -1387,7 +1638,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           </div>
         </div>
       </header>
-      {notificationsOpen ? <NotificationsInbox token={session.token} onClose={()=>{setNotificationsOpen(false);loadNotificationCount();}} onChanged={loadNotificationCount}/> : null}
+      {notificationsOpen ? <NotificationsInbox token={session.token} onClose={()=>{setNotificationsOpen(false);loadNotificationCount();}} onChanged={loadNotificationCount} onOpenShoppingList={(listId)=>{setShoppingInitialId(listId||"");setShoppingOpen(true);}}/> : null}
+      {shoppingOpen ? <ShoppingListsModal token={session.token} user={session.user} initialListId={shoppingInitialId} onClose={()=>setShoppingOpen(false)}/> : null}
+      {chatOpen ? <InternalChatModal token={session.token} user={session.user} onClose={()=>{setChatOpen(false);loadChatCount();}}/> : null}
+      {manufacturingOpen ? <ManufacturingModal token={session.token} user={session.user} onClose={()=>setManufacturingOpen(false)}/> : null}
 
       <div className="main-area">
         <section className="content">

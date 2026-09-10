@@ -1,9 +1,12 @@
 # APP DOINGLIGHT V2 — estado recuperado
 
-Actualizado: 9 de septiembre de 2026.
+Actualizado: 10 de septiembre de 2026.
 
 ## Cambios locales pendientes de despliegue
 
+- El panel exclusivo de `almacen@doinglight.es` incorpora un acceso al catálogo completo y permite crear listas de compra con productos del catálogo o productos especiales persistentes, exclusivos del almacén. Al enviar una lista se notifica a Marketing y J. V. Tarancón; ambos pueden abrirla, marcar líneas como compradas y conservarlas tachadas sin eliminar el histórico.
+- Almacén, Marketing, J. V. Tarancón y Administración disponen de un chat interno para comunicaciones puntuales. Los mensajes nuevos usan un contador rojo propio sobre el icono del chat y no se mezclan con la campana de notificaciones generales.
+- J. V. Tarancón dispone de un módulo de órdenes de fabricación numeradas (`OF-AÑO-NNNN`). Las órdenes aparecen en el entorno de almacén con un icono y contador independientes, que se da por leído al abrir el listado.
 - La trazabilidad visual separa los envíos reales de las conversiones: el sobre depende exclusivamente de `emailedAt`; los presupuestos muestran círculos `P`, `A` o `F` según los documentos generados, respetando el verde Doinglight o azul Tubo Solar.
 - Las facturas proforma permiten crear tanto un albarán como una factura desde el propio documento.
 - Los albaranes incluyen «ENVIAR A ALMACÉN» exclusivamente para `marketing@doinglight.es`, `jvtarancon@doinglight.es` y `administracion@doinglight.es`, con la misma restricción aplicada en la API.
