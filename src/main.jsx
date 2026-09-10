@@ -25,11 +25,13 @@ import {
   Search,
   Send,
   Settings,
+  Sparkles,
   Printer,
   Truck,
   Factory,
   History,
   UsersRound,
+  Zap,
   X,
   UserRound
 } from "lucide-react";
@@ -46,6 +48,22 @@ const WAREHOUSE_SENDERS = new Set([
 const SHOPPING_LIST_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es", "marketing@doinglight.es"]);
 const CHAT_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es", "marketing@doinglight.es", "administracion@doinglight.es"]);
 const MANUFACTURING_USER = "jvtarancon@doinglight.es";
+const USER_DISPLAY_NAMES = new Map([
+  ["marketing@doinglight.es", "Edu"],
+  ["administracion@doinglight.es", "Laura"],
+  ["jvtarancon@doinglight.es", "JV"],
+  ["a.jimenez@doinglight.es", "Ángel"],
+  ["info@doinglight.it", "Roberto"],
+  ["info@doinglight.fr", "Claudine"],
+  ["info@doinglight.pt", "María"],
+  ["info@doinglight.de", "Holger"],
+  [WAREHOUSE_EMAIL, "Almacén"]
+]);
+
+function userDisplayName(user) {
+  const email = String(user?.email || user?.senderEmail || "").trim().toLowerCase();
+  return USER_DISPLAY_NAMES.get(email) || user?.fullName || user?.senderName || user?.email || "Usuario";
+}
 const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
 const DOINGLIGHT_PAYMENT_IBAN = "ES11 3144 5700 2720 1693 9122";
 const EMAIL_LEGAL_FOOTER = `PROTECCIÓN DE DATOS: Responsable: DOINGLIGHT TECHNOLOGIES SLU. Finalidad: Gestionar las comunicaciones realizadas a través del correo electrónico de los servicios prestados, atender sus solicitudes de información y enviarle comunicaciones comerciales. Legitimación: Ejecución de contrato, interés legítimo del responsable o consentimiento del interesado. Destinatarios: No se cederán datos a terceros salvo obligación legal. Derechos: Tiene derecho a acceder, rectificar y suprimir los datos, así como otros derechos, indicados en la información adicional, que puede ejercer dirigiéndose a la dirección del responsable del tratamiento. Información adicional: En un impreso a disposición de los interesados, en POLÍGONO INDUSTRIAL CAMPOLLANO, CALLE E, Nº 24 - 02007 ALBACETE.
@@ -1001,9 +1019,11 @@ function WarehouseApp({ session, onLogout }) {
   const [incident, setIncident] = useState("");
   const [shoppingOpen, setShoppingOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatInitialPeer, setChatInitialPeer] = useState("");
   const [manufacturingOpen, setManufacturingOpen] = useState(false);
   const [chatCount, setChatCount] = useState(0);
   const [manufacturingCount, setManufacturingCount] = useState(0);
+  const [themeAlert, refreshThemeAlert] = useChatThemeAlert(session.token, true);
 
   async function load() {
     setError("");
@@ -1069,12 +1089,12 @@ function WarehouseApp({ session, onLogout }) {
   }[status] || "Pendiente");
 
   return (
-    <div className="warehouse-app">
+    <div className={`warehouse-app ${themeAlert.active ? "ultraviolet-alert" : ""}`}>
       <header className="warehouse-header">
         <div className="warehouse-header-tools">
           <button type="button" className="warehouse-refresh" onClick={load} aria-label="Actualizar albaranes"><RefreshCw size={21} /></button>
           <button type="button" className="warehouse-refresh" onClick={() => setShoppingOpen(true)} aria-label="Catálogo y lista de la compra"><Package size={21} /></button>
-          <button type="button" className={`warehouse-refresh operation-badge-button ${chatCount ? "has-count" : ""}`} onClick={() => setChatOpen(true)} aria-label="Chat interno">
+          <button type="button" className={`warehouse-refresh operation-badge-button ${chatCount ? "has-count" : ""}`} onClick={() => { setChatInitialPeer(themeAlert.active ? themeAlert.senderId || "" : ""); setChatOpen(true); }} aria-label="Chat interno">
             <MessageCircle size={21} />{chatCount ? <span>{chatCount > 99 ? "99+" : chatCount}</span> : null}
           </button>
           <button type="button" className={`warehouse-refresh operation-badge-button ${manufacturingCount ? "has-count" : ""}`} onClick={() => setManufacturingOpen(true)} aria-label="Órdenes de fabricación">
@@ -1086,6 +1106,7 @@ function WarehouseApp({ session, onLogout }) {
           <LogOut size={21} />
         </button>
       </header>
+      {themeAlert.active ? <button type="button" className="ultraviolet-alert-banner" onClick={() => { setChatInitialPeer(themeAlert.senderId || ""); setChatOpen(true); }}><Zap size={19} /> {themeAlert.senderName} te ha enviado un rayo de luz ultravioleta. Abre el chat.</button> : null}
       <main className="warehouse-main">
         <div className="warehouse-title">
           <div>
@@ -1158,7 +1179,7 @@ function WarehouseApp({ session, onLogout }) {
         </div>
       ) : null}
       {shoppingOpen ? <ShoppingListsModal token={session.token} user={session.user} onClose={() => setShoppingOpen(false)} /> : null}
-      {chatOpen ? <InternalChatModal token={session.token} user={session.user} onClose={() => { setChatOpen(false); loadOperationCounts(); }} /> : null}
+      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} onRead={refreshThemeAlert} onClose={() => { setChatOpen(false); loadOperationCounts(); refreshThemeAlert(); }} /> : null}
       {manufacturingOpen ? <ManufacturingModal token={session.token} user={session.user} onClose={() => { setManufacturingOpen(false); loadOperationCounts(); }} /> : null}
     </div>
   );
@@ -1166,6 +1187,27 @@ function WarehouseApp({ session, onLogout }) {
 
 function OperationCount({ count }) {
   return count ? <span className="operation-count">{count > 99 ? "99+" : count}</span> : null;
+}
+
+function useChatThemeAlert(token, enabled) {
+  const [alert, setAlert] = useState({ active: false });
+  async function refresh() {
+    if (!enabled) {
+      setAlert({ active: false });
+      return;
+    }
+    try {
+      const result = await apiRequest("/api/operations/chat/theme-alert", { token });
+      setAlert(result.active ? result : { active: false });
+    } catch {}
+  }
+  useEffect(() => {
+    refresh();
+    if (!enabled) return undefined;
+    const timer = window.setInterval(refresh, 5000);
+    return () => window.clearInterval(timer);
+  }, [token, enabled]);
+  return [alert, refresh];
 }
 
 function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
@@ -1178,6 +1220,8 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
   const [query, setQuery] = useState("");
   const [specialName, setSpecialName] = useState("");
   const [cart, setCart] = useState([]);
+  const [editingId, setEditingId] = useState("");
+  const [listStatus, setListStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -1215,6 +1259,7 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
   }, [token, isWarehouse, initialListId, user?.locale]);
 
   const selected = lists.find((list) => list.id === selectedId) || lists[0];
+  const drafts = lists.filter((list) => list.status === "draft");
   const filteredCatalog = useMemo(() => catalog.filter((product) => textMatchesQuery([
     product.sku,
     product.title,
@@ -1231,6 +1276,25 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
     });
   }
 
+  function editDraft(list) {
+    setEditingId(list.id);
+    setListStatus("");
+    setCart((list.items || []).map((item) => ({
+      key: item.catalogSku ? `catalog:${item.catalogSku}` : `special:${item.specialProductId}`,
+      catalogSku: item.catalogSku,
+      catalogSnapshot: item.catalogSnapshot || {},
+      specialProductId: item.specialProductId,
+      label: item.label,
+      quantity: item.quantity
+    })));
+  }
+
+  function newList() {
+    setEditingId("");
+    setCart([]);
+    setListStatus("");
+  }
+
   async function createSpecial(event) {
     event.preventDefault();
     if (!specialName.trim()) return;
@@ -1245,17 +1309,25 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
     finally { setSaving(false); }
   }
 
-  async function sendList() {
+  async function persistList(send) {
     if (!cart.length || saving) return;
     setSaving(true);
     setError("");
+    setListStatus("");
     try {
-      const result = await apiRequest("/api/operations/shopping-lists", {
+      const result = await apiRequest(editingId ? `/api/operations/shopping-lists/${editingId}` : "/api/operations/shopping-lists", {
         token,
-        method: "POST",
-        body: { items: cart.map(({ key, ...item }) => item) }
+        method: editingId ? "PATCH" : "POST",
+        body: { items: cart.map(({ key, ...item }) => item), send }
       });
-      setCart([]);
+      if (send) {
+        setCart([]);
+        setEditingId("");
+        setListStatus("Lista enviada a Marketing y JV.");
+      } else {
+        setEditingId(result.item.id);
+        setListStatus("Borrador guardado. Puedes cerrarlo y continuar más tarde.");
+      }
       await loadLists(result.item.id);
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -1278,6 +1350,10 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
         {!loading && isWarehouse ? (
           <div className="shopping-builder">
             <section className="shopping-catalog">
+              <div className="shopping-drafts">
+                <div><strong>Borradores guardados</strong><button type="button" onClick={newList}><Plus size={15}/> Nueva lista</button></div>
+                {drafts.length ? <nav>{drafts.map((list) => <button type="button" key={list.id} className={editingId === list.id ? "active" : ""} onClick={() => editDraft(list)}><FileText size={15}/><span>{new Date(list.updatedAt || list.createdAt).toLocaleString("es-ES")}</span><small>{list.items.length} productos</small></button>)}</nav> : <p>No hay borradores pendientes.</p>}
+              </div>
               <div className="operation-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar producto por referencia o nombre" /></div>
               <form className="special-product-form" onSubmit={createSpecial}>
                 <input value={specialName} onChange={(event) => setSpecialName(event.target.value)} placeholder="Crear producto especial, por ejemplo Tornillos roscachapa" />
@@ -1293,11 +1369,15 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
               </div>
             </section>
             <aside className="shopping-cart">
-              <h3>Lista actual <span>{cart.length}</span></h3>
+              <h3>{editingId ? "Editando borrador" : "Lista actual"} <span>{cart.length}</span></h3>
+              {listStatus ? <p className="shopping-list-status">{listStatus}</p> : null}
               {!cart.length ? <p>Añade productos del catálogo o del inventario especial.</p> : cart.map((item) => (
                 <article key={item.key}><span>{item.label}</span><div><button type="button" onClick={() => setCart((current) => current.map((entry) => entry.key === item.key ? { ...entry, quantity: Math.max(1, entry.quantity - 1) } : entry))}>−</button><b>{item.quantity}</b><button type="button" onClick={() => setCart((current) => current.map((entry) => entry.key === item.key ? { ...entry, quantity: entry.quantity + 1 } : entry))}>+</button><button type="button" className="remove" onClick={() => setCart((current) => current.filter((entry) => entry.key !== item.key))}><X size={15} /></button></div></article>
               ))}
-              <button type="button" className="shopping-send" disabled={!cart.length || saving} onClick={sendList}>{saving ? "Enviando…" : "Enviar lista de la compra"}</button>
+              <div className="shopping-list-actions">
+                <button type="button" className="shopping-save" disabled={!cart.length || saving} onClick={() => persistList(false)}>{saving ? "Guardando…" : "Guardar lista"}</button>
+                <button type="button" className="shopping-send" disabled={!cart.length || saving} onClick={() => persistList(true)}>{saving ? "Procesando…" : "Enviar lista de la compra"}</button>
+              </div>
             </aside>
           </div>
         ) : null}
@@ -1314,26 +1394,53 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
   );
 }
 
-function InternalChatModal({ token, user, onClose }) {
+function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" }) {
+  const canUseGeneral = CHAT_USERS.has(String(user?.email || "").trim().toLowerCase());
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [powersOpen, setPowersOpen] = useState(false);
+  const [participants, setParticipants] = useState([]);
+  const [targetEmail, setTargetEmail] = useState("");
+  const [powerStatus, setPowerStatus] = useState("");
+  const [selectedPeerId, setSelectedPeerId] = useState(initialPeerId || (canUseGeneral ? "general" : ""));
   const messagesRef = useRef(null);
 
-  async function load() {
+  async function loadParticipants() {
+    const result = await apiRequest("/api/operations/chat/participants", { token });
+    const next = result.items || [];
+    setParticipants(next);
+    setSelectedPeerId((current) => current || next[0]?.id || "");
+    setTargetEmail((current) => current || next[0]?.email || "");
+  }
+
+  async function load(peerId = selectedPeerId) {
+    if (!peerId) return;
+    const privatePeerId = peerId === "general" ? "" : peerId;
     try {
-      const result = await apiRequest("/api/operations/chat", { token });
+      const result = await apiRequest(`/api/operations/chat${privatePeerId ? `?peerId=${encodeURIComponent(privatePeerId)}` : ""}`, { token });
       setMessages(result.items || []);
-      await apiRequest("/api/operations/chat/read", { token, method: "POST", body: {} });
+      await apiRequest("/api/operations/chat/read", { token, method: "POST", body: { peerId: privatePeerId } });
+      setParticipants((current) => current.map((participant) => participant.id === privatePeerId ? { ...participant, unreadCount: 0 } : participant));
+      onRead?.();
     } catch (err) { setError(err.message); }
   }
 
   useEffect(() => {
-    load();
-    const timer = window.setInterval(load, 5000);
-    return () => window.clearInterval(timer);
+    loadParticipants().catch((err) => setError(err.message));
   }, [token]);
+  useEffect(() => {
+    if (!selectedPeerId) return undefined;
+    setMessages([]);
+    setError("");
+    load(selectedPeerId);
+    const timer = window.setInterval(() => {
+      load(selectedPeerId);
+      loadParticipants().catch(() => {});
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [token, selectedPeerId]);
   useEffect(() => { messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight }); }, [messages.length]);
 
   async function sendMessage(event) {
@@ -1342,14 +1449,39 @@ function InternalChatModal({ token, user, onClose }) {
     setSending(true);
     setError("");
     try {
-      await apiRequest("/api/operations/chat", { token, method: "POST", body: { body } });
+      await apiRequest("/api/operations/chat", { token, method: "POST", body: { body, targetUserId: selectedPeerId === "general" ? null : selectedPeerId } });
       setBody("");
-      await load();
+      await load(selectedPeerId);
     } catch (err) { setError(err.message); }
     finally { setSending(false); }
   }
 
-  return <div className="operation-modal-backdrop" onMouseDown={onClose}><section className="operation-modal chat-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>Almacén ↔ oficinas</small><h2>Chat interno</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></header>{error ? <p className="operation-error">{error}</p> : null}<div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : message.senderName}</strong><p>{message.body}</p><time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}</div><form className="chat-composer" onSubmit={sendMessage}><textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Escribe un mensaje…" /><button type="submit" disabled={sending || !body.trim()}><Send size={18} /></button></form></section></div>;
+  function handleComposerKeyDown(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent?.isComposing) return;
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
+
+  async function sendSuperpower() {
+    if (!targetEmail || sending) return;
+    setSending(true);
+    setError("");
+    setPowerStatus("");
+    try {
+      await apiRequest("/api/operations/chat/superpowers", {
+        token,
+        method: "POST",
+        body: { targetEmail, powerType: "ultraviolet_light" }
+      });
+      const target = participants.find((participant) => participant.email === targetEmail);
+      setPowerStatus(`Rayo de luz ultravioleta enviado a ${target?.fullName || targetEmail}.`);
+      setPowersOpen(false);
+    } catch (err) { setError(err.message); }
+    finally { setSending(false); }
+  }
+
+  const activePeer = participants.find((participant) => participant.id === selectedPeerId);
+  return <div className="operation-modal-backdrop" onMouseDown={onClose}><section className="operation-modal chat-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>Mensajería del equipo</small><h2>Chat interno</h2></div><div className="chat-header-actions"><button type="button" className={powersOpen ? "superpowers-button active" : "superpowers-button"} onClick={() => setPowersOpen((open) => !open)}><Sparkles size={17} /> Superpoderes</button><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></div></header>{powersOpen ? <div className="superpowers-panel"><label>Usuario de destino<select value={targetEmail} onChange={(event) => setTargetEmail(event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.email}>{participant.fullName} · {participant.email}</option>)}</select></label><button type="button" disabled={!targetEmail || sending} onClick={sendSuperpower}><Zap size={18} /><span><strong>Enviar rayo de luz ultravioleta</strong><small>Convierte temporalmente en rojo el panel del destinatario.</small></span></button></div> : null}{error ? <p className="operation-error">{error}</p> : null}{powerStatus ? <p className="superpower-status">{powerStatus}</p> : null}<div className="chat-workspace"><aside className="chat-users"><strong>Conversaciones</strong>{canUseGeneral ? <button type="button" className={selectedPeerId === "general" ? "active" : ""} onClick={() => setSelectedPeerId("general")}><span className="chat-avatar group">DL</span><span><b>Chat general</b><small>Almacén y oficinas</small></span></button> : null}{participants.map((participant) => <button type="button" key={participant.id} className={selectedPeerId === participant.id ? "active" : ""} onClick={() => { setSelectedPeerId(participant.id); setTargetEmail(participant.email); }}><span className="chat-avatar">{participant.fullName.slice(0, 2).toUpperCase()}</span><span><b>{participant.fullName}</b><small>{participant.email}</small></span>{participant.unreadCount ? <em>{participant.unreadCount > 99 ? "99+" : participant.unreadCount}</em> : null}</button>)}</aside><section className="chat-conversation"><div className="chat-conversation-title"><strong>{selectedPeerId === "general" ? "Chat general" : activePeer?.fullName || "Selecciona un usuario"}</strong>{activePeer ? <small>Conversación privada · {activePeer.email}</small> : null}</div><div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : userDisplayName(message)}</strong><p>{message.body}</p><time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}{!messages.length ? <p className="chat-empty">Todavía no hay mensajes en esta conversación.</p> : null}</div><form className="chat-composer" onSubmit={sendMessage}><textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={handleComposerKeyDown} placeholder={selectedPeerId === "general" ? "Escribe en el chat general…" : `Mensaje privado para ${activePeer?.fullName || "este usuario"}…`} disabled={!selectedPeerId} /><button type="submit" disabled={sending || !body.trim() || !selectedPeerId}><Send size={18} /></button></form></section></div></section></div>;
 }
 
 function ManufacturingModal({ token, user, onClose }) {
@@ -1388,12 +1520,14 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [shoppingOpen,setShoppingOpen]=useState(false);
   const [shoppingInitialId,setShoppingInitialId]=useState("");
   const [chatOpen,setChatOpen]=useState(false);
+  const [chatInitialPeer,setChatInitialPeer]=useState("");
   const [chatCount,setChatCount]=useState(0);
   const [manufacturingOpen,setManufacturingOpen]=useState(false);
   const userEmail=String(session.user?.email||"").trim().toLowerCase();
   const canUseShopping=SHOPPING_LIST_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
-  const canUseChat=CHAT_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
+  const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
+  const [themeAlert,refreshThemeAlert]=useChatThemeAlert(session.token,canUseChat);
   async function loadNotificationCount(){try{const result=await apiRequest("/api/notifications/unread-count",{token:session.token});setNotificationCount(result.count||0);}catch{}}
   useEffect(()=>{loadNotificationCount();const timer=window.setInterval(loadNotificationCount,30000);return()=>window.clearInterval(timer);},[session.token]);
   async function loadChatCount(){if(!canUseChat)return;try{const result=await apiRequest("/api/operations/chat/unread-count",{token:session.token});setChatCount(result.count||0);}catch{}}
@@ -1508,7 +1642,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${themeAlert.active ? "ultraviolet-alert" : ""}`}>
       <header className="app-header">
         <button className="header-brand" type="button" onClick={() => navigate("dashboard")} aria-label="Ir a Inicio">
           <img src="/logo-backend.png" alt="Doinglight Intranet" />
@@ -1618,13 +1752,13 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         <div className="header-user">
           <UserRound size={18} />
           <div>
-            <strong>{session.user.fullName || session.user.email}</strong>
+            <strong>{userDisplayName(session.user)}</strong>
             <span>{roleLabel(session.user.role)}</span>
           </div>
           <div className="header-actions">
             {canUseShopping ? <button className="icon-button header-action-button" type="button" aria-label="Listas de la compra" onClick={()=>{setShoppingInitialId("");setShoppingOpen(true);}}><Package size={18}/></button> : null}
             {canUseManufacturing ? <button className="icon-button header-action-button" type="button" aria-label="Órdenes de fabricación" onClick={()=>setManufacturingOpen(true)}><Factory size={18}/></button> : null}
-            {canUseChat ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>setChatOpen(true)}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
+            {canUseChat ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>{setChatInitialPeer(themeAlert.active?themeAlert.senderId||"":"");setChatOpen(true);}}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
             <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
               <Bell size={18} />
               {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
@@ -1638,9 +1772,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           </div>
         </div>
       </header>
+      {themeAlert.active ? <button type="button" className="ultraviolet-alert-banner" onClick={()=>{setChatInitialPeer(themeAlert.senderId||"");setChatOpen(true);}}><Zap size={19}/> {themeAlert.senderName} te ha enviado un rayo de luz ultravioleta. Abre el chat.</button> : null}
       {notificationsOpen ? <NotificationsInbox token={session.token} onClose={()=>{setNotificationsOpen(false);loadNotificationCount();}} onChanged={loadNotificationCount} onOpenShoppingList={(listId)=>{setShoppingInitialId(listId||"");setShoppingOpen(true);}}/> : null}
       {shoppingOpen ? <ShoppingListsModal token={session.token} user={session.user} initialListId={shoppingInitialId} onClose={()=>setShoppingOpen(false)}/> : null}
-      {chatOpen ? <InternalChatModal token={session.token} user={session.user} onClose={()=>{setChatOpen(false);loadChatCount();}}/> : null}
+      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} onRead={refreshThemeAlert} onClose={()=>{setChatOpen(false);loadChatCount();refreshThemeAlert();}}/> : null}
       {manufacturingOpen ? <ManufacturingModal token={session.token} user={session.user} onClose={()=>setManufacturingOpen(false)}/> : null}
 
       <div className="main-area">
@@ -5852,7 +5987,7 @@ function Dashboard({ token, locale = "es", user }) {
   const quoteCount = totals.quoteCount ?? 0;
   const quoteTotal = totals.quoteTotal || 0;
   const productCount = catalog.data?.count ?? 0;
-  const firstName = (user?.fullName || user?.email || "Doinglight").split(" ")[0];
+  const firstName = userDisplayName(user).split(" ")[0];
 
   return (
     <div className="home-dashboard">
@@ -10874,7 +11009,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                       setOwnerMenuOpen(false);
                     }}
                   >
-                    <span>{user.fullName || user.email}</span>
+                    <span>{userDisplayName(user)}</span>
                     <small>{user.email}</small>
                   </button>
                 ))}
