@@ -4,6 +4,7 @@ Actualizado: 10 de septiembre de 2026.
 
 ## Cambios locales pendientes de despliegue
 
+- En los formularios de presupuestos, proformas, albaranes y facturas, la acción de alta se denomina «Nuevo cliente» y se sitúa a la izquierda. En presupuestos, queda encima del selector de presupuestos predefinidos.
 - El panel exclusivo de `almacen@doinglight.es` incorpora un acceso al catálogo completo y permite crear listas de compra con productos del catálogo o productos especiales persistentes, exclusivos del almacén. Al enviar una lista se notifica a Marketing y J. V. Tarancón; ambos pueden abrirla, marcar líneas como compradas y conservarlas tachadas sin eliminar el histórico.
 - Almacén, Marketing, J. V. Tarancón y Administración disponen de un chat interno para comunicaciones puntuales. Los mensajes nuevos usan un contador rojo propio sobre el icono del chat y no se mezclan con la campana de notificaciones generales.
 - J. V. Tarancón dispone de un módulo de órdenes de fabricación numeradas (`OF-AÑO-NNNN`). Las órdenes aparecen en el entorno de almacén con un icono y contador independientes, que se da por leído al abrir el listado.

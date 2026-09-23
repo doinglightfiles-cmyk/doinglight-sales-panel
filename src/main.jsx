@@ -11041,6 +11041,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <fieldset className="quote-form-fieldset" disabled={readOnly}>
       <section className="quote-fd-fields">
         <div className="quote-fd-actions">
+          <div className="quote-client-header-actions">
+            <button type="button" className={`quote-client-create-button ${clientMode === "new" ? "active" : ""}`} onClick={() => setClientMode("new")}>
+              Nuevo cliente
+            </button>
+            {clientMode === "new" ? (
+              <button type="button" className="quote-client-cancel-button" onClick={() => setClientMode("existing")}>
+                Cancelar
+              </button>
+            ) : null}
+          </div>
           {isQuote ? (
             <select
               className="quote-template-select in-modal"
@@ -11054,16 +11064,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               ))}
             </select>
           ) : null}
-          <div className="quote-client-header-actions">
-            <button type="button" className={`quote-client-create-button ${clientMode === "new" ? "active" : ""}`} onClick={() => setClientMode("new")}>
-              Crear
-            </button>
-            {clientMode === "new" ? (
-              <button type="button" className="quote-client-cancel-button" onClick={() => setClientMode("existing")}>
-                Cancelar
-              </button>
-            ) : null}
-          </div>
         </div>
 
         {clientMode === "existing" ? (
