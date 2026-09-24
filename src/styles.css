@@ -7911,6 +7911,16 @@ th {
 .web-status.preparing { color: #715800; background: #fff2bc; }
 .websites-empty { display: grid; align-content: center; justify-items: start; color: var(--green-dark); border-style: dashed !important; background: #fafcf7 !important; }
 .websites-placeholder { display: grid; place-items: start; max-width: 550px; min-height: 260px; margin-top: 26px; padding: 30px; border: 1px dashed #b9c5b1; border-radius: 8px; color: var(--green-dark); background: #fafcf7; }
+.seo-editor { display: grid; max-width: 900px; gap: 18px; margin-top: 26px; }
+.seo-editor > p { margin: 0; color: var(--muted); line-height: 1.5; }
+.seo-editor article { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 22px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.seo-editor article > header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.seo-editor article h3 { margin: 4px 0 0; font-size: 17px; }
+.seo-editor code { overflow-wrap: anywhere; color: #607153; font-size: 12px; }
+.seo-editor label { display: grid; gap: 6px; color: #42503e; font-size: 12px; font-weight: 800; }
+.seo-editor label:nth-of-type(3), .seo-editor label:nth-of-type(4) { grid-column: 1 / -1; }
+.seo-editor input, .seo-editor textarea { width: 100%; box-sizing: border-box; border: 1px solid #d4ddd0; border-radius: 7px; padding: 10px; color: #293525; background: #fff; font: inherit; font-weight: 500; resize: vertical; }
+.seo-saved { color: #2e7d32 !important; font-weight: 800; }
 
 @media (max-width: 760px) {
   .websites-page { grid-template-columns: 1fr; }
@@ -7919,4 +7929,7 @@ th {
   .websites-sidebar nav button { flex: 0 0 auto; }
   .websites-workspace > header { align-items: flex-start; flex-direction: column; }
   .websites-grid { grid-template-columns: 1fr; }
+  .seo-editor article { grid-template-columns: 1fr; }
+  .seo-editor label:nth-of-type(3), .seo-editor label:nth-of-type(4) { grid-column: auto; }
+  .seo-editor article > header { align-items: flex-start; flex-direction: column; }
 }

@@ -4,6 +4,7 @@ Actualizado: 24 de septiembre de 2026.
 
 ## Cambios locales pendientes de despliegue
 
+- El área **Webs → SEO** permite a administradores editar y guardar el *page title*, metadescripción, H1 y slug de cada sección de Tunnel Solare Italia. La persistencia se incorpora en el backend mediante la migración `031_websites_settings.sql` y el nuevo bloque `websites` de ajustes.
 - El panel incorpora el acceso principal «Webs». Abre una primera área de gestión multiweb en español, con columna lateral para visión general, pedidos web, contenido y blog, traducciones, redirecciones y ajustes globales. Esta primera interfaz no persiste datos aún: requiere definir y añadir los contratos de backend antes de activar cada módulo.
 - La pantalla de acceso se rediseña con fondo verde Doinglight, logotipo blanco centrado y campos minimalistas. Su texto de acceso se adapta provisionalmente al correo de Italia, Portugal o Francia; queda pendiente internacionalizar de forma completa todos los módulos del panel según `user.locale`.
 - En los formularios de presupuestos, proformas, albaranes y facturas, la acción de alta se denomina «Nuevo cliente» y se sitúa a la izquierda. En presupuestos, queda encima del selector de presupuestos predefinidos.

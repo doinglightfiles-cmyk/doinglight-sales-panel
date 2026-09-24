@@ -1834,7 +1834,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={session.user.locale} /> : null}
-          {activeView === "websites" && canManageWebsites ? <WebsitesView /> : null}
+          {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} /> : null}
           {activeView === "downloads" ? <DownloadsView /> : null}
@@ -2281,18 +2281,54 @@ function ModuleWorkspace({ moduleId }) {
   );
 }
 
-function WebsitesView() {
+function WebsitesView({ token }) {
   const [section, setSection] = useState("overview");
+  const settings = useResource(() => apiRequest("/api/settings", { token }), [token]);
+  const [seoPages, setSeoPages] = useState([]);
+  const [savingSeo, setSavingSeo] = useState(false);
+  const [seoError, setSeoError] = useState("");
+  const [seoSaved, setSeoSaved] = useState(false);
+  const defaultSeoPages = [
+    { id: "home", label: "Inicio", url: "https://www.tunnelsolare.net/", slug: "/", h1: "IL TUNNEL SOLARE, SISTEMI DI ILLUMINAZIONE NATURALE", title: "Tunnel Solare | Sistemi di illuminazione naturale", description: "Tunnel solari e lucernari per illuminare gli spazi interni con luce naturale." },
+    { id: "shop", label: "Tienda", url: "https://www.tunnelsolare.net/tunnel-solare", slug: "/tunnel-solare", h1: "NEGOZIO ONLINE DI TUNNEL SOLARE", title: "Negozio online di tunnel solare | Tunnel Solare", description: "Acquista online tunnel solari, lucernari solari e accessori per luce naturale." }
+  ];
   const sections = [
     { id: "overview", label: "Visión general", icon: Globe2 },
     { id: "orders", label: "Pedidos web", icon: Package },
     { id: "content", label: "Contenido y blog", icon: FileText },
     { id: "translations", label: "Traducciones", icon: Languages },
+    { id: "seo", label: "SEO", icon: Search },
     { id: "redirects", label: "Redirecciones", icon: History },
     { id: "settings", label: "Ajustes globales", icon: Settings }
   ];
   const active = sections.find((item) => item.id === section) || sections[0];
   const ActiveIcon = active.icon;
+
+  useEffect(() => {
+    const savedPages = settings.data?.item?.websites?.tunnelSolareItalia?.pages;
+    if (Array.isArray(savedPages) && savedPages.length) setSeoPages(savedPages);
+    else if (!settings.loading) setSeoPages(defaultSeoPages);
+  }, [settings.data, settings.loading]);
+
+  function updateSeoPage(id, field, value) {
+    setSeoSaved(false);
+    setSeoPages((pages) => pages.map((page) => page.id === id ? { ...page, [field]: value } : page));
+  }
+
+  async function saveSeo() {
+    setSavingSeo(true);
+    setSeoError("");
+    setSeoSaved(false);
+    try {
+      await apiRequest("/api/settings/websites", { token, method: "PATCH", body: { ...(settings.data?.item?.websites || {}), tunnelSolareItalia: { name: "Tunnel Solare Italia", pages: seoPages } } });
+      await settings.reload();
+      setSeoSaved(true);
+    } catch (error) {
+      setSeoError(error.message);
+    } finally {
+      setSavingSeo(false);
+    }
+  }
 
   return <div className="websites-page">
     <aside className="websites-sidebar" aria-label="Gestión de webs">
@@ -2300,14 +2336,14 @@ function WebsitesView() {
       <nav>{sections.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" className={section === item.id ? "active" : ""} onClick={() => setSection(item.id)}><Icon size={18} />{item.label}</button>; })}</nav>
     </aside>
     <section className="websites-workspace">
-      <header><div><small>Gestión centralizada</small><h2>{active.label}</h2></div><button className="primary-button" type="button"><Plus size={16} />Nueva web</button></header>
+      <header><div><small>Gestión centralizada</small><h2>{active.label}</h2></div>{section === "seo" ? <button className="primary-button" type="button" onClick={saveSeo} disabled={savingSeo}>{savingSeo ? "Guardando..." : "Guardar cambios"}</button> : <button className="primary-button" type="button"><Plus size={16} />Nueva web</button>}</header>
       {section === "overview" ? <>
         <p className="websites-intro">Gestiona desde un único lugar los dominios, contenido, pedidos y reglas de cada ecommerce.</p>
         <div className="websites-grid">
           <article><span className="web-status preparing">EN PREPARACIÓN</span><h3>Tunnel Solare Italia</h3><p>Italia · Italiano · EUR</p><small>tunnel-solare-italia</small></article>
           <article className="websites-empty"><Globe2 size={28} /><h3>Próxima web</h3><p>Añade un nuevo país o dominio cuando esté listo.</p></article>
         </div>
-      </> : <div className="websites-placeholder"><ActiveIcon size={30} /><h3>{active.label}</h3><p>Este módulo queda preparado para centralizar esta gestión en todas las webs. Lo conectaremos al backend cuando definamos sus reglas y datos.</p></div>}
+      </> : section === "seo" ? <div className="seo-editor"><p>Define los datos SEO de cada sección y consulta la URL final antes de publicarla.</p>{seoError ? <p className="form-error">{seoError}</p> : null}{seoSaved ? <p className="seo-saved">Cambios guardados.</p> : null}{seoPages.map((page) => <article key={page.id}><header><div><small>SECCIÓN</small><h3>{page.label}</h3></div><code>{page.url.replace(/\/$/, "")}{page.slug === "/" ? "/" : page.slug}</code></header><label>Slug<input value={page.slug} onChange={(event) => updateSeoPage(page.id, "slug", event.target.value)} /></label><label>H1<input value={page.h1} onChange={(event) => updateSeoPage(page.id, "h1", event.target.value)} /></label><label>Page title<input value={page.title} onChange={(event) => updateSeoPage(page.id, "title", event.target.value)} /></label><label>Metadescripción<textarea value={page.description} onChange={(event) => updateSeoPage(page.id, "description", event.target.value)} rows="3" /></label></article>)}</div> : <div className="websites-placeholder"><ActiveIcon size={30} /><h3>{active.label}</h3><p>Este módulo queda preparado para centralizar esta gestión en todas las webs. Lo conectaremos al backend cuando definamos sus reglas y datos.</p></div>}
     </section>
   </div>;
 }
