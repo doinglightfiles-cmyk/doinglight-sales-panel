@@ -33,7 +33,8 @@ function createStaticServer() {
 
     response.writeHead(200, {
       "Cache-Control": filePath.endsWith("index.html") ? "no-cache" : "public, max-age=31536000, immutable",
-      "Content-Type": contentType
+      "Content-Type": contentType,
+      "X-Robots-Tag": "noindex, nofollow, noarchive"
     });
 
     createReadStream(filePath).pipe(response);

@@ -868,6 +868,10 @@ function roleLabel(role) {
   return labels[role] || role || "Usuario";
 }
 
+function isPanelAdministrator(user) {
+  return ["admin", "doinglight_admin", "super_admin"].includes(String(user?.role || "").toLowerCase());
+}
+
 function getDriveFileId(url) {
   return (
     String(url || "").match(/[?&]id=([^&]+)/)?.[1] ||
@@ -1529,6 +1533,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const canUseShopping=SHOPPING_LIST_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
   const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
+  const canManageWebsites = isPanelAdministrator(session.user);
   const [themeAlert,refreshThemeAlert]=useChatThemeAlert(session.token,canUseChat);
   async function loadNotificationCount(){try{const result=await apiRequest("/api/notifications/unread-count",{token:session.token});setNotificationCount(result.count||0);}catch{}}
   useEffect(()=>{loadNotificationCount();const timer=window.setInterval(loadNotificationCount,30000);return()=>window.clearInterval(timer);},[session.token]);
@@ -1539,7 +1544,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     { id: "documents", label: "Documento" },
     { id: "purchases", label: "Compras" },
     { id: "contacts", label: "Contactos" },
-    { id: "websites", label: "Webs" }
+    ...(canManageWebsites ? [{ id: "websites", label: "Webs" }] : [])
   ];
   const moreGroups = [
     {
@@ -1813,7 +1818,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={session.user.locale} /> : null}
-          {activeView === "websites" ? <WebsitesView /> : null}
+          {activeView === "websites" && canManageWebsites ? <WebsitesView /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} /> : null}
           {activeView === "downloads" ? <DownloadsView /> : null}
