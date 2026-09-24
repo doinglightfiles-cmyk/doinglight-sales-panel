@@ -62,6 +62,21 @@ const USER_DISPLAY_NAMES = new Map([
   [WAREHOUSE_EMAIL, "Almacén"]
 ]);
 
+const LOGIN_COPY = {
+  es: { email: "Email", password: "Contraseña", submit: "Entrar", loading: "Entrando...", forgot: "Si has olvidado tu contraseña pregúntale a Edu", error: "No se ha podido iniciar sesión. Comprueba tus datos." },
+  it: { email: "Email", password: "Password", submit: "Accedi", loading: "Accesso in corso...", forgot: "Se hai dimenticato la password, chiedi a Edu", error: "Non è stato possibile accedere. Controlla i tuoi dati." },
+  pt: { email: "Email", password: "Palavra-passe", submit: "Entrar", loading: "A entrar...", forgot: "Se esqueceu a palavra-passe, pergunte ao Edu", error: "Não foi possível iniciar sessão. Verifique os seus dados." },
+  fr: { email: "E-mail", password: "Mot de passe", submit: "Se connecter", loading: "Connexion...", forgot: "Si vous avez oublié votre mot de passe, demandez à Edu", error: "Connexion impossible. Vérifiez vos identifiants." }
+};
+
+function loginLocaleFromEmail(email) {
+  const value = String(email || "").trim().toLowerCase();
+  if (value.endsWith(".it")) return "it";
+  if (value.endsWith(".pt")) return "pt";
+  if (value.endsWith(".fr")) return "fr";
+  return "es";
+}
+
 function userDisplayName(user) {
   const email = String(user?.email || user?.senderEmail || "").trim().toLowerCase();
   return USER_DISPLAY_NAMES.get(email) || user?.fullName || user?.senderName || user?.email || "Usuario";
@@ -945,6 +960,7 @@ function LoginView({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const copy = LOGIN_COPY[loginLocaleFromEmail(email)];
 
   async function submit(event) {
     event.preventDefault();
@@ -958,7 +974,7 @@ function LoginView({ onLogin }) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       onLogin(session);
     } catch (err) {
-      setError(err.message);
+      setError(copy.error);
     } finally {
       setLoading(false);
     }
@@ -967,15 +983,14 @@ function LoginView({ onLogin }) {
   return (
     <main className="login-shell">
       <section className="login-panel">
-        <div className="brand-mark">Doinglight</div>
-        <h1>Panel de gestión</h1>
+        <img className="login-logo" src="/logo-backend.png" alt="Doinglight Intranet" />
         <form onSubmit={submit} className="login-form">
           <label>
-            Email
+            {copy.email}
             <input value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
           </label>
           <label>
-            Contraseña
+            {copy.password}
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -985,9 +1000,10 @@ function LoginView({ onLogin }) {
           </label>
           {error ? <p className="form-error">{error}</p> : null}
           <button className="primary-button" type="submit" disabled={loading}>
-            {loading ? "Entrando..." : "Entrar"}
+            {loading ? copy.loading : copy.submit}
           </button>
         </form>
+        <p className="login-forgot">{copy.forgot}</p>
       </section>
     </main>
   );
