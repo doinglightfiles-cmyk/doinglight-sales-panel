@@ -29,7 +29,9 @@ import {
   Printer,
   Truck,
   Factory,
+  Globe2,
   History,
+  Languages,
   UsersRound,
   Zap,
   X,
@@ -1536,7 +1538,8 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
     { id: "purchases", label: "Compras" },
-    { id: "contacts", label: "Contactos" }
+    { id: "contacts", label: "Contactos" },
+    { id: "websites", label: "Webs" }
   ];
   const moreGroups = [
     {
@@ -1810,6 +1813,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={session.user.locale} /> : null}
+          {activeView === "websites" ? <WebsitesView /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} /> : null}
           {activeView === "downloads" ? <DownloadsView /> : null}
@@ -2254,6 +2258,37 @@ function ModuleWorkspace({ moduleId }) {
       </section>
     </div>
   );
+}
+
+function WebsitesView() {
+  const [section, setSection] = useState("overview");
+  const sections = [
+    { id: "overview", label: "Visión general", icon: Globe2 },
+    { id: "orders", label: "Pedidos web", icon: ShoppingCart },
+    { id: "content", label: "Contenido y blog", icon: FileText },
+    { id: "translations", label: "Traducciones", icon: Languages },
+    { id: "redirects", label: "Redirecciones", icon: History },
+    { id: "settings", label: "Ajustes globales", icon: Settings }
+  ];
+  const active = sections.find((item) => item.id === section) || sections[0];
+  const ActiveIcon = active.icon;
+
+  return <div className="websites-page">
+    <aside className="websites-sidebar" aria-label="Gestión de webs">
+      <div><small>ECOMMERCE</small><h2>Webs</h2></div>
+      <nav>{sections.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" className={section === item.id ? "active" : ""} onClick={() => setSection(item.id)}><Icon size={18} />{item.label}</button>; })}</nav>
+    </aside>
+    <section className="websites-workspace">
+      <header><div><small>Gestión centralizada</small><h2>{active.label}</h2></div><button className="primary-button" type="button"><Plus size={16} />Nueva web</button></header>
+      {section === "overview" ? <>
+        <p className="websites-intro">Gestiona desde un único lugar los dominios, contenido, pedidos y reglas de cada ecommerce.</p>
+        <div className="websites-grid">
+          <article><span className="web-status preparing">EN PREPARACIÓN</span><h3>Tunnel Solare Italia</h3><p>Italia · Italiano · EUR</p><small>tunnel-solare-italia</small></article>
+          <article className="websites-empty"><Globe2 size={28} /><h3>Próxima web</h3><p>Añade un nuevo país o dominio cuando esté listo.</p></article>
+        </div>
+      </> : <div className="websites-placeholder"><ActiveIcon size={30} /><h3>{active.label}</h3><p>Este módulo queda preparado para centralizar esta gestión en todas las webs. Lo conectaremos al backend cuando definamos sus reglas y datos.</p></div>}
+    </section>
+  </div>;
 }
 
 function readPath(source, path) {
