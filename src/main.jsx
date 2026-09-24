@@ -2281,17 +2281,30 @@ function ModuleWorkspace({ moduleId }) {
   );
 }
 
+const WEBSITE_CATALOG = [
+  { id: "tunnelSolareItalia", name: "Tunnel Solare Italia", country: "Italia", language: "Italiano", domain: "https://www.tunnelsolare.net", homeH1: "IL TUNNEL SOLARE, SISTEMI DI ILLUMINAZIONE NATURALE", homeTitle: "Tunnel Solare | Sistemi di illuminazione naturale", homeDescription: "Tunnel solari e lucernari per illuminare gli spazi interni con luce naturale.", shopH1: "NEGOZIO ONLINE DI TUNNEL SOLARE", shopTitle: "Negozio online di tunnel solare | Tunnel Solare", shopDescription: "Acquista online tunnel solari, lucernari solari e accessori per luce naturale." },
+  { id: "tuboSolarEspana", name: "Tubo Solar España", country: "España", language: "Español", domain: "https://www.tubosolar.net" },
+  { id: "tageslichtspotAlemania", name: "Tageslichtspot Alemania", country: "Alemania", language: "Alemán", domain: "https://www.tegeslichtspot.com" },
+  { id: "puitDeLumiereFrancia", name: "Puit de Lumière Francia", country: "Francia", language: "Francés", domain: "https://www.puitdelumiere.net" },
+  { id: "daglichtbuisHolanda", name: "Daglichtbuis Holanda", country: "Holanda", language: "Neerlandés", domain: "https://www.daglichtbuis.net" }
+];
+
+function defaultSeoPagesFor(site) {
+  return [
+    { id: "home", label: "Inicio", slug: "/", h1: site.homeH1 || "", title: site.homeTitle || "", description: site.homeDescription || "" },
+    { id: "shop", label: "Tienda", slug: "/tunnel-solare", h1: site.shopH1 || "", title: site.shopTitle || "", description: site.shopDescription || "" }
+  ];
+}
+
 function WebsitesView({ token }) {
   const [section, setSection] = useState("overview");
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState("tunnelSolareItalia");
   const settings = useResource(() => apiRequest("/api/settings", { token }), [token]);
   const [seoPages, setSeoPages] = useState([]);
+  const [redirects, setRedirects] = useState([]);
   const [savingSeo, setSavingSeo] = useState(false);
   const [seoError, setSeoError] = useState("");
   const [seoSaved, setSeoSaved] = useState(false);
-  const defaultSeoPages = [
-    { id: "home", label: "Inicio", url: "https://www.tunnelsolare.net/", slug: "/", h1: "IL TUNNEL SOLARE, SISTEMI DI ILLUMINAZIONE NATURALE", title: "Tunnel Solare | Sistemi di illuminazione naturale", description: "Tunnel solari e lucernari per illuminare gli spazi interni con luce naturale." },
-    { id: "shop", label: "Tienda", url: "https://www.tunnelsolare.net/tunnel-solare", slug: "/tunnel-solare", h1: "NEGOZIO ONLINE DI TUNNEL SOLARE", title: "Negozio online di tunnel solare | Tunnel Solare", description: "Acquista online tunnel solari, lucernari solari e accessori per luce naturale." }
-  ];
   const sections = [
     { id: "overview", label: "Visión general", icon: Globe2 },
     { id: "orders", label: "Pedidos web", icon: Package },
@@ -2303,24 +2316,27 @@ function WebsitesView({ token }) {
   ];
   const active = sections.find((item) => item.id === section) || sections[0];
   const ActiveIcon = active.icon;
+  const selectedWebsite = WEBSITE_CATALOG.find((site) => site.id === selectedWebsiteId) || WEBSITE_CATALOG[0];
 
   useEffect(() => {
-    const savedPages = settings.data?.item?.websites?.tunnelSolareItalia?.pages;
+    const savedWebsite = settings.data?.item?.websites?.[selectedWebsite.id] || {};
+    const savedPages = savedWebsite.pages;
     if (Array.isArray(savedPages) && savedPages.length) setSeoPages(savedPages);
-    else if (!settings.loading) setSeoPages(defaultSeoPages);
-  }, [settings.data, settings.loading]);
+    else if (!settings.loading) setSeoPages(defaultSeoPagesFor(selectedWebsite));
+    setRedirects(Array.isArray(savedWebsite.redirects) ? savedWebsite.redirects : []);
+  }, [settings.data, settings.loading, selectedWebsite]);
 
   function updateSeoPage(id, field, value) {
     setSeoSaved(false);
     setSeoPages((pages) => pages.map((page) => page.id === id ? { ...page, [field]: value } : page));
   }
 
-  async function saveSeo() {
+  async function saveWebsiteSettings() {
     setSavingSeo(true);
     setSeoError("");
     setSeoSaved(false);
     try {
-      await apiRequest("/api/settings/websites", { token, method: "PATCH", body: { ...(settings.data?.item?.websites || {}), tunnelSolareItalia: { name: "Tunnel Solare Italia", pages: seoPages } } });
+      await apiRequest("/api/settings/websites", { token, method: "PATCH", body: { ...(settings.data?.item?.websites || {}), [selectedWebsite.id]: { ...selectedWebsite, pages: seoPages, redirects } } });
       await settings.reload();
       setSeoSaved(true);
     } catch (error) {
@@ -2333,17 +2349,17 @@ function WebsitesView({ token }) {
   return <div className="websites-page">
     <aside className="websites-sidebar" aria-label="Gestión de webs">
       <div><small>ECOMMERCE</small><h2>Webs</h2></div>
+      <div className="website-picker">{WEBSITE_CATALOG.map((site) => <button type="button" key={site.id} className={site.id === selectedWebsite.id ? "active" : ""} onClick={() => setSelectedWebsiteId(site.id)}><span>{site.country}</span><small>{site.domain.replace("https://", "")}</small></button>)}</div>
       <nav>{sections.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" className={section === item.id ? "active" : ""} onClick={() => setSection(item.id)}><Icon size={18} />{item.label}</button>; })}</nav>
     </aside>
     <section className="websites-workspace">
-      <header><div><small>Gestión centralizada</small><h2>{active.label}</h2></div>{section === "seo" ? <button className="primary-button" type="button" onClick={saveSeo} disabled={savingSeo}>{savingSeo ? "Guardando..." : "Guardar cambios"}</button> : <button className="primary-button" type="button"><Plus size={16} />Nueva web</button>}</header>
+      <header><div><small>{selectedWebsite.domain.replace("https://", "")}</small><h2>{active.label}</h2></div>{["seo", "redirects"].includes(section) ? <button className="primary-button" type="button" onClick={saveWebsiteSettings} disabled={savingSeo}>{savingSeo ? "Guardando..." : "Guardar cambios"}</button> : <button className="primary-button" type="button"><Plus size={16} />Nueva web</button>}</header>
       {section === "overview" ? <>
         <p className="websites-intro">Gestiona desde un único lugar los dominios, contenido, pedidos y reglas de cada ecommerce.</p>
         <div className="websites-grid">
-          <article><span className="web-status preparing">EN PREPARACIÓN</span><h3>Tunnel Solare Italia</h3><p>Italia · Italiano · EUR</p><small>tunnel-solare-italia</small></article>
-          <article className="websites-empty"><Globe2 size={28} /><h3>Próxima web</h3><p>Añade un nuevo país o dominio cuando esté listo.</p></article>
+          {WEBSITE_CATALOG.map((site) => <article key={site.id}><span className="web-status preparing">EN PREPARACIÓN</span><h3>{site.name}</h3><p>{site.country} · {site.language} · EUR</p><small>{site.domain.replace("https://", "")}</small></article>)}
         </div>
-      </> : section === "seo" ? <div className="seo-editor"><p>Define los datos SEO de cada sección y consulta la URL final antes de publicarla.</p>{seoError ? <p className="form-error">{seoError}</p> : null}{seoSaved ? <p className="seo-saved">Cambios guardados.</p> : null}{seoPages.map((page) => <article key={page.id}><header><div><small>SECCIÓN</small><h3>{page.label}</h3></div><code>{page.url.replace(/\/$/, "")}{page.slug === "/" ? "/" : page.slug}</code></header><label>Slug<input value={page.slug} onChange={(event) => updateSeoPage(page.id, "slug", event.target.value)} /></label><label>H1<input value={page.h1} onChange={(event) => updateSeoPage(page.id, "h1", event.target.value)} /></label><label>Page title<input value={page.title} onChange={(event) => updateSeoPage(page.id, "title", event.target.value)} /></label><label>Metadescripción<textarea value={page.description} onChange={(event) => updateSeoPage(page.id, "description", event.target.value)} rows="3" /></label></article>)}</div> : <div className="websites-placeholder"><ActiveIcon size={30} /><h3>{active.label}</h3><p>Este módulo queda preparado para centralizar esta gestión en todas las webs. Lo conectaremos al backend cuando definamos sus reglas y datos.</p></div>}
+      </> : section === "seo" ? <div className="seo-editor"><p>Define los datos SEO de cada sección y consulta la URL final antes de publicarla.</p>{seoError ? <p className="form-error">{seoError}</p> : null}{seoSaved ? <p className="seo-saved">Cambios guardados.</p> : null}{seoPages.map((page) => <article key={page.id}><header><div><small>SECCIÓN</small><h3>{page.label}</h3></div><code>{selectedWebsite.domain}{page.slug}</code></header><label>Slug<input value={page.slug} onChange={(event) => updateSeoPage(page.id, "slug", event.target.value)} /></label><label>H1<input value={page.h1} onChange={(event) => updateSeoPage(page.id, "h1", event.target.value)} /></label><label>Page title<input value={page.title} onChange={(event) => updateSeoPage(page.id, "title", event.target.value)} /></label><label>Metadescripción<textarea value={page.description} onChange={(event) => updateSeoPage(page.id, "description", event.target.value)} rows="3" /></label></article>)}</div> : section === "redirects" ? <div className="seo-editor"><p>Crea redirecciones específicas para {selectedWebsite.domain.replace("https://", "")}.</p>{seoError ? <p className="form-error">{seoError}</p> : null}{seoSaved ? <p className="seo-saved">Cambios guardados.</p> : null}{redirects.map((redirect, index) => <article className="redirect-row" key={redirect.id}><label>Origen<input value={redirect.source} onChange={(event) => setRedirects((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, source: event.target.value } : item))} placeholder="/url-antigua" /></label><label>Destino<input value={redirect.target} onChange={(event) => setRedirects((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, target: event.target.value } : item))} placeholder="/url-nueva" /></label><button type="button" onClick={() => setRedirects((items) => items.filter((_, itemIndex) => itemIndex !== index))}>Eliminar</button></article>)}<button className="secondary-button" type="button" onClick={() => setRedirects((items) => [...items, { id: `redirect-${Date.now()}`, source: "", target: "" }])}><Plus size={16} />Añadir redirección</button></div> : <div className="websites-placeholder"><ActiveIcon size={30} /><h3>{active.label}</h3><p>Este módulo queda preparado para centralizar esta gestión en todas las webs. Lo conectaremos al backend cuando definamos sus reglas y datos.</p></div>}
     </section>
   </div>;
 }
