@@ -2269,7 +2269,7 @@ function WebsitesView() {
   const [section, setSection] = useState("overview");
   const sections = [
     { id: "overview", label: "Visión general", icon: Globe2 },
-    { id: "orders", label: "Pedidos web", icon: ShoppingBag },
+    { id: "orders", label: "Pedidos web", icon: Package },
     { id: "content", label: "Contenido y blog", icon: FileText },
     { id: "translations", label: "Traducciones", icon: Languages },
     { id: "redirects", label: "Redirecciones", icon: History },
