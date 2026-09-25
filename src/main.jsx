@@ -9916,6 +9916,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isInvoice = documentType === "invoice";
   const isDeliveryNote = documentType === "delivery_note";
   const isProforma = documentType === "proforma";
+  const isFrenchDistributor = distributor && String(locale).toLowerCase() === "fr";
+  const taxOptions = isFrenchDistributor
+    ? [
+        { value: "21", rate: 21, label: "21%" },
+        { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracommunautaire · 0%", reverseCharge: true }
+      ]
+    : DOCUMENT_TAX_OPTIONS;
   const zeroDiscountByDefault = isQuote
     && !initialQuote?.id
     && String(currentUser?.email || "").trim().toLowerCase() === "a.jimenez@doinglight.es";
@@ -11766,7 +11773,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         <label>
           IVA
           <select value={taxRate} onChange={(event) => setTaxRate(event.target.value)}>
-            {DOCUMENT_TAX_OPTIONS.map((option) => (
+            {taxOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
