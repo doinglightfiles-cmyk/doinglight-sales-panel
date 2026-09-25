@@ -100,6 +100,20 @@ function quoteEmailBody({ clientName, quoteNumber, includePaymentDetails, paymen
   return emailBodyWithLegalFooter(`${greeting}\n\nPara realizar el pago del mismo, será necesario aceptar previamente este presupuesto y recibirá automáticamente nuestra factura proforma en su email.`);
 }
 
+function quoteEmailBodyForLanguage(language, { clientName, quoteNumber, includePaymentDetails, paymentUrl }) {
+  const copy = {
+    fr: { greeting: `Bonjour ${clientName || "client"}, veuillez trouver ci-joint notre devis ${quoteNumber || ""}.`, payment: "Pour régler ce devis, veuillez d'abord l'accepter. Vous recevrez ensuite automatiquement votre facture proforma par e-mail.", closing: "Cordialement,\nAdministration Doinglight\nadministracion@doinglight.es", legal: "PROTECTION DES DONNÉES : Responsable : DOINGLIGHT TECHNOLOGIES, S.L.U. Vos données sont utilisées pour gérer votre demande." },
+    it: { greeting: `Gentile ${clientName || "cliente"}, in allegato trova il nostro preventivo ${quoteNumber || ""}.`, payment: "Per effettuare il pagamento, dovrà prima accettare il preventivo; riceverà quindi automaticamente la fattura proforma via email.", closing: "Cordiali saluti,\nAmministrazione Doinglight\nadministracion@doinglight.es", legal: "PROTEZIONE DEI DATI: Titolare: DOINGLIGHT TECHNOLOGIES, S.L.U. I dati sono utilizzati per gestire la richiesta." },
+    pt: { greeting: `Caro(a) ${clientName || "cliente"}, enviamos em anexo o nosso orçamento ${quoteNumber || ""}.`, payment: "Para efetuar o pagamento, deverá primeiro aceitar este orçamento; receberá automaticamente a fatura proforma por e-mail.", closing: "Com os melhores cumprimentos,\nAdministração Doinglight\nadministracion@doinglight.es", legal: "PROTEÇÃO DE DADOS: Responsável: DOINGLIGHT TECHNOLOGIES, S.L.U. Os dados são usados para gerir o pedido." },
+    de: { greeting: `Guten Tag ${clientName || "Kunde"}, anbei erhalten Sie unser Angebot ${quoteNumber || ""}.`, payment: "Zur Zahlung akzeptieren Sie bitte zunächst dieses Angebot. Anschließend erhalten Sie die Proforma-Rechnung automatisch per E-Mail.", closing: "Mit freundlichen Grüßen\nDoinglight Verwaltung\nadministracion@doinglight.es", legal: "DATENSCHUTZ: Verantwortlicher: DOINGLIGHT TECHNOLOGIES, S.L.U. Die Daten werden zur Bearbeitung Ihrer Anfrage verwendet." }
+  }[String(language).toLowerCase()];
+  if (!copy) return quoteEmailBody({ clientName, quoteNumber, includePaymentDetails, paymentUrl });
+  const payment = includePaymentDetails
+    ? `${copy.payment}\n\n${paymentUrl || ""}`
+    : copy.payment;
+  return `${copy.greeting}\n\n${payment}\n\n${copy.closing}\n\n${copy.legal}`;
+}
+
 function needsFreshPaymentUrl(value) {
   const url = String(value || "").trim();
   if (!url) return true;
@@ -172,7 +186,7 @@ function companyEmailRecipients(company) {
   ]).filter(isValidEmailRecipient);
 }
 
-function EmailRecipientsField({ value, onChange, suggestions = [] }) {
+function EmailRecipientsField({ value, onChange, suggestions = [], labels = {} }) {
   const recipients = splitEmailRecipients(value);
   const [entry, setEntry] = useState("");
   const [error, setError] = useState("");
@@ -211,7 +225,7 @@ function EmailRecipientsField({ value, onChange, suggestions = [] }) {
 
   return (
     <div className="quote-send-recipient-field">
-      <span>Envío a</span>
+      <span>{labels.to || "Envío a"}</span>
       <div className="quote-send-recipient-control">
         {recipients.length ? (
           <div className="quote-send-recipient-list" aria-label="Destinatarios del correo">
@@ -239,12 +253,12 @@ function EmailRecipientsField({ value, onChange, suggestions = [] }) {
               if (entry.trim() && isValidEmailRecipient(entry)) addRecipients();
               window.setTimeout(() => setSuggestionsOpen(false), 120);
             }}
-            placeholder="Añadir otro correo"
-            aria-label="Añadir otro correo de destino"
+            placeholder={labels.addEmail || "Añadir otro correo"}
+            aria-label={labels.addEmail || "Añadir otro correo de destino"}
           />
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => addRecipients()}>
             <Plus size={17} />
-            Añadir
+            {labels.add || "Añadir"}
           </button>
         </div>
         {suggestionsOpen && availableSuggestions.length ? (
@@ -3001,6 +3015,9 @@ function DocumentPdfPage({
   const validityLabel = isDeliveryNote ? text.deliveryDate : type === "invoice" ? text.dueDate : text.validUntil;
   const isTuboSolarTemplate = pdfTemplate === "tubo-solar";
   const logoSrc = isTuboSolarTemplate ? TUBO_SOLAR_PDF_LOGO : DOCUMENT_PDF_LOGO;
+  const issuerLines = language === "fr"
+    ? ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Pol.Emp.Campollano, C/E, 24"]
+    : ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Polígono Industrial Campollano, Calle E nº 24", "02007 ALBACETE", "España", "info@doinglight.es", "www.doinglight.es", "658856869"];
   const quantityHeader = language === "es" ? "Cant." : text.quantity;
   const discountHeader = language === "es" ? "Dto." : text.discount;
   const priceHeader = language === "es" ? "Precio" : text.price;
@@ -3017,14 +3034,7 @@ function DocumentPdfPage({
             <img className="quote-pdf-logo-image" src={logoSrc} alt={isTuboSolarTemplate ? "Tubo Solar" : "Doinglight Skylights"} />
           </div>
           <strong>{text.issuedBy}</strong>
-          <span>DOINGLIGHT TECHNOLOGIES, SLU</span>
-          <span>ESB02555001</span>
-          <span>Polígono Industrial Campollano, Calle E nº 24</span>
-          <span>02007 ALBACETE</span>
-          <span>España</span>
-          <span>info@doinglight.es</span>
-          <span>www.doinglight.es</span>
-          <span>658856869</span>
+          {issuerLines.map((line) => <span key={line}>{line}</span>)}
         </div>
         <div className="quote-pdf-document-head">
           <div className="quote-pdf-title-block">
@@ -9368,6 +9378,16 @@ const DISTRIBUTOR_QUOTE_UI_COPY = {
   de: { responsible: "Verantwortlich", changeOwner: "Verantwortlichen ändern", total: "Gesamt", date: "Datum", documentNumber: "Dokumentnummer", automaticNumber: "Wird automatisch erstellt", email: "E-Mail für den Versand", noEmail: "Keine E-Mail-Adresse", validUntil: "Gültig bis", paymentMethod: "Zahlungsmethode", undefined: "Nicht festgelegt", status: "Angebotsstatus", billingData: "Rechnungsdaten", noBillingData: "Keine Rechnungsdaten", notes: "Hinweise", customerNotes: "Für den Kunden sichtbare Hinweise", internalNotes: "Interne Hinweise", internalNotesHint: "Für den Kunden nicht sichtbare Hinweise", lines: "Dokumentpositionen", shipping: "VERSANDKOSTEN", reference: "Referenz", writeReference: "Referenz eingeben", description: "Beschreibung", productUnselected: "Produkt nicht ausgewählt", selectCatalogProduct: "Produkt aus dem Katalog auswählen", quantity: "Menge", discount: "Rabatt %", amount: "Betrag", vat: "MwSt.", taxableBase: "Steuergrundlage", save: "Speichern", send: "Senden", pending: "Ausstehend", includePayment: "Zahlungsdaten im PDF einfügen" }
 };
 
+function quoteSendCopy(locale) {
+  const copy = {
+    fr: { title: "Envoyer par e-mail", sender: "Expéditeur", subject: "Objet", content: "Contenu", attachments: "Pièces jointes", language: "Langue du document", preview: "Aperçu du PDF", cancel: "Annuler", send: "Envoyer", sending: "Envoi...", to: "Envoyer à", addEmail: "Ajouter une autre adresse", add: "Ajouter" },
+    it: { title: "Invia per email", sender: "Mittente", subject: "Oggetto", content: "Contenuto", attachments: "Allegati", language: "Lingua del documento", preview: "Anteprima PDF", cancel: "Annulla", send: "Invia", sending: "Invio...", to: "Invia a", addEmail: "Aggiungi un'altra email", add: "Aggiungi" },
+    pt: { title: "Enviar por e-mail", sender: "Remetente", subject: "Assunto", content: "Conteúdo", attachments: "Anexos", language: "Idioma do documento", preview: "Pré-visualização do PDF", cancel: "Cancelar", send: "Enviar", sending: "A enviar...", to: "Enviar para", addEmail: "Adicionar outro e-mail", add: "Adicionar" },
+    de: { title: "Per E-Mail senden", sender: "Absender", subject: "Betreff", content: "Inhalt", attachments: "Anhänge", language: "Dokumentsprache", preview: "PDF-Vorschau", cancel: "Abbrechen", send: "Senden", sending: "Wird gesendet...", to: "Senden an", addEmail: "Weitere E-Mail hinzufügen", add: "Hinzufügen" }
+  };
+  return copy[String(locale).toLowerCase()] || {};
+}
+
 function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDone, onUpdated, distributor = false, locale = "es" }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [activeDocument, setActiveDocument] = useState(() => ({
@@ -9919,6 +9939,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const distributorCopy = distributorPanelCopy(locale);
   const quoteUiCopy = DISTRIBUTOR_QUOTE_UI_COPY[String(locale).toLowerCase()] || {};
   const t = (key, fallback) => distributor ? (quoteUiCopy[key] || distributorCopy[key] || fallback) : fallback;
+  const sendCopy = distributor ? quoteSendCopy(locale) : {};
   const meta = documentFormMeta(documentType);
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
@@ -10063,7 +10084,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [seriesSaving, setSeriesSaving] = useState(false);
   const [seriesError, setSeriesError] = useState("");
   const [newInvoiceSeries, setNewInvoiceSeries] = useState({ code: "", notes: "" });
-  const [quoteLanguage, setQuoteLanguage] = useState(initialQuote?.locale || "es");
+  const [quoteLanguage, setQuoteLanguage] = useState(initialQuote?.locale || (distributor ? locale : "es"));
   const [quoteLanguageTouched, setQuoteLanguageTouched] = useState(false);
   const catalog = useResource(
     () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(quoteLanguage || "es")}&channel=sales_app`, { token }),
@@ -10801,9 +10822,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return {
       to: splitEmailRecipients(leadDraft?.email || selectedLead?.email || ""),
       from: "ADMINISTRACION <administracion@doinglight.es>",
-      subject: documentNumber !== "borrador" ? `${meta.subject} ${documentNumber}` : meta.subject,
+      subject: distributor && isQuote
+        ? `Doinglight Skylights - ${quotePdfText.title}${documentNumber !== "borrador" ? ` ${documentNumber}` : ""}`
+        : documentNumber !== "borrador" ? `${meta.subject} ${documentNumber}` : meta.subject,
       body: isQuote
-        ? quoteEmailBody({ clientName, quoteNumber: documentNumber, includePaymentDetails, paymentUrl })
+        ? distributor
+          ? quoteEmailBodyForLanguage(quoteLanguage, { clientName, quoteNumber: documentNumber, includePaymentDetails, paymentUrl })
+          : quoteEmailBody({ clientName, quoteNumber: documentNumber, includePaymentDetails, paymentUrl })
         : meta.body,
       attachPdf: true
     };
@@ -11979,10 +12004,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         </ModalShell>
       ) : null}
       {sendModalOpen && sendDraft ? (
-        <div className="quote-send-overlay" role="dialog" aria-modal="true" aria-label="Enviar por correo electrónico">
+        <div className="quote-send-overlay" role="dialog" aria-modal="true" aria-label={sendCopy.title || "Enviar por correo electrónico"}>
           <form className="quote-send-dialog" onSubmit={prepareSend}>
             <header className="quote-send-header">
-              <h3>Enviar por correo electrónico</h3>
+              <h3>{sendCopy.title || "Enviar por correo electrónico"}</h3>
               <button type="button" onClick={() => setSendModalOpen(false)} aria-label="Cerrar envío">
                 <X size={28} />
               </button>
@@ -11997,9 +12022,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     ...(leadDraft || {}),
                     communicationContacts: leadDraft?.communicationContacts || selectedLead?.communicationContacts || []
                   })}
+                  labels={sendCopy}
                 />
                 <label>
-                  <span>Remitente</span>
+                  <span>{sendCopy.sender || "Remitente"}</span>
                   <select value={sendDraft.from} onChange={(event) => updateSendDraft({ from: event.target.value })}>
                     <option value="ADMINISTRACION <administracion@doinglight.es>">ADMINISTRACION &lt;administracion@doinglight.es&gt;</option>
                     <option value="MARKETING <marketing@doinglight.es>">MARKETING &lt;marketing@doinglight.es&gt;</option>
@@ -12007,16 +12033,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   </select>
                 </label>
                 <label>
-                  <span>Asunto</span>
+                  <span>{sendCopy.subject || "Asunto"}</span>
                   <input value={sendDraft.subject} onChange={(event) => updateSendDraft({ subject: event.target.value })} />
                 </label>
                 <label className="quote-send-body-field">
-                  <span>Contenido</span>
+                  <span>{sendCopy.content || "Contenido"}</span>
                   <textarea value={sendDraft.body} onChange={(event) => updateSendDraft({ body: event.target.value })} />
                 </label>
                 <div className="quote-send-attachments">
                   <div className="quote-send-attachments-head">
-                    <span>Archivos adjuntos</span>
+                    <span>{sendCopy.attachments || "Archivos adjuntos"}</span>
                     <div className="attachment-menu-wrap">
                       <button
                         className="attachment-trigger icon-only-attachment"
@@ -12066,7 +12092,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </section>
               <section className="quote-send-preview" aria-label="Vista previa del PDF adjunto">
                 <label className="quote-pdf-language-row">
-                  <span>Idioma del documento</span>
+                  <span>{sendCopy.language || "Idioma del documento"}</span>
                   <select
                     value={quoteLanguage}
                     onChange={(event) => {
@@ -12080,7 +12106,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   </select>
                 </label>
                 <div className="quote-pdf-toolbar">
-                  <span>Vista previa del PDF · {selectedQuoteLanguageLabel}</span>
+                  <span>{sendCopy.preview || "Vista previa del PDF"} · {selectedQuoteLanguageLabel}</span>
                   <div>
                     <button type="button" title="Descargar PDF" onClick={downloadQuotePdf}><Download size={17} /></button>
                     <button type="button" title="Imprimir PDF" onClick={printQuotePdf}><Printer size={17} /></button>
@@ -12111,7 +12137,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </section>
             </div>
             <footer className="quote-send-actions">
-              <button className="secondary-button" type="button" onClick={() => setSendModalOpen(false)}>Cancelar</button>
+              <button className="secondary-button" type="button" onClick={() => setSendModalOpen(false)}>{sendCopy.cancel || "Cancelar"}</button>
               <button className="quote-send-icon-button" type="button" onClick={downloadQuotePdf} aria-label="Descargar PDF" title="Descargar PDF">
                 <Download size={20} />
               </button>
@@ -12120,7 +12146,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </button>
               <button className="primary-button send-quote-button" type="submit" disabled={sendSubmitting}>
                 <Send size={18} />
-                {sendSubmitting ? "Enviando..." : "Enviar"}
+                {sendSubmitting ? (sendCopy.sending || "Enviando...") : (sendCopy.send || "Enviar")}
               </button>
             </footer>
           </form>
