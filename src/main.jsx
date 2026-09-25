@@ -9301,6 +9301,8 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
         <QuoteEditorModal
           token={token}
           quote={selectedQuote}
+          distributor={distributor}
+          locale={locale}
           onClose={() => setSelectedQuote(null)}
           onDone={() => {
             setSelectedQuote(null);
@@ -9367,7 +9369,7 @@ function documentFormMeta(documentType) {
   return SALES_DOCUMENT_FORM_META[documentType] || SALES_DOCUMENT_FORM_META.quote;
 }
 
-function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDone, onUpdated }) {
+function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDone, onUpdated, distributor = false, locale = "es" }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [activeDocument, setActiveDocument] = useState(() => ({
     id: quote.id,
@@ -9547,6 +9549,8 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
           readOnly={documentLocked}
           lockMessage={lockMessage}
           onOpenTrace={openTraceDocument}
+          distributor={distributor}
+          locale={locale}
         />
       ) : null}
     </ModalShell>
