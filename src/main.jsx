@@ -447,28 +447,23 @@ function quarterRange(year, quarter) {
   };
 }
 
-function getDocumentDateFilterOptions(referenceDate = new Date()) {
+function getDocumentDateFilterOptions(referenceDate = new Date(), locale = "es") {
   const year = referenceDate.getFullYear();
+  const copy = {
+    es: ["Todas las fechas", "Últimos 365 días", "Últimos 30 días", "Mes actual", "Mes pasado", "Trimestre actual", "Trimestre pasado", "Todo el año", "Cuarto trimestre de", "Tercer trimestre de", "Segundo trimestre de", "Primer trimestre de"],
+    fr: ["Toutes les dates", "365 derniers jours", "30 derniers jours", "Mois en cours", "Mois dernier", "Trimestre en cours", "Trimestre précédent", "Toute l’année", "Quatrième trimestre de", "Troisième trimestre de", "Deuxième trimestre de", "Premier trimestre de"],
+    it: ["Tutte le date", "Ultimi 365 giorni", "Ultimi 30 giorni", "Mese corrente", "Mese scorso", "Trimestre corrente", "Trimestre precedente", "Tutto l’anno", "Quarto trimestre", "Terzo trimestre", "Secondo trimestre", "Primo trimestre"],
+    pt: ["Todas as datas", "Últimos 365 dias", "Últimos 30 dias", "Mês atual", "Mês anterior", "Trimestre atual", "Trimestre anterior", "Todo o ano", "Quarto trimestre de", "Terceiro trimestre de", "Segundo trimestre de", "Primeiro trimestre de"],
+    de: ["Alle Daten", "Letzte 365 Tage", "Letzte 30 Tage", "Aktueller Monat", "Letzter Monat", "Aktuelles Quartal", "Vorheriges Quartal", "Gesamtes Jahr", "Viertes Quartal", "Drittes Quartal", "Zweites Quartal", "Erstes Quartal"],
+    nl: ["Alle datums", "Afgelopen 365 dagen", "Afgelopen 30 dagen", "Huidige maand", "Vorige maand", "Huidig kwartaal", "Vorig kwartaal", "Heel jaar", "Vierde kwartaal van", "Derde kwartaal van", "Tweede kwartaal van", "Eerste kwartaal van"]
+  }[String(locale).toLowerCase()] || null;
+  if (!copy) return getDocumentDateFilterOptions(referenceDate, "es");
   return [
-    { value: "all", label: "Todas las fechas" },
-    { value: "last_365", label: "Últimos 365 días" },
-    { value: "last_30", label: "Últimos 30 días" },
-    { value: "current_month", label: "Mes actual" },
-    { value: "previous_month", label: "Mes pasado" },
-    { value: "current_quarter", label: "Trimestre actual" },
-    { value: "previous_quarter", label: "Trimestre pasado" },
-    { value: "current_year", label: `Todo el año ${year}` },
-    { value: "q4_current_year", label: `Cuarto trimestre de ${year}` },
-    { value: "q3_current_year", label: `Tercer trimestre de ${year}` },
-    { value: "q2_current_year", label: `Segundo trimestre de ${year}` },
-    { value: "q1_current_year", label: `Primer trimestre de ${year}` },
-    { value: "previous_year", label: `Todo el año ${year - 1}` },
-    { value: "q4_previous_year", label: `Cuarto trimestre de ${year - 1}` },
-    { value: "q3_previous_year", label: `Tercer trimestre de ${year - 1}` },
-    { value: "q2_previous_year", label: `Segundo trimestre de ${year - 1}` },
-    { value: "q1_previous_year", label: `Primer trimestre de ${year - 1}` },
-    { value: "two_years_ago", label: `Todo el año ${year - 2}` },
-    { value: "three_years_ago", label: `Todo el año ${year - 3}` }
+    { value: "all", label: copy[0] }, { value: "last_365", label: copy[1] }, { value: "last_30", label: copy[2] },
+    { value: "current_month", label: copy[3] }, { value: "previous_month", label: copy[4] }, { value: "current_quarter", label: copy[5] }, { value: "previous_quarter", label: copy[6] },
+    { value: "current_year", label: `${copy[7]} ${year}` }, { value: "q4_current_year", label: `${copy[8]} ${year}` }, { value: "q3_current_year", label: `${copy[9]} ${year}` }, { value: "q2_current_year", label: `${copy[10]} ${year}` }, { value: "q1_current_year", label: `${copy[11]} ${year}` },
+    { value: "previous_year", label: `${copy[7]} ${year - 1}` }, { value: "q4_previous_year", label: `${copy[8]} ${year - 1}` }, { value: "q3_previous_year", label: `${copy[9]} ${year - 1}` }, { value: "q2_previous_year", label: `${copy[10]} ${year - 1}` }, { value: "q1_previous_year", label: `${copy[11]} ${year - 1}` },
+    { value: "two_years_ago", label: `${copy[7]} ${year - 2}` }, { value: "three_years_ago", label: `${copy[7]} ${year - 3}` }
   ];
 }
 
@@ -505,13 +500,13 @@ function documentMatchesDateFilter(documentRow, dateFilter) {
   return timestamp >= range.start.getTime() && timestamp <= range.end.getTime();
 }
 
-function DocumentDateFilter({ value, onChange }) {
-  const options = getDocumentDateFilterOptions();
+function DocumentDateFilter({ value, onChange, locale = "es" }) {
+  const options = getDocumentDateFilterOptions(new Date(), locale);
 
   return (
     <label className="invoice-date-filter">
       <CalendarDays size={18} />
-      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label="Filtrar por fecha">
+      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={locale === "fr" ? "Filtrer par date" : locale === "it" ? "Filtra per data" : locale === "pt" ? "Filtrar por data" : locale === "de" ? "Nach Datum filtern" : locale === "nl" ? "Filteren op datum" : "Filtrar por fecha"}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -2736,7 +2731,7 @@ function serializeFacturaDirectaDeliveryNote(item) {
   };
 }
 
-function quoteStatusState(status = "") {
+function quoteStatusState(status = "", locale = "es") {
   const normalized = String(status || "").trim().toLowerCase();
   const labels = {
     draft: "Pendiente",
@@ -2769,7 +2764,7 @@ function quoteStatusState(status = "") {
 
   return {
     key: keys[normalized] || "pending",
-    label: labels[normalized] || status || "Pendiente"
+    label: distributorQuoteStatusLabel(locale, normalized, labels[normalized] || status || "Pendiente")
   };
 }
 
@@ -3215,21 +3210,22 @@ function DocumentPdfPage({
   );
 }
 
-function serializeSalesQuote(quote, leadsById) {
-  const status = quoteStatusState(quote.status);
+function serializeSalesQuote(quote, leadsById, locale = "es") {
+  const status = quoteStatusState(quote.status, locale);
+  const listCopy = distributorQuoteListCopy(locale);
   const lead = leadsById.get(quote.leadId) || quote.lead || {};
   const firstLine = Array.isArray(quote.items) ? quote.items[0] : null;
   const firstLineText = [firstLine?.title, firstLine?.sku].filter(Boolean).join(" · ");
   const detail = [
-    `Presupuesto ${quote.quoteNumber || "-"}${quote.createdAt ? ` ${dateOnly(quote.createdAt)}` : ""}`,
-    quote.notes || firstLineText || "Presupuesto comercial"
+    `${listCopy.quote} ${quote.quoteNumber || "-"}${quote.createdAt ? ` ${dateOnly(quote.createdAt)}` : ""}`,
+    quote.notes || firstLineText || listCopy.commercialQuote
   ].filter(Boolean).join("  ");
 
   return {
     id: quote.id,
     leadId: quote.leadId,
     number: quote.quoteNumber || "-",
-    contact: lead.companyName || lead.fullName || quote.contact || "Cliente sin asignar",
+    contact: lead.companyName || lead.fullName || quote.contact || listCopy.unassignedClient,
     detail,
     date: quote.createdAt,
     status: status.label,
@@ -9066,6 +9062,7 @@ const QUOTE_TEMPLATES = [
 
 function QuotesView({ token, distributor = false, locale = "es" }) {
   const copy = distributorPanelCopy(locale);
+  const listCopy = distributorQuoteListCopy(distributor ? locale : "es");
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedPdfTemplate, setSelectedPdfTemplate] = useState("doinglight");
@@ -9083,7 +9080,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
     (leads.data?.items || []).forEach((lead) => map.set(lead.id, lead));
     return map;
   }, [leads.data]);
-  const quoteRows = (quotes.data?.items || []).map((quote) => serializeSalesQuote(quote, leadsById));
+  const quoteRows = (quotes.data?.items || []).map((quote) => serializeSalesQuote(quote, leadsById, distributor ? locale : "es"));
   const filteredQuotes = quoteRows.filter((quote) => {
     const matchesQuery = textMatchesQuery([quote.number, quote.contact, quote.status, quote.total, quote.detail], query);
     const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
@@ -9249,17 +9246,17 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
         <div className="invoice-toolbar">
           <div className="module-search">
             <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={listCopy.search} />
           </div>
-          <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
+          <DocumentDateFilter value={dateFilter} onChange={setDateFilter} locale={distributor ? locale : "es"} />
         </div>
         <div className="module-filters invoice-filter-row">
           <label className="invoice-filter-select">
-            <span>Estado</span>
+            <span>{listCopy.status}</span>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="all">Todos los estados</option>
+              <option value="all">{listCopy.allStates}</option>
               {QUOTE_STATUS_OPTIONS.map((status) => (
-                <option key={status.filterKey} value={status.filterKey}>{status.label}</option>
+                <option key={status.filterKey} value={status.filterKey}>{distributor ? distributorQuoteStatusLabel(locale, status.value, status.label) : status.label}</option>
               ))}
             </select>
           </label>
@@ -9267,7 +9264,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
         {selectedQuoteIds.length ? (
           <div className="document-selection-actions" aria-live="polite">
             <span className="selection-count">
-              {selectedQuoteIds.length} presupuesto{selectedQuoteIds.length === 1 ? "" : "s"} seleccionado{selectedQuoteIds.length === 1 ? "" : "s"}
+              {selectedQuoteIds.length} {selectedQuoteIds.length === 1 ? listCopy.selected : listCopy.selectedPlural}
             </span>
             {distributor ? <button className="bulk-document-action" type="button" onClick={markSelectedQuotesAccepted}>
               {copy.markAccepted}
@@ -9278,7 +9275,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
               Facturar
             </button> : null}
             <button className="bulk-document-action danger" type="button" onClick={deleteSelectedQuotes}>
-              Eliminar
+              {listCopy.delete}
             </button>
           </div>
         ) : null}
@@ -9289,30 +9286,30 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
                 <th className="select-column">
                   <input
                     type="checkbox"
-                    aria-label="Seleccionar todos los presupuestos"
+                    aria-label={listCopy.selectAll}
                     checked={allFilteredQuotesSelected}
                     onChange={toggleAllFilteredQuotes}
                   />
                 </th>
                 <th className="invoice-kind-column"></th>
-                <SortableDocumentHeader sortKey="date" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Fecha</SortableDocumentHeader>
-                <SortableDocumentHeader sortKey="status" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Estado</SortableDocumentHeader>
-                <SortableDocumentHeader sortKey="number" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Serie / Núm.</SortableDocumentHeader>
-                <SortableDocumentHeader sortKey="contact" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Cliente / Detalle</SortableDocumentHeader>
-                <SortableDocumentHeader sortKey="subtotal" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Subtotal</SortableDocumentHeader>
-                <SortableDocumentHeader sortKey="total" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Total</SortableDocumentHeader>
-                <SortableDocumentHeader sortKey="currency" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>Moneda</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="date" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.date}</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="status" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.status}</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="number" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.number}</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="contact" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.clientDetail}</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="subtotal" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.subtotal}</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="total" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.total}</SortableDocumentHeader>
+                <SortableDocumentHeader sortKey="currency" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.currency}</SortableDocumentHeader>
               </tr>
             </thead>
             <tbody>
               {quotes.loading || leads.loading ? (
                 <tr className="empty-table-row">
-                  <td colSpan={9}>Cargando presupuestos...</td>
+                  <td colSpan={9}>{listCopy.loading}</td>
                 </tr>
               ) : null}
               {!quotes.loading && !leads.loading && !filteredQuotes.length ? (
                 <tr className="empty-table-row">
-                  <td colSpan={9}>No hay presupuestos para mostrar todavía.</td>
+                  <td colSpan={9}>{listCopy.empty}</td>
                 </tr>
               ) : null}
               {visibleQuotes.map((quote) => (
@@ -9332,7 +9329,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
                   <td className="select-column">
                     <input
                       type="checkbox"
-                      aria-label={`Seleccionar presupuesto ${quote.number}`}
+                      aria-label={`${listCopy.selectOne} ${quote.number}`}
                       checked={selectedQuoteIds.includes(quote.id)}
                       onChange={() => toggleQuoteSelection(quote.id)}
                       onClick={(event) => event.stopPropagation()}
@@ -12348,12 +12345,25 @@ function distributorPanelCopy(locale) {
   return copy[language] || copy.es;
 }
 
+function distributorQuoteListCopy(locale) {
+  const copies = {
+    es: { quote: "Presupuesto", commercialQuote: "Presupuesto comercial", unassignedClient: "Cliente sin asignar", search: "Buscar...", status: "Estado", allStates: "Todos los estados", date: "Fecha", number: "Serie / Núm.", clientDetail: "Cliente / Detalle", subtotal: "Subtotal", total: "Total", currency: "Moneda", loading: "Cargando presupuestos...", empty: "No hay presupuestos para mostrar todavía.", selectAll: "Seleccionar todos los presupuestos", selectOne: "Seleccionar presupuesto", selected: "presupuesto seleccionado", selectedPlural: "presupuestos seleccionados", delete: "Eliminar" },
+    fr: { quote: "Devis", commercialQuote: "Devis commercial", unassignedClient: "Client non attribué", search: "Rechercher...", status: "Statut", allStates: "Tous les statuts", date: "Date", number: "Série / N°", clientDetail: "Client / Détail", subtotal: "Sous-total", total: "Total", currency: "Devise", loading: "Chargement des devis...", empty: "Aucun devis à afficher pour le moment.", selectAll: "Sélectionner tous les devis", selectOne: "Sélectionner le devis", selected: "devis sélectionné", selectedPlural: "devis sélectionnés", delete: "Supprimer" },
+    it: { quote: "Preventivo", commercialQuote: "Preventivo commerciale", unassignedClient: "Cliente non assegnato", search: "Cerca...", status: "Stato", allStates: "Tutti gli stati", date: "Data", number: "Serie / N.", clientDetail: "Cliente / Dettaglio", subtotal: "Subtotale", total: "Totale", currency: "Valuta", loading: "Caricamento preventivi...", empty: "Non ci sono ancora preventivi da visualizzare.", selectAll: "Seleziona tutti i preventivi", selectOne: "Seleziona preventivo", selected: "preventivo selezionato", selectedPlural: "preventivi selezionati", delete: "Elimina" },
+    pt: { quote: "Orçamento", commercialQuote: "Orçamento comercial", unassignedClient: "Cliente não atribuído", search: "Pesquisar...", status: "Estado", allStates: "Todos os estados", date: "Data", number: "Série / N.º", clientDetail: "Cliente / Detalhe", subtotal: "Subtotal", total: "Total", currency: "Moeda", loading: "A carregar orçamentos...", empty: "Ainda não há orçamentos para mostrar.", selectAll: "Selecionar todos os orçamentos", selectOne: "Selecionar orçamento", selected: "orçamento selecionado", selectedPlural: "orçamentos selecionados", delete: "Eliminar" },
+    de: { quote: "Angebot", commercialQuote: "Gewerbliches Angebot", unassignedClient: "Kunde nicht zugewiesen", search: "Suchen...", status: "Status", allStates: "Alle Status", date: "Datum", number: "Serie / Nr.", clientDetail: "Kunde / Details", subtotal: "Zwischensumme", total: "Gesamt", currency: "Währung", loading: "Angebote werden geladen...", empty: "Noch keine Angebote vorhanden.", selectAll: "Alle Angebote auswählen", selectOne: "Angebot auswählen", selected: "Angebot ausgewählt", selectedPlural: "Angebote ausgewählt", delete: "Löschen" },
+    nl: { quote: "Offerte", commercialQuote: "Commerciële offerte", unassignedClient: "Klant niet toegewezen", search: "Zoeken...", status: "Status", allStates: "Alle statussen", date: "Datum", number: "Serie / Nr.", clientDetail: "Klant / Details", subtotal: "Subtotaal", total: "Totaal", currency: "Valuta", loading: "Offertes laden...", empty: "Er zijn nog geen offertes om te tonen.", selectAll: "Alle offertes selecteren", selectOne: "Offerte selecteren", selected: "offerte geselecteerd", selectedPlural: "offertes geselecteerd", delete: "Verwijderen" }
+  };
+  return copies[String(locale).toLowerCase()] || copies.es;
+}
+
 function distributorQuoteStatusLabel(locale, value, fallback) {
   const labels = {
-    fr: { draft: "En attente", transferred: "Transféré", partial: "Partiel", accepted: "Accepté", closed: "Clôturé", rejected: "Refusé" },
-    it: { draft: "In attesa", transferred: "Trasferito", partial: "Parziale", accepted: "Accettato", closed: "Chiuso", rejected: "Rifiutato" },
-    pt: { draft: "Pendente", transferred: "Transferido", partial: "Parcial", accepted: "Aceite", closed: "Fechado", rejected: "Recusado" },
-    de: { draft: "Ausstehend", transferred: "Übertragen", partial: "Teilweise", accepted: "Angenommen", closed: "Geschlossen", rejected: "Abgelehnt" }
+    fr: { draft: "En attente", pending: "En attente", sent: "Transféré", transferred: "Transféré", partial: "Partiel", accepted: "Accepté", approved: "Accepté", closed: "Clôturé", rejected: "Refusé", cancelled: "Annulé", canceled: "Annulé" },
+    it: { draft: "In attesa", pending: "In attesa", sent: "Trasferito", transferred: "Trasferito", partial: "Parziale", accepted: "Accettato", approved: "Accettato", closed: "Chiuso", rejected: "Rifiutato", cancelled: "Annullato", canceled: "Annullato" },
+    pt: { draft: "Pendente", pending: "Pendente", sent: "Transferido", transferred: "Transferido", partial: "Parcial", accepted: "Aceite", approved: "Aceite", closed: "Fechado", rejected: "Recusado", cancelled: "Cancelado", canceled: "Cancelado" },
+    de: { draft: "Ausstehend", pending: "Ausstehend", sent: "Übertragen", transferred: "Übertragen", partial: "Teilweise", accepted: "Angenommen", approved: "Angenommen", closed: "Geschlossen", rejected: "Abgelehnt", cancelled: "Storniert", canceled: "Storniert" },
+    nl: { draft: "In afwachting", pending: "In afwachting", sent: "Overgedragen", transferred: "Overgedragen", partial: "Gedeeltelijk", accepted: "Geaccepteerd", approved: "Geaccepteerd", closed: "Gesloten", rejected: "Afgewezen", cancelled: "Geannuleerd", canceled: "Geannuleerd" }
   };
   return labels[String(locale).toLowerCase()]?.[value] || fallback;
 }
