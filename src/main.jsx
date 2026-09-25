@@ -3020,6 +3020,9 @@ function DocumentPdfPage({
     : language === "it"
       ? ["ROBROS IMPORT EXPORT", "IT04457180240", "VIA DON G. MINZONI 38", "36030 Lugo di Vicenza (VI)", "T. +39 351 564 0554", "info@doinglight.it", "www.doinglight.it"]
       : ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Polígono Industrial Campollano, Calle E nº 24", "02007 ALBACETE", "España", "info@doinglight.es", "www.doinglight.es", "658856869"];
+  const commercialConditions = language === "fr"
+    ? <>Garantie : 10 ans.<br />Modes de paiement : prépaiement, virement bancaire, carte bancaire ou PayPal.<br />Franco de port pour toute commande supérieure à 1&nbsp;000&nbsp;€, hors livraisons sur les îles et commandes spéciales.</>
+    : <>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</>;
   const quantityHeader = language === "es" ? "Cant." : text.quantity;
   const discountHeader = language === "es" ? "Dto." : text.discount;
   const priceHeader = language === "es" ? "Precio" : text.price;
@@ -3137,7 +3140,7 @@ function DocumentPdfPage({
           </div>
         ) : null}
         {!isDeliveryNote ? (
-          <p>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</p>
+          <p>{commercialConditions}</p>
         ) : null}
         {reverseCharge ? <p className="quote-pdf-reverse-charge-note">{REVERSE_CHARGE_LEGAL_TEXT}</p> : null}
       </div>
