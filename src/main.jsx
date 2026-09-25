@@ -8500,6 +8500,13 @@ function LeadMainFields({
 }) {
   const isSupplier = contactKind === "supplier";
   const copy = distributorPanelCopy(locale);
+  const distributorCountry = {
+    fr: "FR",
+    it: "IT",
+    pt: "PT",
+    de: "DE",
+    nl: "NL"
+  }[String(locale || "").toLowerCase()] || form.country;
   const viesInvalid = Boolean(viesMessage && !form.viesValid && !viesChecking);
   const viesButtonClass = [
     "secondary-button",
@@ -8527,7 +8534,7 @@ function LeadMainFields({
                 customerLevel: level.id,
                 customerType: level.customerType,
                 companyName: level.customerType === "particular" ? "" : form.companyName,
-                country: level.country,
+                country: distributor ? distributorCountry : level.country,
                 defaultDiscountPercent: level.discountPercent,
                 defaultDiscountMaxPercent: level.discountMaxPercent || level.discountPercent,
                 paymentNotificationsEnabled:
@@ -8806,6 +8813,13 @@ function LeadFormFields({
 }) {
   const copy = distributorPanelCopy(locale);
   const defaultLevel = customerLevelById(initialCustomerLevel?.id || initialCustomerLevel);
+  const distributorCountry = {
+    fr: "FR",
+    it: "IT",
+    pt: "PT",
+    de: "DE",
+    nl: "NL"
+  }[String(locale || "").toLowerCase()] || defaultLevel.country;
   const [form, setForm] = useState({
     customerLevel: defaultLevel.id,
     customerType: defaultLevel.customerType,
@@ -8830,7 +8844,7 @@ function LeadFormFields({
     population: "",
     city: "",
     province: "",
-    country: defaultLevel.country,
+    country: distributor ? distributorCountry : defaultLevel.country,
     notes: "",
     additionalAddresses: [],
     communicationContacts: [],
@@ -11584,8 +11598,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             onSubmit={(form) => apiRequest("/api/sales/leads", { token, method: "POST", body: form })}
             onValidateVies={(body) => apiRequest("/api/sales/vies/validate", { token, method: "POST", body })}
             onDone={(result) => {
+              const createdLead = result.item;
               leads.reload();
-              setSelectedLeadId(result.item.id);
+              // The refresh is asynchronous; retain the created customer so it
+              // is immediately available to the document and its PDF.
+              setSelectedLeadSnapshot(createdLead);
+              setSelectedLeadId(createdLead.id);
+              setLeadSearchQuery(leadOptionLabel(createdLead));
+              setLeadSearchTouched(false);
               setClientMode("existing");
             }}
           />
