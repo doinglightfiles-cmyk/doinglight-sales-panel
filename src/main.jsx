@@ -1555,12 +1555,25 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
   const canManageWebsites = isPanelAdministrator(session.user);
+  const isDistributor = Boolean(session.user?.distributorId) && !canManageWebsites;
+  const panelLocale = String(session.user?.locale || "es").toLowerCase();
+  const distributorLabels = {
+    es: { quotes: "Presupuestos", clients: "Clientes", products: "Productos" },
+    fr: { quotes: "Devis", clients: "Clients", products: "Produits" },
+    it: { quotes: "Preventivi", clients: "Clienti", products: "Prodotti" },
+    pt: { quotes: "Orçamentos", clients: "Clientes", products: "Produtos" },
+    de: { quotes: "Angebote", clients: "Kunden", products: "Produkte" }
+  }[panelLocale] || { quotes: "Presupuestos", clients: "Clientes", products: "Productos" };
   const [themeAlert,refreshThemeAlert]=useChatThemeAlert(session.token,canUseChat);
   async function loadNotificationCount(){try{const result=await apiRequest("/api/notifications/unread-count",{token:session.token});setNotificationCount(result.count||0);}catch{}}
   useEffect(()=>{loadNotificationCount();const timer=window.setInterval(loadNotificationCount,30000);return()=>window.clearInterval(timer);},[session.token]);
   async function loadChatCount(){if(!canUseChat)return;try{const result=await apiRequest("/api/operations/chat/unread-count",{token:session.token});setChatCount(result.count||0);}catch{}}
   useEffect(()=>{loadChatCount();if(!canUseChat)return undefined;const timer=window.setInterval(loadChatCount,15000);return()=>window.clearInterval(timer);},[session.token,canUseChat]);
-  const primaryNav = [
+  const primaryNav = isDistributor ? [
+    { id: "quotes", label: distributorLabels.quotes },
+    { id: "contacts", label: distributorLabels.clients },
+    { id: "catalog", label: distributorLabels.products }
+  ] : [
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
     { id: "purchases", label: "Compras" },
@@ -1616,8 +1629,8 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   function navigate(viewId, options = {}) {
     setMoreOpen(false);
     setCreateDrawerOpen(false);
-    if (viewId === "contacts" && options.contactFilter) {
-      setContactsInitialFilter(options.contactFilter);
+    if (viewId === "contacts" && (options.contactFilter || isDistributor)) {
+      setContactsInitialFilter(isDistributor ? "clients" : options.contactFilter);
     } else if (viewId !== "contacts") {
       setContactsInitialFilter("all");
     }
@@ -1706,7 +1719,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
               );
             }
 
-            if (item.id === "contacts") {
+            if (item.id === "contacts" && !isDistributor) {
               return (
                 <div className="nav-dropdown" key={item.id}>
                   <button
@@ -1738,7 +1751,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
               </button>
             );
           })}
-          <div className="more-nav">
+          {!isDistributor ? <div className="more-nav">
             <button
               className={moreOpen ? "nav-item active" : "nav-item"}
               type="button"
@@ -1776,7 +1789,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
                 </div>
               </div>
             ) : null}
-          </div>
+          </div> : null}
         </nav>
         <div className="header-user">
           <UserRound size={18} />
@@ -1792,9 +1805,9 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
               <Bell size={18} />
               {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
             </button>
-            <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
+            {!isDistributor ? <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
               <Settings size={18} />
-            </button>
+            </button> : null}
             <button className="icon-button header-action-button" onClick={onLogout} aria-label="Cerrar sesión">
               <LogOut size={18} />
             </button>
@@ -1846,7 +1859,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         </section>
       </div>
 
-      {!createDrawerOpen
+      {!isDistributor && !createDrawerOpen
         && !globalInvoiceOpen
         && !globalQuoteOpen
         && !globalProformaOpen
