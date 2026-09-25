@@ -1866,7 +1866,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
               onOpen={(purchase) => openGlobalPurchase(purchase.documentType, purchase)}
             />
           ) : null}
-          {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} /> : null}
+          {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} distributor={isDistributor} locale={session.user.locale} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
           {activeView === "delivery-notes" ? <DeliveryNotesView token={session.token} onCreateDeliveryNote={openGlobalDeliveryNote} /> : null}
           {activeView === "proformas" ? <ProformasView token={session.token} onCreateProforma={openGlobalProforma} /> : null}
@@ -6803,7 +6803,7 @@ function fullNameFromDraft(form) {
   return [form.firstName, form.lastName].filter(Boolean).join(" ").trim() || form.fullName;
 }
 
-function ContactsView({ token, initialFilter = "all" }) {
+function ContactsView({ token, initialFilter = "all", distributor = false, locale = "es" }) {
   const [showForm, setShowForm] = useState(false);
   const [showContactTypePicker, setShowContactTypePicker] = useState(false);
   const [newContactType, setNewContactType] = useState("client");
@@ -6973,6 +6973,8 @@ function ContactsView({ token, initialFilter = "all" }) {
         <LeadDetailModal
           lead={selectedLead}
           token={token}
+          distributor={distributor}
+          locale={locale}
           onClose={() => setSelectedLead(null)}
           onSaved={(updatedLead) => {
             setSelectedLead(updatedLead);
@@ -6981,7 +6983,7 @@ function ContactsView({ token, initialFilter = "all" }) {
         />
       ) : null}
       {showContactTypePicker ? (
-        <ContactTypePicker onClose={() => setShowContactTypePicker(false)} onSelect={openContactForm} />
+        <ContactTypePicker distributor={distributor} onClose={() => setShowContactTypePicker(false)} onSelect={openContactForm} />
       ) : null}
       {showForm ? (
         <ModalShell
@@ -6995,6 +6997,8 @@ function ContactsView({ token, initialFilter = "all" }) {
             <LeadForm
               token={token}
               initialCustomerLevel={newCustomerLevel}
+              distributor={distributor}
+              locale={locale}
               onCancel={() => setShowForm(false)}
               onDone={() => { setShowForm(false); leads.reload(); }}
             />
@@ -7014,7 +7018,7 @@ function SummaryMini({ label, value }) {
   );
 }
 
-function ContactTypePicker({ onClose, onSelect }) {
+function ContactTypePicker({ onClose, onSelect, distributor = false }) {
   const [showClientLevels, setShowClientLevels] = useState(false);
 
   return (
@@ -7033,14 +7037,14 @@ function ContactTypePicker({ onClose, onSelect }) {
           </button>
         </header>
         <div className="contact-type-options">
-          <button type="button" onClick={() => setShowClientLevels((value) => !value)}>
+          <button type="button" onClick={() => distributor ? onSelect("client", CUSTOMER_LEVELS[0]) : setShowClientLevels((value) => !value)}>
             <span>
               <strong>Cliente</strong>
               <small>Empresa o particular al que vendes productos o servicios</small>
             </span>
             <ChevronRight size={20} />
           </button>
-          {showClientLevels ? (
+          {!distributor && showClientLevels ? (
             <div className="customer-level-options">
               {CUSTOMER_LEVELS.map((level) => (
                 <button key={level.id} type="button" onClick={() => onSelect("client", level)}>
@@ -8105,7 +8109,7 @@ function DocumentTrace({ trace = [], currentType, currentId, onOpen }) {
   );
 }
 
-function LeadDetailModal({ lead, token, onClose, onSaved }) {
+function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, locale = "es" }) {
   const [draft, setDraft] = useState(() => leadToDraft(lead));
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState("idle");
@@ -8226,9 +8230,9 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
             <LeadSummaryCard title="Datos básicos" onEdit={() => setEditing(true)}>
               <SummaryLine label="Datos de facturación" value={draft.companyName || fullNameFromDraft(draft)} />
               <SummaryLine label="Mostrar como" value={fullNameFromDraft(draft) || draft.companyName} />
-              {!isSupplier ? <SummaryLine label="Perfil de cliente" value={customerLevelLabel(draft.customerLevel)} /> : null}
+              {!isSupplier && !distributor ? <SummaryLine label="Perfil de cliente" value={customerLevelLabel(draft.customerLevel)} /> : null}
               <SummaryLine label="Identificador fiscal" value={draft.taxId || "Sin NIF/CIF"} />
-              {!isSupplier ? <SummaryLine label="Descuento" value={discountLabel(draft.defaultDiscountPercent, draft.defaultDiscountMaxPercent)} /> : null}
+              {!isSupplier && !distributor ? <SummaryLine label="Descuento" value={discountLabel(draft.defaultDiscountPercent, draft.defaultDiscountMaxPercent)} /> : null}
             </LeadSummaryCard>
 
             <LeadSummaryCard title="Direcciones" onEdit={() => setEditing(true)}>
@@ -8263,6 +8267,8 @@ function LeadDetailModal({ lead, token, onClose, onSaved }) {
                 form={draft}
                 setForm={setDraft}
                 contactKind={isSupplier ? "supplier" : "client"}
+                distributor={distributor}
+                locale={locale}
                 onValidateVies={validateDetailVies}
                 viesChecking={viesChecking}
                 viesMessage={viesMessage}
@@ -8523,7 +8529,7 @@ function LeadMainFields({
         </div>
       </header>
       <div className="lead-main-grid contact-data-grid">
-        {!isSupplier ? <label className="lead-level-field contact-level-field">
+        {!isSupplier && !distributor ? <label className="lead-level-field contact-level-field">
           <span>{distributor ? copy.customerLevel : "Nivel de cliente"}</span>
           <select
             value={form.customerLevel}
@@ -8549,7 +8555,7 @@ function LeadMainFields({
             ))}
           </select>
         </label> : null}
-        {!isSupplier ? <label className="lead-discount-field">
+        {!isSupplier && !distributor ? <label className="lead-discount-field">
           <span>{distributor ? copy.discount : "Descuento"}</span>
           <div>
             <input
@@ -8823,8 +8829,8 @@ function LeadFormFields({
   const [form, setForm] = useState({
     customerLevel: defaultLevel.id,
     customerType: defaultLevel.customerType,
-    defaultDiscountPercent: defaultLevel.discountPercent,
-    defaultDiscountMaxPercent: defaultLevel.discountMaxPercent || defaultLevel.discountPercent,
+    defaultDiscountPercent: distributor ? 0 : defaultLevel.discountPercent,
+    defaultDiscountMaxPercent: distributor ? 0 : defaultLevel.discountMaxPercent || defaultLevel.discountPercent,
     defaultTaxRate: 21,
     firstName: "",
     lastName: "",
@@ -10159,7 +10165,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
   const effectiveLeadId = selectedLeadId || selectedLeadSnapshot?.id || currentDocument?.leadId || initialQuote?.leadId || "";
-  const selectedLeadDefaultDiscount = netPricing || zeroDiscountByDefault ? 0 : Number(selectedLead?.defaultDiscountPercent || 0);
+  const selectedLeadDefaultDiscount = distributor || netPricing || zeroDiscountByDefault ? 0 : Number(selectedLead?.defaultDiscountPercent || 0);
   const filteredLeadSuggestions = useMemo(() => {
     const needle = normalizeSearchText(leadSearchQuery);
     const source = needle
