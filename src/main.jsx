@@ -10813,7 +10813,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const taxTotal = subtotal * (activeTaxRate / 100);
   const total = subtotal + taxTotal;
   const quoteNumberLabel = currentDocument?.quoteNumber || currentDocument?.documentNumber || currentDocument?.number || "borrador";
-  const quotePdfName = `${meta.pdfPrefix}-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
+  const quotePdfPrefix = isQuote ? quotePdfText.title : meta.pdfPrefix;
+  const quotePdfName = `${quotePdfPrefix}-${safeFilePart(quoteDate || inputDate(new Date()))}-${safeFilePart(quoteNumberLabel)}.pdf`;
   const quotePdfElementId = `quote-pdf-${safeFilePart(quoteNumberLabel)}-${safeFilePart(quoteDate || "borrador")}`;
   const pdfDocumentType = documentType === "delivery_note" ? "delivery-note" : documentType;
   const quotePdfLines = lines.map((line) => {
