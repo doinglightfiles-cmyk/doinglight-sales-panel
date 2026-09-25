@@ -8605,15 +8605,6 @@ function LeadMainFields({
               value={form.mobilePhone || ""}
               onChange={(event) => setForm({ ...form, mobilePhone: event.target.value, whatsappStatus: "unknown" })}
             />
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={onCheckWhatsapp}
-              disabled={!form.mobilePhone || !onCheckWhatsapp}
-            >
-              <MessageCircle size={16} />
-              {distributor ? copy.checkWhatsapp : "Comprobar WhatsApp"}
-            </button>
           </div>
         </label>
         <input placeholder={distributor ? copy.email : "Email"} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
