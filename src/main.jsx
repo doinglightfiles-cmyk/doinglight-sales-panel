@@ -9369,6 +9369,13 @@ function documentFormMeta(documentType) {
   return SALES_DOCUMENT_FORM_META[documentType] || SALES_DOCUMENT_FORM_META.quote;
 }
 
+const DISTRIBUTOR_QUOTE_UI_COPY = {
+  fr: { responsible: "Responsable", changeOwner: "Changer le responsable", total: "Total", date: "Date", documentNumber: "Numéro du document", automaticNumber: "Sera généré automatiquement", email: "E-mail d’envoi", noEmail: "Sans adresse e-mail", validUntil: "Valable jusqu’au", paymentMethod: "Mode de paiement", undefined: "Non défini", status: "Statut du devis", billingData: "Informations de facturation", noBillingData: "Sans informations de facturation", notes: "Notes", customerNotes: "Notes visibles par le client", internalNotes: "Notes internes", internalNotesHint: "Notes non visibles par le client", lines: "Lignes du document", shipping: "FRAIS DE PORT", reference: "Référence", writeReference: "Saisissez une référence", description: "Description", productUnselected: "Produit non sélectionné", selectCatalogProduct: "Sélectionnez un produit dans le catalogue", quantity: "Quantité", discount: "Remise %", amount: "Montant", vat: "TVA", taxableBase: "Base imposable", save: "Enregistrer", send: "Envoyer", pending: "En attente", includePayment: "Inclure les informations de paiement dans le PDF" },
+  it: { responsible: "Responsabile", changeOwner: "Cambia responsabile", total: "Totale", date: "Data", documentNumber: "Numero documento", automaticNumber: "Verrà generato automaticamente", email: "Email di invio", noEmail: "Nessuna email", validUntil: "Valido fino al", paymentMethod: "Metodo di pagamento", undefined: "Non definito", status: "Stato del preventivo", billingData: "Dati di fatturazione", noBillingData: "Nessun dato di fatturazione", notes: "Note", customerNotes: "Note visibili al cliente", internalNotes: "Note interne", internalNotesHint: "Note non visibili al cliente", lines: "Righe del documento", shipping: "SPESE DI SPEDIZIONE", reference: "Riferimento", writeReference: "Inserisci un riferimento", description: "Descrizione", productUnselected: "Prodotto non selezionato", selectCatalogProduct: "Seleziona un prodotto dal catalogo", quantity: "Quantità", discount: "Sconto %", amount: "Importo", vat: "IVA", taxableBase: "Imponibile", save: "Salva", send: "Invia", pending: "In attesa", includePayment: "Includi i dati di pagamento nel PDF" },
+  pt: { responsible: "Responsável", changeOwner: "Alterar responsável", total: "Total", date: "Data", documentNumber: "Número do documento", automaticNumber: "Será gerado automaticamente", email: "E-mail de envio", noEmail: "Sem e-mail", validUntil: "Válido até", paymentMethod: "Método de pagamento", undefined: "Não definido", status: "Estado do orçamento", billingData: "Dados de faturação", noBillingData: "Sem dados de faturação", notes: "Notas", customerNotes: "Notas visíveis para o cliente", internalNotes: "Notas internas", internalNotesHint: "Notas não visíveis para o cliente", lines: "Linhas do documento", shipping: "PORTES", reference: "Referência", writeReference: "Escreva uma referência", description: "Descrição", productUnselected: "Produto não selecionado", selectCatalogProduct: "Selecione um produto do catálogo", quantity: "Quantidade", discount: "Desconto %", amount: "Valor", vat: "IVA", taxableBase: "Base tributável", save: "Guardar", send: "Enviar", pending: "Pendente", includePayment: "Incluir dados de pagamento no PDF" },
+  de: { responsible: "Verantwortlich", changeOwner: "Verantwortlichen ändern", total: "Gesamt", date: "Datum", documentNumber: "Dokumentnummer", automaticNumber: "Wird automatisch erstellt", email: "E-Mail für den Versand", noEmail: "Keine E-Mail-Adresse", validUntil: "Gültig bis", paymentMethod: "Zahlungsmethode", undefined: "Nicht festgelegt", status: "Angebotsstatus", billingData: "Rechnungsdaten", noBillingData: "Keine Rechnungsdaten", notes: "Hinweise", customerNotes: "Für den Kunden sichtbare Hinweise", internalNotes: "Interne Hinweise", internalNotesHint: "Für den Kunden nicht sichtbare Hinweise", lines: "Dokumentpositionen", shipping: "VERSANDKOSTEN", reference: "Referenz", writeReference: "Referenz eingeben", description: "Beschreibung", productUnselected: "Produkt nicht ausgewählt", selectCatalogProduct: "Produkt aus dem Katalog auswählen", quantity: "Menge", discount: "Rabatt %", amount: "Betrag", vat: "MwSt.", taxableBase: "Steuergrundlage", save: "Speichern", send: "Senden", pending: "Ausstehend", includePayment: "Zahlungsdaten im PDF einfügen" }
+};
+
 function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDone, onUpdated, distributor = false, locale = "es" }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [activeDocument, setActiveDocument] = useState(() => ({
@@ -9557,7 +9564,9 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   );
 }
 
-function PaymentMethodSelector({ value, methods, selectedLead, onChange, onSaveMethod }) {
+function PaymentMethodSelector({ value, methods, selectedLead, onChange, onSaveMethod, locale = "es", distributor = false }) {
+  const paymentCopy = DISTRIBUTOR_QUOTE_UI_COPY[String(locale).toLowerCase()] || {};
+  const t = (key, fallback) => distributor ? (paymentCopy[key] || fallback) : fallback;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState("");
@@ -9643,10 +9652,10 @@ function PaymentMethodSelector({ value, methods, selectedLead, onChange, onSaveM
 
   return (
     <div className="payment-method-field">
-      <span>Método de pago</span>
+      <span>{t("paymentMethod", "Método de pago")}</span>
       <div className="payment-method-picker">
         <button className="payment-method-trigger" type="button" onClick={() => setOpen((current) => !current)}>
-          <span>{value || "Sin definir"}</span>
+          <span>{value || t("undefined", "Sin definir")}</span>
           <ChevronDown size={17} />
         </button>
         {open ? (
@@ -9915,6 +9924,8 @@ function DownloadsView() {
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight", distributor = false, locale = "es" }) {
   const currentUser = readSession()?.user || null;
   const distributorCopy = distributorPanelCopy(locale);
+  const quoteUiCopy = DISTRIBUTOR_QUOTE_UI_COPY[String(locale).toLowerCase()] || {};
+  const t = (key, fallback) => distributor ? (quoteUiCopy[key] || distributorCopy[key] || fallback) : fallback;
   const meta = documentFormMeta(documentType);
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
@@ -10149,8 +10160,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         [leadBillingSource.address, leadBillingSource.postalCode, leadBillingSource.city || leadBillingSource.town, leadBillingSource.province].filter(Boolean).join(" "),
         leadBillingSource.country
       ].filter(Boolean).join("\n")
-    : "Sin datos de facturación";
-  const selectedStatusLabel = statusOptions.find((status) => status.value === quoteStatus)?.label
+    : t("noBillingData", "Sin datos de facturación");
+  const visibleStatusOptions = distributor && isQuote
+    ? statusOptions.map((status) => ({ ...status, label: distributorQuoteStatusLabel(locale, status.value, status.label) }))
+    : statusOptions;
+  const selectedStatusLabel = visibleStatusOptions.find((status) => status.value === quoteStatus)?.label
     || (isInvoice
       ? invoicePaymentState({ status: quoteStatus }, Number(currentDocument?.total || 0), quoteStatus).label
       : quoteStatusState(quoteStatus).label)
@@ -11175,7 +11189,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             <span>Plantilla: <strong>{pdfTemplate === "tubo-solar" ? "Tubo Solar" : "Doinglight"}</strong></span>
           )}
           <span className="document-owner-control">
-            Responsable: <strong>{selectedOwnerName}</strong>
+            {t("responsible", "Responsable")}: <strong>{selectedOwnerName}</strong>
             {!readOnly ? (
               <button
                 type="button"
@@ -11183,7 +11197,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 aria-haspopup="menu"
                 onClick={() => setOwnerMenuOpen((open) => !open)}
               >
-                Cambiar responsable
+                {t("changeOwner", "Cambiar responsable")}
               </button>
             ) : null}
             {ownerMenuOpen && !readOnly ? (
@@ -11216,7 +11230,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <h4>{documentTitle}</h4>
           <div className="quote-fd-title-actions">
             <div className="quote-fd-total">
-              <span>Total</span>
+              <span>{t("total", "Total")}</span>
               <strong>{money(total)}</strong>
             </div>
             {!isQuote ? (
@@ -11380,7 +11394,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </div>
             ) : null}
             <label>
-              <span>Fecha</span>
+              <span>{t("date", "Fecha")}</span>
               <input type="date" value={quoteDate} onChange={(event) => setQuoteDate(event.target.value)} />
             </label>
             {isInvoice ? (
@@ -11443,16 +11457,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </div>
             ) : (
               <label>
-                <span>Número de documento</span>
-                <input value={currentDocument?.quoteNumber || currentDocument?.documentNumber || ""} placeholder="Se generará automáticamente" readOnly />
+                <span>{t("documentNumber", "Número de documento")}</span>
+                <input value={currentDocument?.quoteNumber || currentDocument?.documentNumber || ""} placeholder={t("automaticNumber", "Se generará automáticamente")} readOnly />
               </label>
             )}
             <label>
-              <span>Correo electrónico de envío</span>
-              <input value={leadDraft?.email || selectedLead?.email || ""} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder="Sin correo electrónico" readOnly={!selectedLead} />
+              <span>{t("email", "Correo electrónico de envío")}</span>
+              <input value={leadDraft?.email || selectedLead?.email || ""} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder={t("noEmail", "Sin correo electrónico")} readOnly={!selectedLead} />
             </label>
             <label>
-              <span>{isInvoice ? "Vencimiento" : isDeliveryNote ? "Fecha de entrega" : "Válido hasta"}</span>
+              <span>{isInvoice ? "Vencimiento" : isDeliveryNote ? "Fecha de entrega" : t("validUntil", "Válido hasta")}</span>
               <input type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
             </label>
             {isQuote || isProforma ? (
@@ -11462,6 +11476,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 selectedLead={selectedLead}
                 onChange={setPaymentMethod}
                 onSaveMethod={savePaymentMethod}
+                distributor={distributor}
+                locale={locale}
               />
             ) : (
               <label>
@@ -11482,7 +11498,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     checked={includePaymentDetails}
                     onChange={(event) => setIncludePaymentDetails(event.target.checked)}
                   />
-                  <span>Incluir datos de pago en el PDF</span>
+                  <span>{t("includePayment", "Incluir datos de pago en el PDF")}</span>
                 </label>
                 {includePaymentDetails ? (
                   <label>
@@ -11499,28 +11515,28 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </div>
             ) : null}
             <label>
-              <span>Estado del {documentTitle.toLowerCase()}</span>
+              <span>{t("status", `Estado del ${documentTitle.toLowerCase()}`)}</span>
               <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
-                {statusOptions.map((status) => (
+                {visibleStatusOptions.map((status) => (
                   <option key={status.value} value={status.value}>{status.label}</option>
                 ))}
               </select>
               <small>{selectedStatusLabel}</small>
             </label>
             <label className="quote-fd-textarea">
-              <span>Datos de facturación</span>
+              <span>{t("billingData", "Datos de facturación")}</span>
               <textarea value={billingData} readOnly />
             </label>
             <label className="quote-fd-textarea">
-              <span>Notas</span>
+              <span>{t("notes", "Notas")}</span>
               <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
-              <small>Notas visibles para el cliente</small>
+              <small>{t("customerNotes", "Notas visibles para el cliente")}</small>
             </label>
             <div className={`quote-fd-internal-notes${isDeliveryNote ? " with-carriers" : ""}`}>
               <label className="quote-fd-textarea internal-notes">
-                <span>Notas internas</span>
+                <span>{t("internalNotes", "Notas internas")}</span>
                 <textarea value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} />
-                <small>Notas no visibles para el cliente</small>
+                <small>{t("internalNotesHint", "Notas no visibles para el cliente")}</small>
               </label>
               {isDeliveryNote ? (
                 <aside className="delivery-carrier-panel" aria-label="Opciones de transporte">
@@ -11558,12 +11574,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
       <section className="form-section">
         <header className="form-section-header">
-          <h4>Líneas del documento</h4>
+          <h4>{t("lines", "Líneas del documento")}</h4>
           {!readOnly ? (
             <div className="quote-line-tools">
               <button className="quote-transfer-lines-button quote-shipping-button" type="button" onClick={openShippingModal}>
                 <Truck size={16} />
-                PORTES
+                {t("shipping", "PORTES")}
               </button>
               {isQuote && !distributor ? (
                 <>
@@ -11630,7 +11646,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </button>
               <ProductThumbnail product={selectedProduct || { sku: line.sku }} />
               <label>
-                <span>Referencia</span>
+                <span>{t("reference", "Referencia")}</span>
                 {isShippingLine ? (
                   <input value="PORTES" readOnly aria-label="Referencia de portes" />
                 ) : (
@@ -11640,7 +11656,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     }}
                     className={hasInvalidReference ? "invalid-reference" : ""}
                     list="quote-product-suggestions"
-                    placeholder="Escribe una referencia"
+                    placeholder={t("writeReference", "Escribe una referencia")}
                     value={line.skuQuery}
                     onChange={(event) => {
                       const value = event.target.value.toUpperCase();
@@ -11661,7 +11677,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 )}
               </label>
               <div className="quote-product-select">
-                <span>Descripción</span>
+                <span>{t("description", "Descripción")}</span>
                 {isCustomLine ? (
                   <input
                     className="quote-custom-product-description"
@@ -11672,9 +11688,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   />
                 ) : (
                   <>
-                    <strong>{selectedProduct?.title || "Producto no seleccionado"}</strong>
+                    <strong>{selectedProduct?.title || t("productUnselected", "Producto no seleccionado")}</strong>
                     <span className="quote-product-description">
-                      {hasInvalidReference ? "Esta referencia no existe en el catálogo" : selectedProduct?.shortDescription || "Selecciona un producto del catálogo"}
+                      {hasInvalidReference ? "Esta referencia no existe en el catálogo" : selectedProduct?.shortDescription || t("selectCatalogProduct", "Selecciona un producto del catálogo")}
                     </span>
                   </>
                 )}
@@ -11702,7 +11718,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 ) : null}
               </div>
               <label>
-                <span>Cantidad</span>
+                <span>{t("quantity", "Cantidad")}</span>
                 <input
                   aria-label="Cantidad"
                   type="number"
@@ -11715,7 +11731,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               {!netPricing || !isQuote ? (
                 <label>
                   <span className="quote-discount-heading">
-                    <span>Descuento %</span>
+                    <span>{t("discount", "Descuento %")}</span>
                     {isQuote && index === 0 ? (
                       <button
                         type="button"
@@ -11745,7 +11761,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 </label>
               ) : null}
               <div className="quote-line-total">
-                <span>Importe</span>
+                <span>{t("amount", "Importe")}</span>
                 {isShippingLine ? (
                   <strong>{money(lineTotal(line))}</strong>
                 ) : (
@@ -11791,7 +11807,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
       <section className="quote-totals">
         <label>
-          IVA
+          {t("vat", "IVA")}
           <select value={taxRate} onChange={(event) => setTaxRate(event.target.value)}>
             {taxOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -11799,11 +11815,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           </select>
         </label>
         <div>
-          <span>Base imponible</span>
+          <span>{t("taxableBase", "Base imponible")}</span>
           <strong>{money(subtotal)}</strong>
         </div>
         <div>
-          <span>IVA</span>
+          <span>{t("vat", "IVA")}</span>
           <strong>{money(taxTotal)}</strong>
         </div>
         <div>
@@ -11814,10 +11830,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       </fieldset>
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
-        {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
+        {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>{t("cancel", "Cancelar")}</button> : null}
         {!readOnly ? (
           <button className={`primary-button ${saveState === "saved" ? "save-confirmed" : ""}`} type="button" onClick={submit} disabled={saveState === "saving"}>
-            {saveState === "saving" ? "Guardando..." : saveState === "saved" ? <><CheckCircle2 size={16} /> Guardado</> : createButtonLabel}
+            {saveState === "saving" ? t("saving", "Guardando...") : saveState === "saved" ? <><CheckCircle2 size={16} /> {t("saved", "Guardado")}</> : distributor ? t("save", createButtonLabel) : createButtonLabel}
           </button>
         ) : null}
         {isQuote && currentDocument?.id ? (
@@ -11847,7 +11863,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           </button>
         ) : null}
         <button className="primary-button send-quote-button" type="button" onClick={openSendModal}>
-          Enviar
+          {t("send", "Enviar")}
         </button>
       </div>
       {shippingModalOpen ? (
@@ -12216,6 +12232,16 @@ function distributorPanelCopy(locale) {
     de: { quotes: "Angebote", quote: "Angebot", newQuote: "Neues Angebot", saveQuote: "Angebot speichern", newClient: "Neuer Kunde", cancel: "Abbrechen", client: "Kunde", clientDetails: "Kundendaten", clientDetailsHint: "Allgemeine, steuerliche Angaben und Hauptadresse.", customerLevel: "Kundenstufe", discount: "Rabatt", taxId: "Steuer-ID", validating: "Wird geprüft...", viesValid: "VIES bestätigt", viesInvalid: "VIES ungültig", validateVies: "VIES prüfen", firstName: "Vorname", lastName: "Nachname", company: "Unternehmen", address: "Adresse", postalCode: "Postleitzahl", locality: "Ort", city: "Stadt", phone: "Telefon", mobilePhone: "Mobiltelefon", checkWhatsapp: "WhatsApp prüfen", email: "E-Mail", saving: "Wird gespeichert...", saved: "Gespeichert", saveClient: "Kunde speichern", markAccepted: "Angebot angenommen", searchClient: "Kunde nach Name, Firma, E-Mail, Telefon oder Steuer-ID suchen", catalog: "Katalog", catalogSearch: "Nach SKU, Name oder Familie suchen", image: "Bild", product: "Produkt", family: "Familie" }
   };
   return copy[language] || copy.es;
+}
+
+function distributorQuoteStatusLabel(locale, value, fallback) {
+  const labels = {
+    fr: { draft: "En attente", transferred: "Transféré", partial: "Partiel", accepted: "Accepté", closed: "Clôturé", rejected: "Refusé" },
+    it: { draft: "In attesa", transferred: "Trasferito", partial: "Parziale", accepted: "Accettato", closed: "Chiuso", rejected: "Rifiutato" },
+    pt: { draft: "Pendente", transferred: "Transferido", partial: "Parcial", accepted: "Aceite", closed: "Fechado", rejected: "Recusado" },
+    de: { draft: "Ausstehend", transferred: "Übertragen", partial: "Teilweise", accepted: "Angenommen", closed: "Geschlossen", rejected: "Abgelehnt" }
+  };
+  return labels[String(locale).toLowerCase()]?.[value] || fallback;
 }
 
 function RefreshButton({ onClick, loading }) {
