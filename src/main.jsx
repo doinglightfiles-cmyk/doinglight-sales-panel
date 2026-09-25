@@ -1699,7 +1699,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   return (
     <div className={`app-shell ${themeAlert.active ? "ultraviolet-alert" : ""}`}>
       <header className="app-header">
-        <button className="header-brand" type="button" onClick={() => navigate("dashboard")} aria-label="Ir a Inicio">
+        <button className="header-brand" type="button" onClick={() => navigate(isDistributor ? "quotes" : "dashboard")} aria-label={isDistributor ? distributorLabels.quotes : "Ir a Inicio"}>
           <img src="/logo-backend.png" alt="Doinglight Intranet" />
         </button>
         <nav className="main-nav" aria-label="Navegación principal">
@@ -1835,7 +1835,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 
       <div className="main-area">
         <section className="content">
-          {activeView === "dashboard" ? (
+          {activeView === "dashboard" && !isDistributor ? (
             <Dashboard
               token={session.token}
               locale={session.user.locale}
