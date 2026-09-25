@@ -50,6 +50,7 @@ const WAREHOUSE_SENDERS = new Set([
 const SHOPPING_LIST_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es", "marketing@doinglight.es"]);
 const CHAT_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es", "marketing@doinglight.es", "administracion@doinglight.es"]);
 const MANUFACTURING_USER = "jvtarancon@doinglight.es";
+const NET_PRICING_USERS = new Set(["a.jimenez@doinglight.es", "jvtarancon@doinglight.es"]);
 const USER_DISPLAY_NAMES = new Map([
   ["marketing@doinglight.es", "Edu"],
   ["administracion@doinglight.es", "Laura"],
@@ -9914,6 +9915,7 @@ function DownloadsView() {
 
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight", distributor = false, locale = "es" }) {
   const currentUser = readSession()?.user || null;
+  const canUseNetPricing = NET_PRICING_USERS.has(String(currentUser?.email || "").trim().toLowerCase());
   const distributorCopy = distributorPanelCopy(locale);
   const quoteUiCopy = DISTRIBUTOR_QUOTE_UI_COPY[String(locale).toLowerCase()] || {};
   const t = (key, fallback) => distributor ? (quoteUiCopy[key] || distributorCopy[key] || fallback) : fallback;
@@ -9986,7 +9988,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [shippingAmount, setShippingAmount] = useState("");
   const [shippingError, setShippingError] = useState("");
   const [warehouseSending, setWarehouseSending] = useState(false);
-  const [netPricing, setNetPricing] = useState(Boolean(initialQuote?.netPricing));
+  const [netPricing, setNetPricing] = useState(() => canUseNetPricing && Boolean(initialQuote?.netPricing));
   const [netPricingConfirmOpen, setNetPricingConfirmOpen] = useState(false);
   const [attachments, setAttachments] = useState(() =>
     (initialQuote?.attachments || []).map((attachment) => ({
@@ -11719,11 +11721,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   onChange={(event) => updateLine(line.id, { quantity: event.target.value })}
                 />
               </label>
-              {!netPricing || !isQuote ? (
+              {(!netPricing || !isQuote) ? (
                 <label>
                   <span className="quote-discount-heading">
                     <span>{t("discount", "Descuento %")}</span>
-                    {isQuote && index === 0 ? (
+                    {isQuote && index === 0 && canUseNetPricing ? (
                       <button
                         type="button"
                         onClick={() => setNetPricingConfirmOpen(true)}
@@ -11892,7 +11894,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           </form>
         </ModalShell>
       ) : null}
-      {netPricingConfirmOpen ? (
+      {netPricingConfirmOpen && canUseNetPricing ? (
         <ModalShell
           title="¿Convertir este presupuesto a precios netos?"
           eyebrow="Descuentos"
