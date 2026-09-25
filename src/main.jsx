@@ -1854,7 +1854,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "catalog" ? <CatalogView token={session.token} locale={session.user.locale} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
-          {activeView === "quotes" ? <QuotesView token={session.token} /> : null}
+          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} /> : null}
           {activeView === "downloads" ? <DownloadsView /> : null}
         </section>
       </div>
@@ -8952,7 +8952,7 @@ const QUOTE_TEMPLATES = [
   }
 ];
 
-function QuotesView({ token }) {
+function QuotesView({ token, distributor = false }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedPdfTemplate, setSelectedPdfTemplate] = useState("doinglight");
@@ -9093,7 +9093,7 @@ function QuotesView({ token }) {
       <header className="module-page-header invoices-page-header">
         <h3>Presupuestos</h3>
         <div className="quote-header-actions">
-          <select
+          {!distributor ? <select
             className="quote-template-select"
             aria-label="Presupuestos predefinidos"
             value=""
@@ -9103,18 +9103,18 @@ function QuotesView({ token }) {
             {QUOTE_TEMPLATES.map((template) => (
               <option key={template.id} value={template.id}>{template.name}</option>
             ))}
-          </select>
+          </select> : null}
           <button className="invoice-new-split single-action" type="button" onClick={() => openEmptyQuote("doinglight")}>
-            Nuevo presupuesto
+            {distributor ? "Plantilla Doinglight" : "Nuevo presupuesto"}
           </button>
-          <button
+          {!distributor ? <button
             className="invoice-new-split single-action quote-new-alt-action"
             type="button"
             onClick={() => openEmptyQuote("tubo-solar")}
             title="Nuevo presupuesto con plantilla Tubo Solar"
           >
             Nuevo presupuesto
-          </button>
+          </button> : null}
         </div>
       </header>
 
