@@ -3016,7 +3016,7 @@ function DocumentPdfPage({
   const isTuboSolarTemplate = pdfTemplate === "tubo-solar";
   const logoSrc = isTuboSolarTemplate ? TUBO_SOLAR_PDF_LOGO : DOCUMENT_PDF_LOGO;
   const issuerLines = language === "fr"
-    ? ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Pol.Emp.Campollano, C/E, 24"]
+    ? ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Pol.Emp.Campollano, C/E, 24", "02007 - Albacete - Spain", "+34 967 704 919"]
     : language === "it"
       ? ["ROBROS IMPORT EXPORT", "IT04457180240", "VIA DON G. MINZONI 38", "36030 Lugo di Vicenza (VI)", "T. +39 351 564 0554", "info@doinglight.it", "www.doinglight.it"]
       : ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Polígono Industrial Campollano, Calle E nº 24", "02007 ALBACETE", "España", "info@doinglight.es", "www.doinglight.es", "658856869"];
