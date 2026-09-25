@@ -9211,6 +9211,15 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
     }
   }
 
+  async function markQuoteAccepted(quoteId) {
+    try {
+      await apiRequest(`/api/sales/quotes/${quoteId}/accepted`, { token, method: "POST", body: {} });
+      quotes.reload();
+    } catch (err) {
+      window.alert(err.message || "No se ha podido marcar el presupuesto como aceptado.");
+    }
+  }
+
   return (
     <div className="module-page quotes-page">
       <header className="module-page-header invoices-page-header">
@@ -9250,30 +9259,28 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
           </div>
           <DocumentDateFilter value={dateFilter} onChange={setDateFilter} locale={distributor ? locale : "es"} />
         </div>
-        <div className="module-filters invoice-filter-row">
+        {!distributor ? <div className="module-filters invoice-filter-row">
           <label className="invoice-filter-select">
             <span>{listCopy.status}</span>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="all">{listCopy.allStates}</option>
               {QUOTE_STATUS_OPTIONS.map((status) => (
-                <option key={status.filterKey} value={status.filterKey}>{distributor ? distributorQuoteStatusLabel(locale, status.value, status.label) : status.label}</option>
+                <option key={status.filterKey} value={status.filterKey}>{status.label}</option>
               ))}
             </select>
           </label>
-        </div>
-        {selectedQuoteIds.length ? (
+        </div> : null}
+        {!distributor && selectedQuoteIds.length ? (
           <div className="document-selection-actions" aria-live="polite">
             <span className="selection-count">
               {selectedQuoteIds.length} {selectedQuoteIds.length === 1 ? listCopy.selected : listCopy.selectedPlural}
             </span>
-            {distributor ? <button className="bulk-document-action" type="button" onClick={markSelectedQuotesAccepted}>
-              {copy.markAccepted}
-            </button> : <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
+            <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
               Traspasar a albarán
-            </button>}
-            {!distributor ? <button className="bulk-document-action" type="button" onClick={invoiceSelectedQuotes}>
+            </button>
+            <button className="bulk-document-action" type="button" onClick={invoiceSelectedQuotes}>
               Facturar
-            </button> : null}
+            </button>
             <button className="bulk-document-action danger" type="button" onClick={deleteSelectedQuotes}>
               {listCopy.delete}
             </button>
@@ -9283,14 +9290,14 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
           <table className="module-table invoice-table quotes-table">
             <thead>
               <tr>
-                <th className="select-column">
+                {!distributor ? <th className="select-column">
                   <input
                     type="checkbox"
                     aria-label={listCopy.selectAll}
                     checked={allFilteredQuotesSelected}
                     onChange={toggleAllFilteredQuotes}
                   />
-                </th>
+                </th> : null}
                 <th className="invoice-kind-column"></th>
                 <SortableDocumentHeader sortKey="date" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.date}</SortableDocumentHeader>
                 <SortableDocumentHeader sortKey="status" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.status}</SortableDocumentHeader>
@@ -9299,17 +9306,18 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
                 <SortableDocumentHeader sortKey="subtotal" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.subtotal}</SortableDocumentHeader>
                 <SortableDocumentHeader sortKey="total" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.total}</SortableDocumentHeader>
                 <SortableDocumentHeader sortKey="currency" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.currency}</SortableDocumentHeader>
+                {distributor ? <th className="quote-accepted-column"></th> : null}
               </tr>
             </thead>
             <tbody>
               {quotes.loading || leads.loading ? (
                 <tr className="empty-table-row">
-                  <td colSpan={9}>{listCopy.loading}</td>
+                  <td colSpan={distributor ? 9 : 9}>{listCopy.loading}</td>
                 </tr>
               ) : null}
               {!quotes.loading && !leads.loading && !filteredQuotes.length ? (
                 <tr className="empty-table-row">
-                  <td colSpan={9}>{listCopy.empty}</td>
+                  <td colSpan={distributor ? 9 : 9}>{listCopy.empty}</td>
                 </tr>
               ) : null}
               {visibleQuotes.map((quote) => (
@@ -9326,7 +9334,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
                     }
                   }}
                 >
-                  <td className="select-column">
+                  {!distributor ? <td className="select-column">
                     <input
                       type="checkbox"
                       aria-label={`${listCopy.selectOne} ${quote.number}`}
@@ -9335,7 +9343,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}
                     />
-                  </td>
+                  </td> : null}
                   <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(quote)}`}>P</span></td>
                   <td>{dateOnly(quote.date)}</td>
                   <td><span className={`invoice-payment-status ${quote.statusKey}`}>{quote.status}</span></td>
@@ -9354,6 +9362,15 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
                   <td>{tableMoney(quote.subtotal)}</td>
                   <td>{tableMoney(quote.total)}</td>
                   <td>{quote.currency}</td>
+                  {distributor ? <td className="quote-accepted-column">
+                    {quote.statusKey !== "accepted" ? <button
+                      className="invoice-row-accept-button"
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); markQuoteAccepted(quote.id); }}
+                    >
+                      {copy.markAccepted}
+                    </button> : null}
+                  </td> : null}
                 </tr>
               ))}
               <DocumentLoadMoreRow
