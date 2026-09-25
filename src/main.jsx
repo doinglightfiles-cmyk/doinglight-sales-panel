@@ -8476,6 +8476,8 @@ function LeadMainFields({
   form,
   setForm,
   contactKind = "client",
+  locale = "es",
+  distributor = false,
   onValidateVies,
   viesChecking = false,
   viesMessage = "",
@@ -8484,6 +8486,7 @@ function LeadMainFields({
   whatsappMessage = ""
 }) {
   const isSupplier = contactKind === "supplier";
+  const copy = distributorPanelCopy(locale);
   const viesInvalid = Boolean(viesMessage && !form.viesValid && !viesChecking);
   const viesButtonClass = [
     "secondary-button",
@@ -8495,13 +8498,13 @@ function LeadMainFields({
     <section className="crm-section lead-main-edit">
       <header>
         <div>
-          <h4>{isSupplier ? "Datos del proveedor" : "Datos del contacto"}</h4>
-          <p>Información general, fiscal y dirección principal.</p>
+          <h4>{isSupplier ? "Datos del proveedor" : distributor ? copy.clientDetails : "Datos del contacto"}</h4>
+          <p>{distributor ? copy.clientDetailsHint : "Información general, fiscal y dirección principal."}</p>
         </div>
       </header>
       <div className="lead-main-grid contact-data-grid">
         {!isSupplier ? <label className="lead-level-field contact-level-field">
-          <span>Nivel de cliente</span>
+          <span>{distributor ? copy.customerLevel : "Nivel de cliente"}</span>
           <select
             value={form.customerLevel}
             onChange={(event) => {
@@ -8527,7 +8530,7 @@ function LeadMainFields({
           </select>
         </label> : null}
         {!isSupplier ? <label className="lead-discount-field">
-          <span>Descuento</span>
+          <span>{distributor ? copy.discount : "Descuento"}</span>
           <div>
             <input
               placeholder="%"
@@ -8544,7 +8547,7 @@ function LeadMainFields({
           </div>
         </label> : null}
         <label className="field-with-label tax-contact-field">
-          <span>Identificador fiscal</span>
+          <span>{distributor ? copy.taxId : "Identificador fiscal"}</span>
           <div className="tax-contact-stack">
             <select
               value={form.taxIdentifierType}
@@ -8581,24 +8584,24 @@ function LeadMainFields({
               disabled={!form.country || !form.taxId || viesChecking || !onValidateVies}
             >
               {form.viesValid ? <CheckCircle2 size={16} /> : null}
-              {viesChecking ? "Validando..." : form.viesValid ? "VIES validado" : viesInvalid ? "VIES no válido" : "Validar VIES"}
+              {viesChecking ? (distributor ? copy.validating : "Validando...") : form.viesValid ? (distributor ? copy.viesValid : "VIES validado") : viesInvalid ? (distributor ? copy.viesInvalid : "VIES no válido") : (distributor ? copy.validateVies : "Validar VIES")}
             </button>
           </div>
         </label>
-        <input placeholder="Nombre" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
-        <input placeholder="Apellidos" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
+        <input placeholder={distributor ? copy.firstName : "Nombre"} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
+        <input placeholder={distributor ? copy.lastName : "Apellidos"} value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
         {form.customerType !== "particular" || isSupplier ? (
-          <input placeholder="Empresa" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
+          <input placeholder={distributor ? copy.company : "Empresa"} value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : <span className="hidden-grid-cell" aria-hidden="true" />}
-        <input placeholder="Dirección" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
-        <input placeholder="C.P." value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
-        <input placeholder="Población" value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
-        <input placeholder="Ciudad" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
-        <input placeholder="Teléfono" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+        <input placeholder={distributor ? copy.address : "Dirección"} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
+        <input placeholder={distributor ? copy.postalCode : "C.P."} value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
+        <input placeholder={distributor ? copy.locality : "Población"} value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
+        <input placeholder={distributor ? copy.city : "Ciudad"} value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
+        <input placeholder={distributor ? copy.phone : "Teléfono"} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
         <label className="field-with-label whatsapp-contact-field compact-field-label">
           <div className="whatsapp-contact-stack">
             <input
-              placeholder="Teléfono Móvil"
+              placeholder={distributor ? copy.mobilePhone : "Teléfono Móvil"}
               value={form.mobilePhone || ""}
               onChange={(event) => setForm({ ...form, mobilePhone: event.target.value, whatsappStatus: "unknown" })}
             />
@@ -8609,11 +8612,11 @@ function LeadMainFields({
               disabled={!form.mobilePhone || !onCheckWhatsapp}
             >
               <MessageCircle size={16} />
-              Comprobar WhatsApp
+              {distributor ? copy.checkWhatsapp : "Comprobar WhatsApp"}
             </button>
           </div>
         </label>
-        <input placeholder="Email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+        <input placeholder={distributor ? copy.email : "Email"} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
         <label className="field-with-label compact-field-label">
           <select
             value={form.country}
@@ -8793,8 +8796,11 @@ function LeadFormFields({
   onCancel,
   onValidateVies,
   submitLabel = "Guardar",
-  initialCustomerLevel = CUSTOMER_LEVELS[0]
+  initialCustomerLevel = CUSTOMER_LEVELS[0],
+  locale = "es",
+  distributor = false
 }) {
+  const copy = distributorPanelCopy(locale);
   const defaultLevel = customerLevelById(initialCustomerLevel?.id || initialCustomerLevel);
   const [form, setForm] = useState({
     customerLevel: defaultLevel.id,
@@ -8893,6 +8899,8 @@ function LeadFormFields({
         form={form}
         setForm={setForm}
         contactKind="client"
+        locale={locale}
+        distributor={distributor}
         onValidateVies={validateVies}
         viesChecking={viesChecking}
         viesMessage={viesMessage}
@@ -8900,19 +8908,19 @@ function LeadFormFields({
         onCheckWhatsapp={checkWhatsapp}
         whatsappMessage={whatsappMessage}
       />
-      <p className="form-help">Este descuento se aplicará por defecto al crear presupuestos para este cliente.</p>
-      <LeadCrmFields
+      {!distributor ? <p className="form-help">Este descuento se aplicará por defecto al crear presupuestos para este cliente.</p> : null}
+      {!distributor ? <LeadCrmFields
         form={form}
         setForm={setForm}
         paymentNotificationsAllowed={paymentNotificationsAllowed}
         contactKind="client"
         fallbackCountry={form.country || defaultLevel.country}
-      />
+      /> : null}
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
-        {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button> : null}
+        {onCancel ? <button className="secondary-button" type="button" onClick={onCancel}>{distributor ? copy.cancel : "Cancelar"}</button> : null}
         <button className={`primary-button ${saveState === "saved" ? "save-confirmed" : ""}`} type="submit" disabled={saveState === "saving"}>
-          {saveState === "saving" ? "Guardando..." : saveState === "saved" ? <><CheckCircle2 size={16} /> Guardado</> : submitLabel}
+          {saveState === "saving" ? (distributor ? copy.saving : "Guardando...") : saveState === "saved" ? <><CheckCircle2 size={16} /> {distributor ? copy.saved : "Guardado"}</> : distributor ? copy.saveClient : submitLabel}
         </button>
       </div>
     </form>
@@ -9103,6 +9111,19 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
     }
   }
 
+  async function markSelectedQuotesAccepted() {
+    if (!selectedQuoteIds.length) return;
+    try {
+      await Promise.all(selectedQuoteIds.map((quoteId) =>
+        apiRequest(`/api/sales/quotes/${quoteId}/accepted`, { token, method: "POST", body: {} })
+      ));
+      setSelectedQuoteIds([]);
+      quotes.reload();
+    } catch (err) {
+      window.alert(err.message || "No se ha podido marcar el presupuesto como aceptado.");
+    }
+  }
+
   return (
     <div className="module-page quotes-page">
       <header className="module-page-header invoices-page-header">
@@ -9158,12 +9179,14 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
             <span className="selection-count">
               {selectedQuoteIds.length} presupuesto{selectedQuoteIds.length === 1 ? "" : "s"} seleccionado{selectedQuoteIds.length === 1 ? "" : "s"}
             </span>
-            <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
+            {distributor ? <button className="bulk-document-action" type="button" onClick={markSelectedQuotesAccepted}>
+              {copy.markAccepted}
+            </button> : <button className="bulk-document-action" type="button" onClick={transferSelectedQuotesToDeliveryNotes}>
               Traspasar a albarán
-            </button>
-            <button className="bulk-document-action" type="button" onClick={invoiceSelectedQuotes}>
+            </button>}
+            {!distributor ? <button className="bulk-document-action" type="button" onClick={invoiceSelectedQuotes}>
               Facturar
-            </button>
+            </button> : null}
             <button className="bulk-document-action danger" type="button" onClick={deleteSelectedQuotes}>
               Eliminar
             </button>
@@ -11493,6 +11516,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         ) : (
           <LeadFormFields
             submitLabel="Guardar cliente"
+            distributor={distributor}
+            locale={locale}
             onSubmit={(form) => apiRequest("/api/sales/leads", { token, method: "POST", body: form })}
             onValidateVies={(body) => apiRequest("/api/sales/vies/validate", { token, method: "POST", body })}
             onDone={(result) => {
@@ -11513,7 +11538,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 <Truck size={16} />
                 PORTES
               </button>
-              {isQuote ? (
+              {isQuote && !distributor ? (
                 <>
                   <button
                     className="quote-transfer-lines-button"
@@ -12157,11 +12182,11 @@ function SearchBar({ value, onChange, placeholder }) {
 function distributorPanelCopy(locale) {
   const language = String(locale || "es").toLowerCase();
   const copy = {
-    es: { quotes: "Presupuestos", quote: "Presupuesto", newQuote: "Nuevo presupuesto", saveQuote: "Guardar presupuesto", newClient: "Nuevo cliente", cancel: "Cancelar", client: "Cliente", searchClient: "Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF", catalog: "Catálogo", catalogSearch: "Buscar por SKU, nombre o familia", image: "Imagen", product: "Producto", family: "Familia" },
-    fr: { quotes: "Devis", quote: "Devis", newQuote: "Nouveau devis", saveQuote: "Enregistrer le devis", newClient: "Nouveau client", cancel: "Annuler", client: "Client", searchClient: "Rechercher un client par nom, société, e-mail, téléphone ou identifiant fiscal", catalog: "Catalogue", catalogSearch: "Rechercher par SKU, nom ou famille", image: "Image", product: "Produit", family: "Famille" },
-    it: { quotes: "Preventivi", quote: "Preventivo", newQuote: "Nuovo preventivo", saveQuote: "Salva preventivo", newClient: "Nuovo cliente", cancel: "Annulla", client: "Cliente", searchClient: "Cerca cliente per nome, azienda, email, telefono o codice fiscale", catalog: "Catalogo", catalogSearch: "Cerca per SKU, nome o famiglia", image: "Immagine", product: "Prodotto", family: "Famiglia" },
-    pt: { quotes: "Orçamentos", quote: "Orçamento", newQuote: "Novo orçamento", saveQuote: "Guardar orçamento", newClient: "Novo cliente", cancel: "Cancelar", client: "Cliente", searchClient: "Pesquisar cliente por nome, empresa, e-mail, telefone ou NIF", catalog: "Catálogo", catalogSearch: "Pesquisar por SKU, nome ou família", image: "Imagem", product: "Produto", family: "Família" },
-    de: { quotes: "Angebote", quote: "Angebot", newQuote: "Neues Angebot", saveQuote: "Angebot speichern", newClient: "Neuer Kunde", cancel: "Abbrechen", client: "Kunde", searchClient: "Kunde nach Name, Firma, E-Mail, Telefon oder Steuer-ID suchen", catalog: "Katalog", catalogSearch: "Nach SKU, Name oder Familie suchen", image: "Bild", product: "Produkt", family: "Familie" }
+    es: { quotes: "Presupuestos", quote: "Presupuesto", newQuote: "Nuevo presupuesto", saveQuote: "Guardar presupuesto", newClient: "Nuevo cliente", cancel: "Cancelar", client: "Cliente", clientDetails: "Datos del contacto", clientDetailsHint: "Información general, fiscal y dirección principal.", customerLevel: "Nivel de cliente", discount: "Descuento", taxId: "Identificador fiscal", validating: "Validando...", viesValid: "VIES validado", viesInvalid: "VIES no válido", validateVies: "Validar VIES", firstName: "Nombre", lastName: "Apellidos", company: "Empresa", address: "Dirección", postalCode: "C.P.", locality: "Población", city: "Ciudad", phone: "Teléfono", mobilePhone: "Teléfono móvil", checkWhatsapp: "Comprobar WhatsApp", email: "Email", saving: "Guardando...", saved: "Guardado", saveClient: "Guardar cliente", markAccepted: "Presupuesto aceptado", searchClient: "Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF", catalog: "Catálogo", catalogSearch: "Buscar por SKU, nombre o familia", image: "Imagen", product: "Producto", family: "Familia" },
+    fr: { quotes: "Devis", quote: "Devis", newQuote: "Nouveau devis", saveQuote: "Enregistrer le devis", newClient: "Nouveau client", cancel: "Annuler", client: "Client", clientDetails: "Informations du client", clientDetailsHint: "Informations générales, fiscales et adresse principale.", customerLevel: "Niveau de client", discount: "Remise", taxId: "Identifiant fiscal", validating: "Validation...", viesValid: "VIES validé", viesInvalid: "VIES non valide", validateVies: "Valider VIES", firstName: "Prénom", lastName: "Nom", company: "Entreprise", address: "Adresse", postalCode: "Code postal", locality: "Localité", city: "Ville", phone: "Téléphone", mobilePhone: "Téléphone mobile", checkWhatsapp: "Vérifier WhatsApp", email: "E-mail", saving: "Enregistrement...", saved: "Enregistré", saveClient: "Enregistrer le client", markAccepted: "Devis accepté", searchClient: "Rechercher un client par nom, société, e-mail, téléphone ou identifiant fiscal", catalog: "Catalogue", catalogSearch: "Rechercher par SKU, nom ou famille", image: "Image", product: "Produit", family: "Famille" },
+    it: { quotes: "Preventivi", quote: "Preventivo", newQuote: "Nuovo preventivo", saveQuote: "Salva preventivo", newClient: "Nuovo cliente", cancel: "Annulla", client: "Cliente", clientDetails: "Dati del cliente", clientDetailsHint: "Informazioni generali, fiscali e indirizzo principale.", customerLevel: "Livello cliente", discount: "Sconto", taxId: "Codice fiscale", validating: "Convalida...", viesValid: "VIES convalidato", viesInvalid: "VIES non valido", validateVies: "Convalida VIES", firstName: "Nome", lastName: "Cognome", company: "Azienda", address: "Indirizzo", postalCode: "CAP", locality: "Località", city: "Città", phone: "Telefono", mobilePhone: "Cellulare", checkWhatsapp: "Verifica WhatsApp", email: "E-mail", saving: "Salvataggio...", saved: "Salvato", saveClient: "Salva cliente", markAccepted: "Preventivo accettato", searchClient: "Cerca cliente per nome, azienda, email, telefono o codice fiscale", catalog: "Catalogo", catalogSearch: "Cerca per SKU, nome o famiglia", image: "Immagine", product: "Prodotto", family: "Famiglia" },
+    pt: { quotes: "Orçamentos", quote: "Orçamento", newQuote: "Novo orçamento", saveQuote: "Guardar orçamento", newClient: "Novo cliente", cancel: "Cancelar", client: "Cliente", clientDetails: "Dados do cliente", clientDetailsHint: "Informações gerais, fiscais e morada principal.", customerLevel: "Nível de cliente", discount: "Desconto", taxId: "Identificação fiscal", validating: "A validar...", viesValid: "VIES validado", viesInvalid: "VIES inválido", validateVies: "Validar VIES", firstName: "Nome", lastName: "Apelido", company: "Empresa", address: "Morada", postalCode: "Código postal", locality: "Localidade", city: "Cidade", phone: "Telefone", mobilePhone: "Telemóvel", checkWhatsapp: "Verificar WhatsApp", email: "E-mail", saving: "A guardar...", saved: "Guardado", saveClient: "Guardar cliente", markAccepted: "Orçamento aceite", searchClient: "Pesquisar cliente por nome, empresa, e-mail, telefone ou NIF", catalog: "Catálogo", catalogSearch: "Pesquisar por SKU, nome ou família", image: "Imagem", product: "Produto", family: "Família" },
+    de: { quotes: "Angebote", quote: "Angebot", newQuote: "Neues Angebot", saveQuote: "Angebot speichern", newClient: "Neuer Kunde", cancel: "Abbrechen", client: "Kunde", clientDetails: "Kundendaten", clientDetailsHint: "Allgemeine, steuerliche Angaben und Hauptadresse.", customerLevel: "Kundenstufe", discount: "Rabatt", taxId: "Steuer-ID", validating: "Wird geprüft...", viesValid: "VIES bestätigt", viesInvalid: "VIES ungültig", validateVies: "VIES prüfen", firstName: "Vorname", lastName: "Nachname", company: "Unternehmen", address: "Adresse", postalCode: "Postleitzahl", locality: "Ort", city: "Stadt", phone: "Telefon", mobilePhone: "Mobiltelefon", checkWhatsapp: "WhatsApp prüfen", email: "E-Mail", saving: "Wird gespeichert...", saved: "Gespeichert", saveClient: "Kunde speichern", markAccepted: "Angebot angenommen", searchClient: "Kunde nach Name, Firma, E-Mail, Telefon oder Steuer-ID suchen", catalog: "Katalog", catalogSearch: "Nach SKU, Name oder Familie suchen", image: "Bild", product: "Produkt", family: "Familie" }
   };
   return copy[language] || copy.es;
 }
