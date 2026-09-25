@@ -3055,11 +3055,17 @@ td span {
   align-items: center;
   gap: 8px;
   color: var(--muted);
+  background: #fff;
+  border: 1px solid #e2e7de;
+  border-radius: 9px;
+  padding: 0 12px;
+  box-shadow: 0 2px 7px rgba(35, 54, 33, 0.08);
 }
 
 .searchbar input {
   border: 0;
   box-shadow: none;
+  background: transparent;
 }
 
 .table-wrap {

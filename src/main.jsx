@@ -1856,7 +1856,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "catalog" ? <CatalogView token={session.token} locale={session.user.locale} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
-          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} /> : null}
+          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} /> : null}
           {activeView === "downloads" ? <DownloadsView /> : null}
         </section>
       </div>
@@ -8954,7 +8954,7 @@ const QUOTE_TEMPLATES = [
   }
 ];
 
-function QuotesView({ token, distributor = false }) {
+function QuotesView({ token, distributor = false, locale = "es" }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedPdfTemplate, setSelectedPdfTemplate] = useState("doinglight");
@@ -9107,7 +9107,7 @@ function QuotesView({ token, distributor = false }) {
             ))}
           </select> : null}
           <button className="invoice-new-split single-action" type="button" onClick={() => openEmptyQuote("doinglight")}>
-            {distributor ? "Plantilla Doinglight" : "Nuevo presupuesto"}
+            {distributor ? distributorQuoteButtonLabel(locale) : "Nuevo presupuesto"}
           </button>
           {!distributor ? <button
             className="invoice-new-split single-action quote-new-alt-action"
@@ -12136,6 +12136,16 @@ function SearchBar({ value, onChange, placeholder }) {
       <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
     </label>
   );
+}
+
+function distributorQuoteButtonLabel(locale) {
+  return {
+    es: "Nuevo presupuesto",
+    fr: "Nouveau devis",
+    it: "Nuovo preventivo",
+    pt: "Novo orçamento",
+    de: "Neues Angebot"
+  }[String(locale || "es").toLowerCase()] || "Nuevo presupuesto";
 }
 
 function RefreshButton({ onClick, loading }) {
