@@ -7940,6 +7940,17 @@ th {
 .redirect-row button { min-height: 40px; border: 0; border-radius: 7px; padding: 0 12px; color: #b42318; background: #fff0ef; font: inherit; font-size: 12px; font-weight: 800; }
 .secondary-button { display: inline-flex; width: max-content; min-height: 42px; align-items: center; gap: 7px; border: 1px solid #9eb67c; border-radius: 7px; padding: 0 13px; color: #3b5815; background: #f7fbf1; font: inherit; font-weight: 800; }
 
+.mail-workspace { max-width: 1120px; }
+.mail-connection-card { display: flex; align-items: flex-start; gap: 14px; margin: 20px 0; padding: 17px 19px; border: 1px solid #cfdcbf; border-radius: 9px; color: #40551f; background: #f4f9ec; }
+.mail-connection-card p { margin: 5px 0 0; color: #61705b; line-height: 1.5; }
+.mail-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 350px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--white); }
+.mail-folders { display: grid; align-content: start; gap: 4px; padding: 12px; border-right: 1px solid var(--line); background: #f8faf5; }
+.mail-folders button { border: 0; border-radius: 6px; padding: 11px 12px; color: #50604b; background: transparent; font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer; }
+.mail-folders button:hover, .mail-folders button.active { color: #35500a; background: #e1edc8; }
+.mail-empty-state { display: grid; place-content: center; justify-items: center; gap: 8px; padding: 30px; color: #6c7b65; text-align: center; }
+.mail-empty-state h4 { margin: 6px 0 0; color: #263822; font-size: 18px; }
+.mail-empty-state p { max-width: 360px; margin: 0; line-height: 1.5; }
+
 @media (max-width: 760px) {
   .websites-page { grid-template-columns: 1fr; }
   .websites-sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -7953,4 +7964,7 @@ th {
   .seo-editor label:nth-of-type(3), .seo-editor label:nth-of-type(4) { grid-column: auto; }
   .seo-editor article > header { align-items: flex-start; flex-direction: column; }
   .redirect-row { grid-template-columns: 1fr !important; }
+  .mail-layout { grid-template-columns: 1fr; }
+  .mail-folders { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .mail-folders button { min-width: max-content; }
 }

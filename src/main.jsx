@@ -1603,6 +1603,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   // sessions may additionally include distributorId from the token.
   const isDistributor = Boolean(session.user?.distributor?.id || session.user?.distributorId) && !canManageWebsites;
   const panelLocale = panelLocaleForUser(session.user);
+  const isFrenchDistributor = isDistributor && panelLocale === "fr";
   const distributorLabels = {
     es: { quotes: "Presupuestos", clients: "Clientes", products: "Productos" },
     fr: { quotes: "Devis", clients: "Clients", products: "Produits" },
@@ -1618,7 +1619,8 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const primaryNav = isDistributor ? [
     { id: "quotes", label: distributorLabels.quotes },
     { id: "contacts", label: distributorLabels.clients },
-    { id: "catalog", label: distributorLabels.products }
+    { id: "catalog", label: distributorLabels.products },
+    ...(isFrenchDistributor ? [{ id: "mail", label: "Mail" }] : [])
   ] : [
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
@@ -1898,6 +1900,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={panelLocale} distributor={isDistributor} /> : null}
+          {activeView === "mail" && isFrenchDistributor ? <FrenchMailWorkspace /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} /> : null}
@@ -2270,6 +2273,48 @@ const MODULES = {
     empty: "No hay informes generados todavía."
   }
 };
+
+function FrenchMailWorkspace() {
+  const [folder, setFolder] = useState("inbox");
+  const labels = {
+    inbox: "Boîte de réception",
+    sent: "Messages envoyés",
+    drafts: "Brouillons"
+  };
+
+  return (
+    <div className="module-page mail-workspace">
+      <header className="module-page-header">
+        <div>
+          <p className="section-eyebrow">info@doinglight.fr</p>
+          <h3>Mail</h3>
+        </div>
+        <button className="primary-button" type="button" disabled title="La rédaction sera activée après la connexion à la boîte aux lettres">
+          <Mail size={16} /> Nouveau message
+        </button>
+      </header>
+      <section className="mail-connection-card">
+        <Mail size={25} />
+        <div>
+          <strong>Boîte aux lettres prête à connecter</strong>
+          <p>La messagerie affichera les e-mails reçus, envoyés et les brouillons de <b>info@doinglight.fr</b> dès que la connexion sécurisée à la boîte aux lettres sera configurée.</p>
+        </div>
+      </section>
+      <section className="mail-layout">
+        <nav className="mail-folders" aria-label="Dossiers de messagerie">
+          {Object.entries(labels).map(([id, label]) => (
+            <button key={id} type="button" className={folder === id ? "active" : ""} onClick={() => setFolder(id)}>{label}</button>
+          ))}
+        </nav>
+        <div className="mail-empty-state">
+          <Mail size={34} />
+          <h4>{labels[folder]}</h4>
+          <p>La connexion à info@doinglight.fr est en attente de configuration.</p>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function ModuleWorkspace({ moduleId }) {
   const module = MODULES[moduleId] || {
