@@ -1039,6 +1039,8 @@ function WarehouseApp({ session, onLogout }) {
   const [error, setError] = useState("");
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [incident, setIncident] = useState("");
+  const [carrierOpen, setCarrierOpen] = useState(false);
+  const [carrier, setCarrier] = useState("");
   const [shoppingOpen, setShoppingOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInitialPeer, setChatInitialPeer] = useState("");
@@ -1092,10 +1094,12 @@ function WarehouseApp({ session, onLogout }) {
       await apiRequest(`/api/warehouse/delivery-notes/${selected.id}/action`, {
         token: session.token,
         method: "POST",
-        body: { action, incident: action === "incident" ? incident : "" }
+        body: { action, incident: action === "incident" ? incident : "", carrier }
       });
       setIncidentOpen(false);
       setIncident("");
+      setCarrierOpen(false);
+      setCarrier("");
       await load();
     } catch (err) {
       setError(err.message);
@@ -1194,9 +1198,10 @@ function WarehouseApp({ session, onLogout }) {
             ) : (
               <footer>
                 <button type="button" className="warehouse-incident-button" onClick={() => setIncidentOpen(true)}>INCIDENCIA</button>
-                <button type="button" className="warehouse-ready-button" disabled={saving} onClick={() => runAction("prepared")}>PEDIDO FINALIZADO</button>
+                <button type="button" className="warehouse-ready-button" disabled={saving} onClick={() => setCarrierOpen(true)}>PEDIDO FINALIZADO</button>
               </footer>
             )}
+            {carrierOpen ? <div className="warehouse-incident-form"><label>Selecciona la agencia de transporte</label><div className="carrier-choice-grid">{["SEUR", "GLS", "DHL", "Grupaje"].map((name) => <button key={name} type="button" className={carrier === name ? "selected" : ""} onClick={() => setCarrier(name)}>{name}</button>)}</div><div><button type="button" className="secondary-button" onClick={() => setCarrierOpen(false)}>Cancelar</button><button type="button" className="warehouse-incident-submit" disabled={saving || !carrier} onClick={() => runAction("prepared")}>Confirmar envío</button></div></div> : null}
           </section>
         </div>
       ) : null}
@@ -1522,7 +1527,7 @@ function NotificationsInbox({token,onClose,onChanged,onOpenShoppingList}){
   const [archived,setArchived]=useState(false);const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState("");
   async function load(next=archived){setLoading(true);setError("");try{const result=await apiRequest(`/api/notifications?archived=${next}`,{token});setItems(result.items||[]);if(!next){await apiRequest("/api/notifications/read-all",{token,method:"POST",body:{}});onChanged?.();}}catch(e){setError(e.message);}finally{setLoading(false);}}
   useEffect(()=>{load(archived);},[archived,token]);
-  async function act(item){try{const result=await apiRequest(`/api/notifications/${item.id}/action`,{token,method:"POST",body:{}});if(result.alreadyProcessed)window.alert("Otro usuario ya había creado el albarán de entrega.");else if(result.warehousePending)window.alert("Se ha creado el albarán y se ha enviado a almacén.");await load(archived);}catch(e){setError(e.message);}}
+  async function act(item){try{if(item.actionType==="add_tracking"){const trackingUrl=window.prompt(`Introduce el enlace de seguimiento de ${item.actionPayload?.carrier || "la agencia"}:`);if(!trackingUrl)return;await apiRequest(`/api/warehouse/delivery-notes/${item.documentId}/shipping`,{token,method:"POST",body:{trackingUrl}});window.alert("Seguimiento enviado al cliente.");}const result=await apiRequest(`/api/notifications/${item.id}/action`,{token,method:"POST",body:{}});if(result.alreadyProcessed)window.alert("Otro usuario ya había creado el albarán de entrega.");else if(result.warehousePending)window.alert("Se ha creado el albarán y se ha enviado a almacén.");await load(archived);}catch(e){setError(e.message);}}
   return <div className="notification-modal-backdrop" onMouseDown={onClose}><section className="notification-inbox" onMouseDown={e=>e.stopPropagation()}><header><div><small>Centro de actividad</small><h2>Notificaciones</h2></div><button className="icon-button" onClick={onClose}><X size={20}/></button></header><nav><button className={!archived?"active":""} onClick={()=>setArchived(false)}>Bandeja de entrada</button><button className={archived?"active":""} onClick={()=>setArchived(true)}>Archivadas</button></nav><div className="notification-table-head"><span>Fecha</span><span>Descripción</span><span>Acción</span></div><div className="notification-rows">{loading?<p>Cargando…</p>:null}{error?<p className="form-error">{error}</p>:null}{!loading&&!items.length?<p className="notification-empty">No hay notificaciones en esta pestaña.</p>:items.map(item=><article key={item.id}><time>{new Date(item.createdAt).toLocaleDateString("es-ES")}</time><p>{item.description}</p>{archived?<span className="archived-label">Archivada</span>:<div className="notification-row-actions">{item.actionType==="open_shopping_list"?<button className="notification-secondary-action" onClick={()=>{onOpenShoppingList?.(item.actionPayload?.listId);onClose();}}>La lista de la compra</button>:null}<button onClick={()=>act(item)}>{item.actionType==="send_to_preparation"?"Enviar a preparación":"¡Genial!"}</button></div>}</article>)}</div></section></div>;
 }
 

@@ -7603,6 +7603,9 @@ th {
 .warehouse-incident-form textarea { min-height: 130px; resize: vertical; }
 .warehouse-incident-form > div { display: flex; justify-content: flex-end; gap: 10px; }
 .warehouse-incident-form button { padding: 0 18px; }
+.carrier-choice-grid { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px !important; margin:0 !important; }
+.carrier-choice-grid button { min-height:52px; border:1px solid #cfd8c7; border-radius:8px; background:#fff; color:#304326; font-weight:900; letter-spacing:.04em; }
+.carrier-choice-grid button.selected { border-color:#5a7b29; color:#fff; background:#5a7b29; }
 
 @media (max-width: 620px) {
   .warehouse-header { height: 70px; }
