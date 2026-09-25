@@ -9916,12 +9916,23 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isInvoice = documentType === "invoice";
   const isDeliveryNote = documentType === "delivery_note";
   const isProforma = documentType === "proforma";
-  const isFrenchDistributor = distributor && String(locale).toLowerCase() === "fr";
-  const taxOptions = isFrenchDistributor
-    ? [
-        { value: "21", rate: 21, label: "21%" },
-        { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracommunautaire · 0%", reverseCharge: true }
-      ]
+  const distributorTaxOptions = {
+    fr: [
+      { value: "21", rate: 21, label: "21%" },
+      { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracommunautaire · 0%", reverseCharge: true }
+    ],
+    it: [
+      { value: "22", rate: 22, label: "IVA 22%" },
+      { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracomunitario · 0%", reverseCharge: true }
+    ],
+    pt: [
+      { value: "23", rate: 23, label: "IVA 23%" },
+      { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracomunitário · 0%", reverseCharge: true }
+    ]
+  };
+  const distributorLocale = String(locale).toLowerCase();
+  const taxOptions = distributor && distributorTaxOptions[distributorLocale]
+    ? distributorTaxOptions[distributorLocale]
     : DOCUMENT_TAX_OPTIONS;
   const zeroDiscountByDefault = isQuote
     && !initialQuote?.id
@@ -10020,7 +10031,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   });
   const [templatePicker, setTemplatePicker] = useState(template?.id || "");
   const [draggingLineId, setDraggingLineId] = useState("");
-  const [taxRate, setTaxRate] = useState(() => taxModeFromDocument(initialQuote || { taxMode: "21" }));
+  const [taxRate, setTaxRate] = useState(() => {
+    if (!initialQuote?.id && distributor && distributorTaxOptions[distributorLocale]) {
+      return distributorTaxOptions[distributorLocale][0].value;
+    }
+    return taxModeFromDocument(initialQuote || { taxMode: "21" });
+  });
   const [notes, setNotes] = useState(initialQuote?.notes || "");
   const [includePaymentDetails, setIncludePaymentDetails] = useState(Boolean(initialQuote?.includePaymentDetails));
   const [redsysPaymentUrl, setRedsysPaymentUrl] = useState(initialQuote?.redsysPaymentUrl || "");
