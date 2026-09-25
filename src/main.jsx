@@ -1555,7 +1555,9 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
   const canManageWebsites = isPanelAdministrator(session.user);
-  const isDistributor = Boolean(session.user?.distributorId) && !canManageWebsites;
+  // The login endpoint exposes the distributor as a nested object; authenticated
+  // sessions may additionally include distributorId from the token.
+  const isDistributor = Boolean(session.user?.distributor?.id || session.user?.distributorId) && !canManageWebsites;
   const panelLocale = String(session.user?.locale || "es").toLowerCase();
   const distributorLabels = {
     es: { quotes: "Presupuestos", clients: "Clientes", products: "Productos" },
