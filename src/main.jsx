@@ -887,6 +887,17 @@ function isPanelAdministrator(user) {
   return ["admin", "doinglight_admin", "super_admin"].includes(String(user?.role || "").toLowerCase());
 }
 
+function panelLocaleForUser(user) {
+  const email = String(user?.email || "").trim().toLowerCase();
+  const localeByDistributorEmail = {
+    "info@doinglight.fr": "fr",
+    "info@doinglight.it": "it",
+    "info@doinglight.pt": "pt",
+    "info@doinglight.de": "de"
+  };
+  return localeByDistributorEmail[email] || String(user?.locale || "es").toLowerCase();
+}
+
 function getDriveFileId(url) {
   return (
     String(url || "").match(/[?&]id=([^&]+)/)?.[1] ||
@@ -1558,7 +1569,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   // The login endpoint exposes the distributor as a nested object; authenticated
   // sessions may additionally include distributorId from the token.
   const isDistributor = Boolean(session.user?.distributor?.id || session.user?.distributorId) && !canManageWebsites;
-  const panelLocale = String(session.user?.locale || "es").toLowerCase();
+  const panelLocale = panelLocaleForUser(session.user);
   const distributorLabels = {
     es: { quotes: "Presupuestos", clients: "Clientes", products: "Productos" },
     fr: { quotes: "Devis", clients: "Clients", products: "Produits" },
@@ -1853,7 +1864,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "taxes" ? <ModuleWorkspace moduleId="taxes" /> : null}
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
-          {activeView === "catalog" ? <CatalogView token={session.token} locale={session.user.locale} /> : null}
+          {activeView === "catalog" ? <CatalogView token={session.token} locale={panelLocale} distributor={isDistributor} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} /> : null}
@@ -6432,7 +6443,8 @@ function CompactList({ items, render, empty }) {
   );
 }
 
-function CatalogView({ token, locale = "es" }) {
+function CatalogView({ token, locale = "es", distributor = false }) {
+  const copy = distributorPanelCopy(locale);
   const [query, setQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const catalog = useResource(
@@ -6448,19 +6460,19 @@ function CatalogView({ token, locale = "es" }) {
 
   return (
     <Panel
-      title="Catálogo"
+      title={distributor ? copy.catalog : "Catálogo"}
       action={<RefreshButton onClick={catalog.reload} loading={catalog.loading} />}
     >
-      <SearchBar value={query} onChange={setQuery} placeholder="Buscar por SKU, nombre o familia" />
+      <SearchBar value={query} onChange={setQuery} placeholder={distributor ? copy.catalogSearch : "Buscar por SKU, nombre o familia"} />
       {catalog.error ? <p className="form-error">{catalog.error}</p> : null}
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Imagen</th>
+              <th>{distributor ? copy.image : "Imagen"}</th>
               <th>SKU</th>
-              <th>Producto</th>
-              <th>Familia</th>
+              <th>{distributor ? copy.product : "Producto"}</th>
+              <th>{distributor ? copy.family : "Familia"}</th>
               <th>Ø</th>
               <th>PVP</th>
               <th></th>
@@ -8955,6 +8967,7 @@ const QUOTE_TEMPLATES = [
 ];
 
 function QuotesView({ token, distributor = false, locale = "es" }) {
+  const copy = distributorPanelCopy(locale);
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedPdfTemplate, setSelectedPdfTemplate] = useState("doinglight");
@@ -9093,7 +9106,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
   return (
     <div className="module-page quotes-page">
       <header className="module-page-header invoices-page-header">
-        <h3>Presupuestos</h3>
+        <h3>{distributor ? copy.quotes : "Presupuestos"}</h3>
         <div className="quote-header-actions">
           {!distributor ? <select
             className="quote-template-select"
@@ -9107,7 +9120,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
             ))}
           </select> : null}
           <button className="invoice-new-split single-action" type="button" onClick={() => openEmptyQuote("doinglight")}>
-            {distributor ? distributorQuoteButtonLabel(locale) : "Nuevo presupuesto"}
+            {distributor ? copy.newQuote : "Nuevo presupuesto"}
           </button>
           {!distributor ? <button
             className="invoice-new-split single-action quote-new-alt-action"
@@ -9245,8 +9258,8 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
       </section>
       {showForm ? (
         <ModalShell
-          title={selectedTemplate ? selectedTemplate.name : "Nuevo presupuesto"}
-          eyebrow={selectedTemplate ? "Presupuesto predefinido" : "Presupuesto"}
+          title={selectedTemplate ? selectedTemplate.name : distributor ? copy.newQuote : "Nuevo presupuesto"}
+          eyebrow={selectedTemplate ? "Presupuesto predefinido" : distributor ? copy.quote : "Presupuesto"}
           size="wide-modal quote-work-modal"
           onClose={() => setShowForm(false)}
         >
@@ -9254,6 +9267,8 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
             token={token}
             template={selectedTemplate}
             visualTemplate={selectedPdfTemplate}
+            distributor={distributor}
+            locale={locale}
             onCancel={() => setShowForm(false)}
             onDone={() => { setShowForm(false); quotes.reload(); }}
           />
@@ -9870,8 +9885,9 @@ function DownloadsView() {
   );
 }
 
-function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight" }) {
+function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight", distributor = false, locale = "es" }) {
   const currentUser = readSession()?.user || null;
+  const distributorCopy = distributorPanelCopy(locale);
   const meta = documentFormMeta(documentType);
   const isQuote = documentType === "quote";
   const isInvoice = documentType === "invoice";
@@ -9892,9 +9908,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [pdfTemplate, setPdfTemplate] = useState(
     () => currentDocument?.pdfTemplate || currentDocument?.visualTemplate || currentDocument?.metadata?.pdfTemplate || visualTemplate || "doinglight"
   );
-  const documentTitle = meta.title;
+  const documentTitle = distributor && isQuote ? distributorCopy.quote : meta.title;
   const documentEyebrow = meta.eyebrow;
-  const createButtonLabel = currentDocument ? meta.updateLabel : meta.createLabel;
+  const createButtonLabel = currentDocument ? meta.updateLabel : distributor && isQuote ? distributorCopy.saveQuote : meta.createLabel;
   const [clientMode, setClientMode] = useState("existing");
   const [selectedLeadId, setSelectedLeadId] = useState(initialQuote?.leadId || "");
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
@@ -11093,7 +11109,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <section className="quote-fd-header">
         <div className="quote-fd-toolbar">
           {!isQuote ? <span>Operación: <strong>Empresa nacional</strong></span> : null}
-          {isQuote ? (
+          {isQuote ? (!distributor ? (
             <label className="quote-visual-template-control">
               <span>Plantilla:</span>
               <select
@@ -11105,7 +11121,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 <option value="tubo-solar">Tubo Solar</option>
               </select>
             </label>
-          ) : (
+          ) : null) : (
             <span>Plantilla: <strong>{pdfTemplate === "tubo-solar" ? "Tubo Solar" : "Doinglight"}</strong></span>
           )}
           <span className="document-owner-control">
@@ -11172,15 +11188,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         <div className="quote-fd-actions">
           <div className="quote-client-header-actions">
             <button type="button" className={`quote-client-create-button ${clientMode === "new" ? "active" : ""}`} onClick={() => setClientMode("new")}>
-              Nuevo cliente
+              {distributor ? distributorCopy.newClient : "Nuevo cliente"}
             </button>
             {clientMode === "new" ? (
               <button type="button" className="quote-client-cancel-button" onClick={() => setClientMode("existing")}>
-                Cancelar
+                {distributor ? distributorCopy.cancel : "Cancelar"}
               </button>
             ) : null}
           </div>
-          {isQuote ? (
+          {isQuote && !distributor ? (
             <select
               className="quote-template-select in-modal"
               aria-label="Presupuestos predefinidos"
@@ -11198,14 +11214,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         {clientMode === "existing" ? (
           <div className="quote-fd-grid">
             <label className="quote-client-search-field">
-              <span>Cliente</span>
+              <span>{distributor ? distributorCopy.client : "Cliente"}</span>
               <div className="quote-client-search-wrap">
                 <input
                   value={leadSearchQuery}
                   onChange={(event) => updateLeadSearch(event.target.value)}
                   onFocus={() => setLeadSearchOpen(true)}
                   onBlur={() => window.setTimeout(() => setLeadSearchOpen(false), 140)}
-                  placeholder="Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF"
+                  placeholder={distributor ? distributorCopy.searchClient : "Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF"}
                   autoComplete="off"
                 />
                 <Search className="quote-client-search-icon" size={17} />
@@ -12138,14 +12154,16 @@ function SearchBar({ value, onChange, placeholder }) {
   );
 }
 
-function distributorQuoteButtonLabel(locale) {
-  return {
-    es: "Nuevo presupuesto",
-    fr: "Nouveau devis",
-    it: "Nuovo preventivo",
-    pt: "Novo orçamento",
-    de: "Neues Angebot"
-  }[String(locale || "es").toLowerCase()] || "Nuevo presupuesto";
+function distributorPanelCopy(locale) {
+  const language = String(locale || "es").toLowerCase();
+  const copy = {
+    es: { quotes: "Presupuestos", quote: "Presupuesto", newQuote: "Nuevo presupuesto", saveQuote: "Guardar presupuesto", newClient: "Nuevo cliente", cancel: "Cancelar", client: "Cliente", searchClient: "Buscar cliente por nombre, empresa, email, teléfono o NIF/CIF", catalog: "Catálogo", catalogSearch: "Buscar por SKU, nombre o familia", image: "Imagen", product: "Producto", family: "Familia" },
+    fr: { quotes: "Devis", quote: "Devis", newQuote: "Nouveau devis", saveQuote: "Enregistrer le devis", newClient: "Nouveau client", cancel: "Annuler", client: "Client", searchClient: "Rechercher un client par nom, société, e-mail, téléphone ou identifiant fiscal", catalog: "Catalogue", catalogSearch: "Rechercher par SKU, nom ou famille", image: "Image", product: "Produit", family: "Famille" },
+    it: { quotes: "Preventivi", quote: "Preventivo", newQuote: "Nuovo preventivo", saveQuote: "Salva preventivo", newClient: "Nuovo cliente", cancel: "Annulla", client: "Cliente", searchClient: "Cerca cliente per nome, azienda, email, telefono o codice fiscale", catalog: "Catalogo", catalogSearch: "Cerca per SKU, nome o famiglia", image: "Immagine", product: "Prodotto", family: "Famiglia" },
+    pt: { quotes: "Orçamentos", quote: "Orçamento", newQuote: "Novo orçamento", saveQuote: "Guardar orçamento", newClient: "Novo cliente", cancel: "Cancelar", client: "Cliente", searchClient: "Pesquisar cliente por nome, empresa, e-mail, telefone ou NIF", catalog: "Catálogo", catalogSearch: "Pesquisar por SKU, nome ou família", image: "Imagem", product: "Produto", family: "Família" },
+    de: { quotes: "Angebote", quote: "Angebot", newQuote: "Neues Angebot", saveQuote: "Angebot speichern", newClient: "Neuer Kunde", cancel: "Abbrechen", client: "Kunde", searchClient: "Kunde nach Name, Firma, E-Mail, Telefon oder Steuer-ID suchen", catalog: "Katalog", catalogSearch: "Nach SKU, Name oder Familie suchen", image: "Bild", product: "Produkt", family: "Familie" }
+  };
+  return copy[language] || copy.es;
 }
 
 function RefreshButton({ onClick, loading }) {
