@@ -1895,7 +1895,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={panelLocale} distributor={isDistributor} /> : null}
-          {activeView === "mail" && isFrenchDistributor ? <FrenchMailWorkspace /> : null}
+          {activeView === "mail" && isFrenchDistributor ? <FrenchMailWorkspace token={session.token} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} /> : null}
@@ -2269,13 +2269,57 @@ const MODULES = {
   }
 };
 
-function FrenchMailWorkspace() {
+function FrenchMailWorkspace({ token }) {
   const [folder, setFolder] = useState("inbox");
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [messageLoading, setMessageLoading] = useState(false);
+  const [messageError, setMessageError] = useState("");
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [draft, setDraft] = useState({ to: "", subject: "", text: "" });
+  const [sending, setSending] = useState(false);
   const labels = {
     inbox: "Boîte de réception",
-    sent: "Messages envoyés",
-    drafts: "Brouillons"
+    sent: "Messages envoyés"
   };
+  const mailbox = useResource(
+    () => apiRequest(`/api/french-mail/messages?folder=${folder}`, { token }),
+    [token, folder]
+  );
+
+  useEffect(() => {
+    setSelectedMessage(null);
+    setMessageError("");
+  }, [folder]);
+
+  async function openMessage(id) {
+    setMessageLoading(true);
+    setMessageError("");
+    try {
+      const result = await apiRequest(`/api/french-mail/messages/${id}?folder=${folder}`, { token });
+      setSelectedMessage(result.item);
+    } catch (error) {
+      setMessageError(error.message || "Impossible de charger le message.");
+    } finally {
+      setMessageLoading(false);
+    }
+  }
+
+  async function sendDraft(event) {
+    event.preventDefault();
+    setSending(true);
+    setMessageError("");
+    try {
+      await apiRequest("/api/french-mail/messages", { token, method: "POST", body: draft });
+      setComposeOpen(false);
+      setDraft({ to: "", subject: "", text: "" });
+      setFolder("sent");
+      window.setTimeout(() => mailbox.reload(), 400);
+    } catch (error) {
+      setMessageError(error.message || "Impossible d’envoyer le message.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <div className="module-page mail-workspace">
@@ -2284,29 +2328,44 @@ function FrenchMailWorkspace() {
           <p className="section-eyebrow">info@doinglight.fr</p>
           <h3>Mail</h3>
         </div>
-        <button className="primary-button" type="button" disabled title="La rédaction sera activée après la connexion à la boîte aux lettres">
+        <button className="primary-button" type="button" onClick={() => setComposeOpen(true)}>
           <Mail size={16} /> Nouveau message
         </button>
       </header>
-      <section className="mail-connection-card">
-        <Mail size={25} />
-        <div>
-          <strong>Boîte aux lettres prête à connecter</strong>
-          <p>La messagerie affichera les e-mails reçus, envoyés et les brouillons de <b>info@doinglight.fr</b> dès que la connexion sécurisée à la boîte aux lettres sera configurée.</p>
-        </div>
-      </section>
       <section className="mail-layout">
         <nav className="mail-folders" aria-label="Dossiers de messagerie">
           {Object.entries(labels).map(([id, label]) => (
             <button key={id} type="button" className={folder === id ? "active" : ""} onClick={() => setFolder(id)}>{label}</button>
           ))}
         </nav>
-        <div className="mail-empty-state">
-          <Mail size={34} />
-          <h4>{labels[folder]}</h4>
-          <p>La connexion à info@doinglight.fr est en attente de configuration.</p>
+        <div className="mail-content">
+          {mailbox.loading || messageLoading ? <p className="mail-state">Chargement…</p> : null}
+          {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
+          {!mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
+            {(mailbox.data?.messages || []).map((message) => <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => openMessage(message.id)}>
+              <strong>{message.from || message.to || "—"}</strong>
+              <span>{message.subject}</span>
+              <time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time>
+            </button>)}
+            {!(mailbox.data?.messages || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>Aucun message à afficher.</p></div> : null}
+          </div> : null}
+          {selectedMessage ? <article className="mail-message-detail">
+            <button className="secondary-button" type="button" onClick={() => setSelectedMessage(null)}>← Retour à la liste</button>
+            <h4>{selectedMessage.subject}</h4>
+            <p><strong>De :</strong> {selectedMessage.from}</p>
+            <p><strong>À :</strong> {selectedMessage.to}</p>
+            <div className="mail-message-body">{selectedMessage.text || "Ce message ne contient pas de texte lisible."}</div>
+          </article> : null}
         </div>
       </section>
+      {composeOpen ? <ModalShell title="Nouveau message" eyebrow="info@doinglight.fr" onClose={() => setComposeOpen(false)}>
+        <form className="mail-compose" onSubmit={sendDraft}>
+          <label>À<input type="email" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /></label>
+          <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
+          <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
+          <button className="primary-button" type="submit" disabled={sending}>{sending ? "Envoi…" : "Envoyer"}</button>
+        </form>
+      </ModalShell> : null}
     </div>
   );
 }
