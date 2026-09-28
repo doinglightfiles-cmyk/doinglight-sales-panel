@@ -7968,6 +7968,7 @@ th {
 .mail-message-detail h4 { margin: 22px 0 12px; color: #263822; font-size: 21px; }
 .mail-message-detail p { margin: 6px 0; color: #5e6b58; }
 .mail-message-body { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); color: #33402e; white-space: pre-wrap; line-height: 1.6; }
+.mail-reply-actions { display: flex; gap: 9px; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
 .mail-compose { display: grid; gap: 17px; padding: 28px; border-radius: 10px; color: #fff; background: linear-gradient(140deg, #3d5e0f, #587c17); box-shadow: inset 0 1px rgba(255,255,255,.13); }
 .mail-compose-brand { margin-bottom: 4px; color: #fff; font-size: 19px; font-weight: 900; letter-spacing: .05em; }
 .mail-compose-brand span { color: #c4e98c; font-size: 11px; letter-spacing: .16em; }

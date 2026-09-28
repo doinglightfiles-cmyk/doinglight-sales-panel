@@ -2275,7 +2275,7 @@ function FrenchMailWorkspace({ token }) {
   const [messageLoading, setMessageLoading] = useState(false);
   const [messageError, setMessageError] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
-  const [draft, setDraft] = useState({ to: "", subject: "", text: "" });
+  const [draft, setDraft] = useState({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
   const [attachments, setAttachments] = useState([]);
   const [sending, setSending] = useState(false);
   const labels = {
@@ -2318,7 +2318,7 @@ function FrenchMailWorkspace({ token }) {
       })));
       await apiRequest("/api/french-mail/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments } });
       setComposeOpen(false);
-      setDraft({ to: "", subject: "", text: "" });
+      setDraft({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
       setAttachments([]);
       setFolder("sent");
       window.setTimeout(() => mailbox.reload(), 400);
@@ -2329,6 +2329,27 @@ function FrenchMailWorkspace({ token }) {
     }
   }
 
+  function openReply(replyAll = false) {
+    if (!selectedMessage) return;
+    const recipients = [selectedMessage.replyTo || selectedMessage.from];
+    if (replyAll) recipients.push(selectedMessage.to, selectedMessage.cc);
+    const uniqueRecipients = [...new Set(recipients.join(",").split(",").map((item) => item.trim()).filter((item) => item && !item.toLowerCase().includes("info@doinglight.fr")))];
+    setDraft({
+      to: uniqueRecipients.join(", "),
+      subject: /^re:/i.test(selectedMessage.subject || "") ? selectedMessage.subject : `Re: ${selectedMessage.subject || ""}`,
+      text: "",
+      inReplyTo: selectedMessage.messageId || "",
+      references: selectedMessage.messageId || ""
+    });
+    setComposeOpen(true);
+  }
+
+  function openNewMessage() {
+    setDraft({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
+    setAttachments([]);
+    setComposeOpen(true);
+  }
+
   return (
     <div className="module-page mail-workspace">
       <header className="module-page-header">
@@ -2336,7 +2357,7 @@ function FrenchMailWorkspace({ token }) {
           <p className="section-eyebrow">info@doinglight.fr</p>
           <h3>Mail</h3>
         </div>
-        <button className="primary-button" type="button" onClick={() => setComposeOpen(true)}>
+        <button className="primary-button" type="button" onClick={openNewMessage}>
           <Mail size={16} /> Nouveau message
         </button>
       </header>
@@ -2367,13 +2388,17 @@ function FrenchMailWorkspace({ token }) {
             <p><strong>De :</strong> {selectedMessage.from}</p>
             <p><strong>À :</strong> {selectedMessage.to}</p>
             <div className="mail-message-body">{selectedMessage.text || "Ce message ne contient pas de texte lisible."}</div>
+            {folder === "inbox" ? <div className="mail-reply-actions">
+              <button className="secondary-button" type="button" onClick={() => openReply(false)}>Répondre</button>
+              <button className="secondary-button" type="button" onClick={() => openReply(true)}>Répondre à tous</button>
+            </div> : null}
           </article> : null}
         </div>
       </section>
       {composeOpen ? <ModalShell title="Nouveau message" eyebrow="info@doinglight.fr" onClose={() => setComposeOpen(false)}>
         <form className="mail-compose" onSubmit={sendDraft}>
           <div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div>
-          <label>À<input type="email" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /></label>
+          <label>À<input type="text" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /></label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
           <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
