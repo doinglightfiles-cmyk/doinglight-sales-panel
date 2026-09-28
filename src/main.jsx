@@ -2276,6 +2276,7 @@ function FrenchMailWorkspace({ token }) {
   const [messageError, setMessageError] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
   const [draft, setDraft] = useState({ to: "", subject: "", text: "" });
+  const [attachments, setAttachments] = useState([]);
   const [sending, setSending] = useState(false);
   const labels = {
     inbox: "Boîte de réception",
@@ -2285,6 +2286,7 @@ function FrenchMailWorkspace({ token }) {
     () => apiRequest(`/api/french-mail/messages?folder=${folder}`, { token }),
     [token, folder]
   );
+  const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
 
   useEffect(() => {
     setSelectedMessage(null);
@@ -2309,9 +2311,15 @@ function FrenchMailWorkspace({ token }) {
     setSending(true);
     setMessageError("");
     try {
-      await apiRequest("/api/french-mail/messages", { token, method: "POST", body: draft });
+      const encodedAttachments = await Promise.all(attachments.map(async (file) => ({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+        content: await fileToBase64(file)
+      })));
+      await apiRequest("/api/french-mail/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments } });
       setComposeOpen(false);
       setDraft({ to: "", subject: "", text: "" });
+      setAttachments([]);
       setFolder("sent");
       window.setTimeout(() => mailbox.reload(), 400);
     } catch (error) {
@@ -2332,6 +2340,10 @@ function FrenchMailWorkspace({ token }) {
           <Mail size={16} /> Nouveau message
         </button>
       </header>
+      {!configuration.loading && configuration.data?.configured === false ? <section className="mail-setup-warning">
+        <Mail size={22} />
+        <div><strong>Configuration requise dans Railway</strong><p>Le service backend ne reçoit pas encore : {configuration.data.missing.join(", ")}.</p></div>
+      </section> : null}
       <section className="mail-layout">
         <nav className="mail-folders" aria-label="Dossiers de messagerie">
           {Object.entries(labels).map(([id, label]) => (
@@ -2360,10 +2372,13 @@ function FrenchMailWorkspace({ token }) {
       </section>
       {composeOpen ? <ModalShell title="Nouveau message" eyebrow="info@doinglight.fr" onClose={() => setComposeOpen(false)}>
         <form className="mail-compose" onSubmit={sendDraft}>
+          <div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div>
           <label>À<input type="email" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /></label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
-          <button className="primary-button" type="submit" disabled={sending}>{sending ? "Envoi…" : "Envoyer"}</button>
+          <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
+          {attachments.length ? <ul className="mail-attachment-list">{attachments.map((file) => <li key={`${file.name}-${file.size}`}>{file.name} <small>{attachmentSize(file.size)}</small></li>)}</ul> : null}
+          <button className="mail-send-button" type="submit" disabled={sending}>{sending ? "Envoi…" : "Envoyer le message"}</button>
         </form>
       </ModalShell> : null}
     </div>
