@@ -7991,6 +7991,7 @@ th {
 .mail-draft-button { border: 1px solid #cbd9c2; border-radius: 6px; padding: 12px 15px; color: #596b53; background: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 .mail-draft-button:disabled { opacity: .65; cursor: wait; }
 .mail-contacts-workspace { display: grid; gap: 20px; padding: 28px; }
+.mail-contacts-workspace > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .mail-contacts-workspace > header h4 { margin: 0; color: #40523b; font-size: 20px; }
 .mail-contacts-workspace > header p { margin: 6px 0 0; color: #74806f; font-size: 13px; }
 .mail-contact-form { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.2fr) auto; gap: 10px; padding: 15px; border: 1px solid #e1e8db; border-radius: 10px; background: #f9fbf7; }
@@ -7999,6 +8000,11 @@ th {
 .mail-contact-list article { display: grid; gap: 3px; padding: 14px 15px; border: 1px solid #e1e8db; border-radius: 8px; background: #fff; }
 .mail-contact-list strong { color: #40523b; font-size: 14px; font-weight: 650; }
 .mail-contact-list small { color: #788674; font-size: 12px; font-weight: 400; }
+.mail-recipient-suggestions { display: grid; gap: 3px; margin-top: 2px; overflow: hidden; border: 1px solid #dfe8d8; border-radius: 7px; background: #fff; box-shadow: 0 10px 22px rgba(32, 52, 26, .1); }
+.mail-recipient-suggestions button { display: grid; gap: 2px; border: 0; padding: 9px 11px; color: #40523b; background: transparent; text-align: left; font: inherit; }
+.mail-recipient-suggestions button:hover { background: #f1f7e7; }
+.mail-recipient-suggestions strong { font-size: 13px; font-weight: 650; }
+.mail-recipient-suggestions small { color: #788674; font-size: 11px; font-weight: 400; }
 @media (max-width: 700px) { .mail-contact-form { grid-template-columns: 1fr; } .mail-contacts-workspace { padding: 18px; } }
 
 /* Acciones principales: un único verde Doinglight, igual al del encabezado. */

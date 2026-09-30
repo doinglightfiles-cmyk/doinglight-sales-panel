@@ -2282,6 +2282,7 @@ function FrenchMailWorkspace({ token }) {
   const [savingDraft, setSavingDraft] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", email: "" });
   const [savingContact, setSavingContact] = useState(false);
+  const [importingContacts, setImportingContacts] = useState(false);
   const labels = {
     inbox: "Boîte de réception",
     sent: "Messages envoyés",
@@ -2402,6 +2403,25 @@ function FrenchMailWorkspace({ token }) {
     return match ? { name: match[1].trim() || match[2], email: match[2] } : { name: raw || "—", email: "" };
   }
 
+  const contactSuggestions = (contacts.data?.items || []).filter((contact) => {
+    const query = String(draft.to || "").split(",").pop().trim().toLowerCase();
+    return query && `${contact.name || ""} ${contact.email}`.toLowerCase().includes(query);
+  }).slice(0, 6);
+
+  async function importContacts() {
+    setImportingContacts(true);
+    setMessageError("");
+    try {
+      const result = await apiRequest("/api/french-mail/contacts/import-from-mail", { token, method: "POST", body: {} });
+      await contacts.reload();
+      window.alert(`${result.scanned || 0} contacts ont été récupérés depuis les messages reçus et envoyés.`);
+    } catch (error) {
+      setMessageError(error.message || "Impossible d’importer les contacts.");
+    } finally {
+      setImportingContacts(false);
+    }
+  }
+
   return (
     <div className="module-page mail-workspace">
       <header className="module-page-header">
@@ -2427,7 +2447,7 @@ function FrenchMailWorkspace({ token }) {
           {mailbox.loading || messageLoading ? <p className="mail-state">Chargement…</p> : null}
           {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
           {folder === "contacts" ? <div className="mail-contacts-workspace">
-            <header><div><h4>Carnet d’adresses</h4><p>Vos contacts sont privés et réservés à la boîte info@doinglight.fr.</p></div></header>
+            <header><div><h4>Carnet d’adresses</h4><p>Vos contacts sont privés et réservés à la boîte info@doinglight.fr.</p></div><button className="secondary-button" type="button" disabled={importingContacts} onClick={importContacts}>{importingContacts ? "Importation…" : "Importer depuis les e-mails"}</button></header>
             <form className="mail-contact-form" onSubmit={saveContact}>
               <input placeholder="Nom ou société" value={contactForm.name} onChange={(event) => setContactForm({ ...contactForm, name: event.target.value })} />
               <input type="email" required placeholder="Adresse e-mail" value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} />
@@ -2465,7 +2485,7 @@ function FrenchMailWorkspace({ token }) {
       {composeOpen ? <ModalShell title="Nouveau message" eyebrow="info@doinglight.fr" onClose={() => setComposeOpen(false)}>
         <form className="mail-compose" onSubmit={sendDraft}>
           <div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div>
-          <label>À<input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist></label>
+          <label>À<input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist>{contactSuggestions.length ? <span className="mail-recipient-suggestions">{contactSuggestions.map((contact) => <button type="button" key={contact.id} onClick={() => setDraft({ ...draft, to: contact.email })}><strong>{contact.name || contact.email}</strong><small>{contact.email}</small></button>)}</span> : null}</label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
           <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
