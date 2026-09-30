@@ -2283,7 +2283,6 @@ function FrenchMailWorkspace({ token }) {
   const [savingDraft, setSavingDraft] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", email: "" });
   const [savingContact, setSavingContact] = useState(false);
-  const [importingContacts, setImportingContacts] = useState(false);
   const labels = {
     inbox: "Boîte de réception",
     sent: "Messages envoyés",
@@ -2303,6 +2302,10 @@ function FrenchMailWorkspace({ token }) {
     setSelectedMessage(null);
     setMessageError("");
   }, [folder]);
+
+  useEffect(() => {
+    if (["inbox", "sent"].includes(folder) && !mailbox.loading) contacts.reload();
+  }, [folder, mailbox.data?.messages?.length]);
 
   async function openMessage(id) {
     setMessageLoading(true);
@@ -2332,6 +2335,7 @@ function FrenchMailWorkspace({ token }) {
       setDraft({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
       setAttachments([]);
       setLibraryAttachmentIds([]);
+      contacts.reload();
       setFolder("sent");
       window.setTimeout(() => mailbox.reload(), 400);
     } catch (error) {
@@ -2412,20 +2416,6 @@ function FrenchMailWorkspace({ token }) {
     return query && `${contact.name || ""} ${contact.email}`.toLowerCase().includes(query);
   }).slice(0, 6);
 
-  async function importContacts() {
-    setImportingContacts(true);
-    setMessageError("");
-    try {
-      const result = await apiRequest("/api/french-mail/contacts/import-from-mail", { token, method: "POST", body: {} });
-      await contacts.reload();
-      window.alert(`${result.scanned || 0} contacts ont été récupérés depuis les messages reçus et envoyés.`);
-    } catch (error) {
-      setMessageError(error.message || "Impossible d’importer les contacts.");
-    } finally {
-      setImportingContacts(false);
-    }
-  }
-
   return (
     <div className="module-page mail-workspace">
       <header className="module-page-header">
@@ -2451,7 +2441,7 @@ function FrenchMailWorkspace({ token }) {
           {mailbox.loading || messageLoading ? <p className="mail-state">Chargement…</p> : null}
           {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
           {folder === "contacts" ? <div className="mail-contacts-workspace">
-            <header><div><h4>Carnet d’adresses</h4><p>Vos contacts sont privés et réservés à la boîte info@doinglight.fr.</p></div><button className="secondary-button" type="button" disabled={importingContacts} onClick={importContacts}>{importingContacts ? "Importation…" : "Importer depuis les e-mails"}</button></header>
+            <header><div><h4>Carnet d’adresses</h4><p>Vos contacts sont privés et réservés à la boîte info@doinglight.fr. Les nouveaux correspondants sont enregistrés automatiquement.</p></div></header>
             <form className="mail-contact-form" onSubmit={saveContact}>
               <input placeholder="Nom ou société" value={contactForm.name} onChange={(event) => setContactForm({ ...contactForm, name: event.target.value })} />
               <input type="email" required placeholder="Adresse e-mail" value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} />
