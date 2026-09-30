@@ -2350,6 +2350,12 @@ function FrenchMailWorkspace({ token }) {
     setComposeOpen(true);
   }
 
+  function mailboxIdentity(value) {
+    const raw = String(value || "").trim();
+    const match = raw.match(/^(.*?)\s*<([^>]+)>$/);
+    return match ? { name: match[1].trim() || match[2], email: match[2] } : { name: raw || "—", email: "" };
+  }
+
   return (
     <div className="module-page mail-workspace">
       <header className="module-page-header">
@@ -2375,11 +2381,14 @@ function FrenchMailWorkspace({ token }) {
           {mailbox.loading || messageLoading ? <p className="mail-state">Chargement…</p> : null}
           {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
           {!mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
-            {(mailbox.data?.messages || []).map((message) => <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => openMessage(message.id)}>
-              <strong className="mail-message-sender">{message.from || message.to || "—"}</strong>
+            {(mailbox.data?.messages || []).map((message) => {
+              const sender = mailboxIdentity(folder === "sent" ? message.to : message.from);
+              return <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => openMessage(message.id)}>
+              <strong className="mail-message-sender"><span>{sender.name}</span>{sender.email ? <small>{sender.email}</small> : null}</strong>
               <span className="mail-message-subject">{message.subject}</span>
               <time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time>
-            </button>)}
+            </button>;
+            })}
             {!(mailbox.data?.messages || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>Aucun message à afficher.</p></div> : null}
           </div> : null}
           {selectedMessage ? <article className="mail-message-detail">

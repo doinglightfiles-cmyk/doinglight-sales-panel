@@ -7962,10 +7962,11 @@ th {
 .mail-message { display: grid; grid-template-columns: minmax(205px, .85fr) minmax(240px, 2.4fr) 98px; gap: 20px; align-items: center; min-height: 72px; border: 1px solid transparent; border-radius: 8px; padding: 13px 17px; color: #53614d; background: #fff; box-shadow: 0 1px 1px rgba(30, 50, 20, .025); font: inherit; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
 .mail-message:hover { border-color: #cbdcb2; box-shadow: 0 5px 13px rgba(42, 73, 16, .08); transform: translateY(-1px); }
 .mail-message.unread { border-color: #dbe8c7; color: #263d19; background: #fbfdf7; }
-.mail-message-sender { overflow: hidden; color: #45533f; font-size: 13px; font-weight: 700; line-height: 1.35; }
-.mail-message.unread .mail-message-sender { color: #263d19; font-weight: 850; }
-.mail-message-subject { overflow: hidden; color: #4e5b49; font-size: 13px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
-.mail-message.unread .mail-message-subject { color: #263d19; font-weight: 750; }
+.mail-message-sender { display: grid; min-width: 0; overflow: hidden; color: #4c5947; font-size: 13px; font-weight: 400; line-height: 1.35; }
+.mail-message-sender > span { overflow: hidden; color: #2b4024; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.mail-message-sender small { overflow: hidden; color: #71806c; font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.mail-message-subject { overflow: hidden; color: #596654; font-size: 13px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.mail-message.unread .mail-message-subject { color: #475944; font-weight: 400; }
 .mail-message time { justify-self: end; color: #82907d; font-size: 11px; font-weight: 750; white-space: nowrap; }
 .mail-message-detail { padding: 24px; }
 .mail-message-detail h4 { margin: 22px 0 12px; color: #263822; font-size: 21px; }
