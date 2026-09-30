@@ -2709,6 +2709,13 @@ select:focus {
 .drive-country-current > span { font-size: 26px; }.drive-country-current div { display: grid; gap: 2px; }.drive-country-current small { color: var(--muted); font-size: 12px; }
 .drive-browser { margin: 18px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fbfcf8; }
 .drive-browser > header { display: flex; align-items: center; justify-content: space-between; min-height: 58px; padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 700; }
+.drive-browser-location { display: grid; gap: 7px; min-width: 0; }
+.drive-breadcrumbs { display: flex; min-width: 0; align-items: center; gap: 7px; overflow-x: auto; color: #899484; white-space: nowrap; }
+.drive-breadcrumbs button { border: 0; padding: 0; color: #607b1d; background: transparent; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.drive-breadcrumbs button:hover { color: var(--green); text-decoration: underline; }
+.drive-breadcrumbs button.current { color: #465641; cursor: default; text-decoration: none; }
+.drive-back-button { width: max-content; border: 0; padding: 0; color: #617e1b; background: transparent; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.drive-back-button:hover { text-decoration: underline; }
 .drive-upload { position: relative; overflow: hidden; }.drive-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .drive-browser-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 16px; }
 .drive-folder,.drive-file { display: grid; justify-items: start; gap: 6px; min-height: 126px; border: 1px solid #dce5d7; border-radius: 8px; padding: 15px; color: #42523d; background: #fff; text-align: left; font: inherit; }
