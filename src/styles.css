@@ -7992,6 +7992,29 @@ th {
 .mail-message-body { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); color: #33402e; white-space: pre-wrap; line-height: 1.6; }
 .mail-reply-actions { display: flex; gap: 9px; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
 .mail-compose-page { display: grid; grid-template-columns: 200px minmax(0, 1fr) minmax(250px, 310px); align-items: start; gap: 20px; }
+.mail-compose-page.browsing { grid-template-columns: 180px minmax(220px, .8fr) minmax(370px, 1.5fr) minmax(220px, 280px); }
+.mail-compose-page.browsing .mail-compose { animation: mail-compose-slide-in .22s ease-out; }
+@keyframes mail-compose-slide-in { from { opacity: .45; transform: translateX(-18px); } to { opacity: 1; transform: translateX(0); } }
+.mail-compose-lookup { display: grid; min-width: 0; max-height: 760px; overflow: hidden; border: 1px solid #e1e8db; border-radius: 10px; background: #fff; }
+.mail-compose-lookup > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 17px 16px 13px; border-bottom: 1px solid #e8ede3; }
+.mail-compose-lookup header small, .mail-consultation-modal header small { color: #8a9b81; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.mail-compose-lookup header h4 { margin: 4px 0 0; color: #40523b; font-size: 16px; }
+.mail-compose-lookup-list { display: grid; align-content: start; overflow: auto; }
+.mail-compose-lookup-list > button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; border: 0; border-bottom: 1px solid #edf1e9; padding: 12px 14px; color: #53614d; background: #fff; text-align: left; cursor: pointer; }
+.mail-compose-lookup-list > button:hover { background: #f7faf2; }
+.mail-compose-lookup-list button span { display: grid; min-width: 0; gap: 2px; }
+.mail-compose-lookup-list button strong, .mail-compose-lookup-list button small, .mail-compose-lookup-list button b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-compose-lookup-list button strong { color: #43543e; font-size: 12px; font-weight: 650; }
+.mail-compose-lookup-list button small { color: #7c8878; font-size: 11px; font-weight: 400; }
+.mail-compose-lookup-list button b { grid-column: 1 / -1; color: #687566; font-size: 12px; font-weight: 400; }
+.mail-compose-lookup-list button time { grid-column: 2; grid-row: 1; color: #8b9687; font-size: 10px; }
+.mail-consultation-modal { width: min(850px, calc(100vw - 32px)); max-height: min(780px, calc(100vh - 32px)); padding: 0; overflow: auto; }
+.mail-consultation-modal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 24px 17px; border-bottom: 1px solid #e1e8db; }
+.mail-consultation-modal h4 { margin: 5px 0 0; color: #40523b; font-size: 20px; }
+.mail-consultation-meta { padding: 14px 24px; border-bottom: 1px solid #edf1e9; color: #697566; font-size: 13px; }
+.mail-consultation-meta p { margin: 4px 0; }
+.mail-consultation-modal .mail-message-body { margin: 0; padding: 22px 24px; border: 0; }
+.mail-consultation-modal footer { display: flex; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #e1e8db; background: #f9fbf7; }
 .mail-compose { display: grid; gap: 18px; padding: 26px; border: 1px solid #e1e8db; border-radius: 10px; color: #485746; background: #f9fbf7; }
 .mail-compose-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid #e1e8db; }
 .mail-compose-header h4 { margin: 6px 0 0; color: #40523b; font-size: 22px; }
@@ -8057,7 +8080,8 @@ th {
 .mail-recipient-contact-list small { overflow: hidden; color: #7c8878; font-size: 12px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .mail-recipient-contact-list p { padding: 20px 5px; color: #7d8978; text-align: center; }
 .mail-recipient-modal footer { display: flex; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #e1e8db; background: #f9fbf7; }
-@media (max-width: 700px) { .mail-contact-form { grid-template-columns: 1fr; } .mail-contacts-workspace { padding: 18px; } .mail-compose-page { grid-template-columns: 1fr; } .mail-compose-page .mail-folders { overflow-x: auto; display: flex; } .mail-compose-header { flex-direction: column; } .drive-country-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1050px) { .mail-compose-page.browsing { grid-template-columns: 180px minmax(0, 1fr); } .mail-compose-page.browsing .mail-library { grid-column: 2; } }
+@media (max-width: 700px) { .mail-contact-form { grid-template-columns: 1fr; } .mail-contacts-workspace { padding: 18px; } .mail-compose-page, .mail-compose-page.browsing { grid-template-columns: 1fr; } .mail-compose-page .mail-folders { overflow-x: auto; display: flex; } .mail-compose-header { flex-direction: column; } .drive-country-grid { grid-template-columns: 1fr; } }
 
 /* Acciones principales: un único verde Doinglight, igual al del encabezado. */
 .action-badge,

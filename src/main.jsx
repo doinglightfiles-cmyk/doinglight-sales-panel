@@ -2287,6 +2287,10 @@ function FrenchMailWorkspace({ token }) {
   const [savingContact, setSavingContact] = useState(false);
   const [recipientPickerOpen, setRecipientPickerOpen] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState("");
+  const [composeLookupFolder, setComposeLookupFolder] = useState(null);
+  const [composeLookupMessage, setComposeLookupMessage] = useState(null);
+  const [composeLookupLoading, setComposeLookupLoading] = useState(false);
+  const [composeLookupError, setComposeLookupError] = useState("");
   const labels = {
     inbox: "Boîte de réception",
     sent: "Messages envoyés",
@@ -2297,6 +2301,12 @@ function FrenchMailWorkspace({ token }) {
   const mailbox = useResource(
     () => apiRequest(`/api/french-mail/messages?folder=${folder === "contacts" ? "inbox" : folder}`, { token }),
     [token, folder]
+  );
+  const composeMailbox = useResource(
+    () => composeLookupFolder && composeLookupFolder !== "contacts"
+      ? apiRequest(`/api/french-mail/messages?folder=${composeLookupFolder}`, { token })
+      : Promise.resolve({ messages: [] }),
+    [token, composeLookupFolder]
   );
   const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
   const contacts = useResource(() => apiRequest("/api/french-mail/contacts", { token }), [token]);
@@ -2392,7 +2402,34 @@ function FrenchMailWorkspace({ token }) {
     setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
     setAttachments([]);
     setLibraryAttachmentIds([]);
+    setComposeLookupFolder(null);
+    setComposeLookupMessage(null);
+    setComposeLookupError("");
     setComposeOpen(true);
+  }
+
+  function openComposeFolder(id) {
+    if (id === "contacts") {
+      setRecipientPickerOpen(true);
+      return;
+    }
+    setComposeLookupFolder(id);
+    setComposeLookupMessage(null);
+    setComposeLookupError("");
+  }
+
+  async function openComposeLookupMessage(id) {
+    if (!composeLookupFolder) return;
+    setComposeLookupLoading(true);
+    setComposeLookupError("");
+    try {
+      const result = await apiRequest(`/api/french-mail/messages/${id}?folder=${composeLookupFolder}`, { token });
+      setComposeLookupMessage(result.item);
+    } catch (error) {
+      setComposeLookupError(error.message || "Impossible de charger le message.");
+    } finally {
+      setComposeLookupLoading(false);
+    }
   }
 
   function addRecipient(contact) {
@@ -2496,12 +2533,13 @@ function FrenchMailWorkspace({ token }) {
             </div> : null}
           </article> : null}
         </div>
-      </section> : <section className="mail-compose-page">
+      </section> : <section className={composeLookupFolder ? "mail-compose-page browsing" : "mail-compose-page"}>
         <nav className="mail-folders" aria-label="Dossiers de messagerie">
           {Object.entries(labels).map(([id, label]) => (
-            <button key={id} type="button" className={folder === id ? "active" : ""} onClick={() => setFolder(id)}>{label}</button>
+            <button key={id} type="button" className={composeLookupFolder === id ? "active" : ""} onClick={() => openComposeFolder(id)}>{label}</button>
           ))}
         </nav>
+        {composeLookupFolder ? <aside className="mail-compose-lookup" aria-label={`Consultation : ${labels[composeLookupFolder]}`}><header><div><small>CONSULTATION</small><h4>{labels[composeLookupFolder]}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupFolder(null)} aria-label="Fermer la consultation"><X size={18} /></button></header>{composeMailbox.loading ? <p className="mail-state">Chargement…</p> : null}{composeMailbox.error || composeLookupError ? <p className="form-error">{composeMailbox.error || composeLookupError}</p> : null}<div className="mail-compose-lookup-list">{(composeMailbox.data?.messages || []).map((message) => { const sender = mailboxIdentity(composeLookupFolder === "sent" ? message.to : message.from); return <button type="button" key={message.id} onClick={() => openComposeLookupMessage(message.id)}><span><strong>{sender.name}</strong>{sender.email ? <small>{sender.email}</small> : null}</span><b>{message.subject}</b><time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time></button>; })}{!composeMailbox.loading && !(composeMailbox.data?.messages || []).length ? <p className="mail-state">Aucun message à afficher.</p> : null}</div></aside> : null}
         <form className="mail-compose" onSubmit={sendDraft}>
           <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div><h4>Nouveau message</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>Retour au courrier</button></header>
           <label>À<span className="mail-recipient-input"><input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><button className="mail-recipient-add" type="button" onClick={() => setRecipientPickerOpen(true)} aria-label="Ajouter des destinataires depuis le carnet d’adresses" title="Ajouter depuis le carnet d’adresses"><Plus size={18} /></button></span><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist>{contactSuggestions.length ? <span className="mail-recipient-suggestions">{contactSuggestions.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><strong>{contact.name || contact.email}</strong><small>{contact.email}</small></button>)}</span> : null}</label>
@@ -2517,6 +2555,7 @@ function FrenchMailWorkspace({ token }) {
           </div>
         </form>
         <aside className="mail-library" aria-label="Explorateur de fichiers"><header><small>DRIVE FRANCE</small><h4>Explorateur de fichiers</h4><p>Choisissez les PDF du Drive de Francia para adjuntarlos al mensaje.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderItem) => <button type="button" key={folderItem.id} onClick={() => setLibraryFolder(folderItem.id)}><FileText size={18} /><span>{folderItem.name}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Retour au Drive</button><h5>PDF</h5>{(library.data?.files || []).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><FileText size={16}/><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}{!(library.data?.files || []).length ? <p className="mail-state">Aucun PDF dans ce dossier.</p> : null}</section>}</aside>
+        {composeLookupMessage ? <div className="operation-modal-backdrop mail-consultation-modal-backdrop" onMouseDown={() => setComposeLookupMessage(null)}><article className="operation-modal mail-consultation-modal" role="dialog" aria-modal="true" aria-label="Consulter un message" onMouseDown={(event) => event.stopPropagation()}><header><div><small>CONSULTATION</small><h4>{composeLookupMessage.subject}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupMessage(null)} aria-label="Fermer"><X size={20} /></button></header><div className="mail-consultation-meta"><p><strong>De :</strong> {composeLookupMessage.from}</p><p><strong>À :</strong> {composeLookupMessage.to}</p></div><div className="mail-message-body">{composeLookupMessage.text || "Ce message ne contient pas de texte lisible."}</div><footer><button className="mail-send-button" type="button" onClick={() => setComposeLookupMessage(null)}>Fermer</button></footer></article></div> : null}
         {recipientPickerOpen ? <div className="operation-modal-backdrop mail-recipient-modal-backdrop" onMouseDown={() => setRecipientPickerOpen(false)}><section className="operation-modal mail-recipient-modal" role="dialog" aria-modal="true" aria-label="Carnet d’adresses" onMouseDown={(event) => event.stopPropagation()}><header><div><small>CARNET D’ADRESSES</small><h4>Ajouter des destinataires</h4></div><button className="icon-button" type="button" onClick={() => setRecipientPickerOpen(false)} aria-label="Fermer"><X size={20} /></button></header><label className="mail-recipient-search"><Search size={17} /><input autoFocus value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} placeholder="Rechercher un nom ou une adresse e-mail" /></label><div className="mail-recipient-contact-list">{recipientContacts.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><span><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</span><Plus size={17} /></button>)}{!recipientContacts.length ? <p>Aucun contact trouvé.</p> : null}</div><footer><button className="mail-send-button" type="button" onClick={() => setRecipientPickerOpen(false)}>Terminé</button></footer></section></div> : null}
       </section>}
     </div>
