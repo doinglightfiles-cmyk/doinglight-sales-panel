@@ -8026,6 +8026,13 @@ th {
 .mail-compose input:focus, .mail-compose textarea:focus { border-color: #a9c38c; box-shadow: 0 0 0 3px rgba(169,195,140,.16); }
 .mail-recipient-input { display: flex; align-items: stretch; gap: 7px; }
 .mail-recipient-input input { min-width: 0; }
+.mail-recipient-required { position: absolute; width: 1px !important; height: 1px; margin: 0; padding: 0 !important; border: 0 !important; opacity: 0; pointer-events: none; }
+.mail-recipient-tags { min-height: 42px; flex-wrap: wrap; align-items: center; border: 1px solid #dce5d7; border-radius: 7px; padding: 5px; background: #fff; }
+.mail-recipient-tags:focus-within { border-color: #a9c38c; box-shadow: 0 0 0 3px rgba(169,195,140,.16); }
+.mail-recipient-tags > input { flex: 1 1 140px; width: auto; min-height: 30px; border: 0; padding: 4px 6px; box-shadow: none !important; }
+.mail-recipient-tag { display: inline-flex; max-width: 100%; align-items: center; gap: 5px; border-radius: 5px; padding: 5px 6px 5px 8px; color: #405b20; background: #eaf3d8; font-size: 12px; font-weight: 600; }
+.mail-recipient-tag button { display: grid; place-items: center; border: 0; padding: 0; color: #6a8428; background: transparent; cursor: pointer; }
+.mail-recipient-tag button:hover { color: #36550a; }
 .mail-recipient-add { display: inline-grid; width: 42px; flex: 0 0 42px; place-items: center; border: 1px solid var(--green); border-radius: 7px; color: #fff; background: var(--green); cursor: pointer; }
 .mail-recipient-add:hover { filter: brightness(.94); }
 .mail-attachment-picker input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }

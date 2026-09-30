@@ -2287,6 +2287,7 @@ function FrenchMailWorkspace({ token }) {
   const [savingContact, setSavingContact] = useState(false);
   const [recipientPickerOpen, setRecipientPickerOpen] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientEntry, setRecipientEntry] = useState("");
   const [composeLookupFolder, setComposeLookupFolder] = useState(null);
   const [composeLookupMessage, setComposeLookupMessage] = useState(null);
   const [composeLookupLoading, setComposeLookupLoading] = useState(false);
@@ -2395,6 +2396,7 @@ function FrenchMailWorkspace({ token }) {
       inReplyTo: selectedMessage.messageId || "",
       references: selectedMessage.messageId || ""
     });
+    setRecipientEntry("");
     setComposeOpen(true);
   }
 
@@ -2402,6 +2404,7 @@ function FrenchMailWorkspace({ token }) {
     setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
     setAttachments([]);
     setLibraryAttachmentIds([]);
+    setRecipientEntry("");
     setComposeLookupFolder(null);
     setComposeLookupMessage(null);
     setComposeLookupError("");
@@ -2441,6 +2444,26 @@ function FrenchMailWorkspace({ token }) {
       setDraft({ ...draft, to: current.join(", ") });
     }
     setRecipientSearch("");
+    setRecipientEntry("");
+  }
+
+  function addTypedRecipients() {
+    const values = recipientEntry.split(/[,;]/).map((value) => value.trim()).filter(Boolean);
+    if (!values.length) return;
+    const current = String(draft.to || "").split(",").map((value) => value.trim()).filter(Boolean);
+    const known = new Set(current.map((value) => value.toLowerCase()));
+    values.forEach((value) => {
+      if (!known.has(value.toLowerCase())) {
+        current.push(value);
+        known.add(value.toLowerCase());
+      }
+    });
+    setDraft({ ...draft, to: current.join(", ") });
+    setRecipientEntry("");
+  }
+
+  function removeRecipient(email) {
+    setDraft({ ...draft, to: String(draft.to || "").split(",").map((value) => value.trim()).filter((value) => value && value.toLowerCase() !== email.toLowerCase()).join(", ") });
   }
 
   async function saveContact(event) {
@@ -2464,10 +2487,7 @@ function FrenchMailWorkspace({ token }) {
     return match ? { name: match[1].trim() || match[2], email: match[2] } : { name: raw || "—", email: "" };
   }
 
-  const contactSuggestions = (contacts.data?.items || []).filter((contact) => {
-    const query = String(draft.to || "").split(",").pop().trim().toLowerCase();
-    return query && `${contact.name || ""} ${contact.email}`.toLowerCase().includes(query);
-  }).slice(0, 6);
+  const draftRecipients = String(draft.to || "").split(",").map((value) => value.trim()).filter(Boolean);
   const recipientContacts = (contacts.data?.items || []).filter((contact) => {
     const search = recipientSearch.trim().toLowerCase();
     return !search || `${contact.name || ""} ${contact.email}`.toLowerCase().includes(search);
@@ -2542,7 +2562,7 @@ function FrenchMailWorkspace({ token }) {
         {composeLookupFolder ? <aside className="mail-compose-lookup" aria-label={`Consultation : ${labels[composeLookupFolder]}`}><header><div><small>CONSULTATION</small><h4>{labels[composeLookupFolder]}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupFolder(null)} aria-label="Fermer la consultation"><X size={18} /></button></header>{composeMailbox.loading ? <p className="mail-state">Chargement…</p> : null}{composeMailbox.error || composeLookupError ? <p className="form-error">{composeMailbox.error || composeLookupError}</p> : null}<div className="mail-compose-lookup-list">{(composeMailbox.data?.messages || []).map((message) => { const sender = mailboxIdentity(composeLookupFolder === "sent" ? message.to : message.from); return <button type="button" key={message.id} onClick={() => openComposeLookupMessage(message.id)}><span><strong>{sender.name}</strong>{sender.email ? <small>{sender.email}</small> : null}</span><b>{message.subject}</b><time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time></button>; })}{!composeMailbox.loading && !(composeMailbox.data?.messages || []).length ? <p className="mail-state">Aucun message à afficher.</p> : null}</div></aside> : null}
         <form className="mail-compose" onSubmit={sendDraft}>
           <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div><h4>Nouveau message</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>Retour au courrier</button></header>
-          <label>À<span className="mail-recipient-input"><input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><button className="mail-recipient-add" type="button" onClick={() => setRecipientPickerOpen(true)} aria-label="Ajouter des destinataires depuis le carnet d’adresses" title="Ajouter depuis le carnet d’adresses"><Plus size={18} /></button></span><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist>{contactSuggestions.length ? <span className="mail-recipient-suggestions">{contactSuggestions.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><strong>{contact.name || contact.email}</strong><small>{contact.email}</small></button>)}</span> : null}</label>
+          <label>À<input className="mail-recipient-required" required value={draft.to} onChange={() => undefined} aria-hidden="true" tabIndex={-1} /><span className="mail-recipient-input mail-recipient-tags">{draftRecipients.map((email) => <span className="mail-recipient-tag" key={email.toLowerCase()}>{email}<button type="button" onClick={() => removeRecipient(email)} aria-label={`Retirer ${email}`}><X size={13} /></button></span>)}<input type="text" list="french-mail-contacts" value={recipientEntry} onChange={(event) => setRecipientEntry(event.target.value)} onBlur={addTypedRecipients} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addTypedRecipients(); } }} placeholder={draftRecipients.length ? "Ajouter une adresse" : "Adresse e-mail"} /><button className="mail-recipient-add" type="button" onClick={() => setRecipientPickerOpen(true)} aria-label="Ajouter des destinataires depuis le carnet d’adresses" title="Ajouter depuis le carnet d’adresses"><Plus size={18} /></button></span><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist></label>
           <label>CCO<input type="text" list="french-mail-contacts" value={draft.bcc} onChange={(event) => setDraft({ ...draft, bcc: event.target.value })} placeholder="Destinataires en copie cachée" /></label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
