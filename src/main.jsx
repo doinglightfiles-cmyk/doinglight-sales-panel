@@ -2278,9 +2278,12 @@ function FrenchMailWorkspace({ token }) {
   const [draft, setDraft] = useState({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
   const [attachments, setAttachments] = useState([]);
   const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const labels = {
     inbox: "Boîte de réception",
-    sent: "Messages envoyés"
+    sent: "Messages envoyés",
+    drafts: "Brouillons",
+    trash: "Corbeille"
   };
   const mailbox = useResource(
     () => apiRequest(`/api/french-mail/messages?folder=${folder}`, { token }),
@@ -2326,6 +2329,29 @@ function FrenchMailWorkspace({ token }) {
       setMessageError(error.message || "Impossible d’envoyer le message.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function encodedAttachments() {
+    return Promise.all(attachments.map(async (file) => ({
+      filename: file.name,
+      contentType: file.type || "application/octet-stream",
+      content: await fileToBase64(file)
+    })));
+  }
+
+  async function saveCurrentDraft() {
+    setSavingDraft(true);
+    setMessageError("");
+    try {
+      await apiRequest("/api/french-mail/drafts", { token, method: "POST", body: { ...draft, attachments: await encodedAttachments() } });
+      setComposeOpen(false);
+      setFolder("drafts");
+      window.setTimeout(() => mailbox.reload(), 400);
+    } catch (error) {
+      setMessageError(error.message || "Impossible d’enregistrer le brouillon.");
+    } finally {
+      setSavingDraft(false);
     }
   }
 
@@ -2412,7 +2438,10 @@ function FrenchMailWorkspace({ token }) {
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
           <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
           {attachments.length ? <ul className="mail-attachment-list">{attachments.map((file) => <li key={`${file.name}-${file.size}`}>{file.name} <small>{attachmentSize(file.size)}</small></li>)}</ul> : null}
-          <button className="mail-send-button" type="submit" disabled={sending}>{sending ? "Envoi…" : "Envoyer le message"}</button>
+          <div className="mail-compose-actions">
+            <button className="mail-draft-button" type="button" disabled={savingDraft || sending} onClick={saveCurrentDraft}>{savingDraft ? "Enregistrement…" : "Enregistrer le brouillon"}</button>
+            <button className="mail-send-button" type="submit" disabled={sending || savingDraft}>{sending ? "Envoi…" : "Envoyer le message"}</button>
+          </div>
         </form>
       </ModalShell> : null}
     </div>

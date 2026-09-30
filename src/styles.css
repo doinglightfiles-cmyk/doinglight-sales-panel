@@ -7986,6 +7986,9 @@ th {
 .mail-attachment-list small { color: #c4e98c; }
 .mail-send-button { justify-self: start; border: 0; border-radius: 6px; padding: 12px 18px; color: #39550d; background: #e0f5b6; font: inherit; font-weight: 900; cursor: pointer; }
 .mail-send-button:disabled { opacity: .65; cursor: wait; }
+.mail-compose-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.mail-draft-button { border: 1px solid rgba(255,255,255,.75); border-radius: 6px; padding: 12px 15px; color: #fff; background: transparent; font: inherit; font-weight: 800; cursor: pointer; }
+.mail-draft-button:disabled { opacity: .65; cursor: wait; }
 
 @media (max-width: 760px) {
   .websites-page { grid-template-columns: 1fr; }
