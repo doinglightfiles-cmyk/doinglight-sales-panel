@@ -2280,17 +2280,21 @@ function FrenchMailWorkspace({ token }) {
   const [attachments, setAttachments] = useState([]);
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: "", email: "" });
+  const [savingContact, setSavingContact] = useState(false);
   const labels = {
     inbox: "Boîte de réception",
     sent: "Messages envoyés",
     drafts: "Brouillons",
-    trash: "Corbeille"
+    trash: "Corbeille",
+    contacts: "Contacts"
   };
   const mailbox = useResource(
-    () => apiRequest(`/api/french-mail/messages?folder=${folder}`, { token }),
+    () => apiRequest(`/api/french-mail/messages?folder=${folder === "contacts" ? "inbox" : folder}`, { token }),
     [token, folder]
   );
   const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
+  const contacts = useResource(() => apiRequest("/api/french-mail/contacts", { token }), [token]);
 
   useEffect(() => {
     setSelectedMessage(null);
@@ -2377,6 +2381,21 @@ function FrenchMailWorkspace({ token }) {
     setComposeOpen(true);
   }
 
+  async function saveContact(event) {
+    event.preventDefault();
+    setSavingContact(true);
+    setMessageError("");
+    try {
+      await apiRequest("/api/french-mail/contacts", { token, method: "POST", body: contactForm });
+      setContactForm({ name: "", email: "" });
+      contacts.reload();
+    } catch (error) {
+      setMessageError(error.message || "Impossible d’enregistrer le contact.");
+    } finally {
+      setSavingContact(false);
+    }
+  }
+
   function mailboxIdentity(value) {
     const raw = String(value || "").trim();
     const match = raw.match(/^(.*?)\s*<([^>]+)>$/);
@@ -2407,7 +2426,19 @@ function FrenchMailWorkspace({ token }) {
         <div className="mail-content">
           {mailbox.loading || messageLoading ? <p className="mail-state">Chargement…</p> : null}
           {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
-          {!mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
+          {folder === "contacts" ? <div className="mail-contacts-workspace">
+            <header><div><h4>Carnet d’adresses</h4><p>Vos contacts sont privés et réservés à la boîte info@doinglight.fr.</p></div></header>
+            <form className="mail-contact-form" onSubmit={saveContact}>
+              <input placeholder="Nom ou société" value={contactForm.name} onChange={(event) => setContactForm({ ...contactForm, name: event.target.value })} />
+              <input type="email" required placeholder="Adresse e-mail" value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} />
+              <button className="primary-button" type="submit" disabled={savingContact}>{savingContact ? "Enregistrement…" : "Ajouter un contact"}</button>
+            </form>
+            {contacts.loading ? <p className="mail-state">Chargement des contacts…</p> : null}
+            {contacts.error ? <p className="form-error">{contacts.error}</p> : null}
+            <div className="mail-contact-list">{(contacts.data?.items || []).map((contact) => <article key={contact.id}><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</article>)}</div>
+            {!contacts.loading && !(contacts.data?.items || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>Aucun contact</h4><p>Ajoutez ici les clients et contacts utiles à Claudine.</p></div> : null}
+          </div> : null}
+          {folder !== "contacts" && !mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
             {(mailbox.data?.messages || []).map((message) => {
               const sender = mailboxIdentity(folder === "sent" ? message.to : message.from);
               return <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => openMessage(message.id)}>
@@ -2418,7 +2449,7 @@ function FrenchMailWorkspace({ token }) {
             })}
             {!(mailbox.data?.messages || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>Aucun message à afficher.</p></div> : null}
           </div> : null}
-          {selectedMessage ? <article className="mail-message-detail">
+          {folder !== "contacts" && selectedMessage ? <article className="mail-message-detail">
             <button className="secondary-button" type="button" onClick={() => setSelectedMessage(null)}>← Retour à la liste</button>
             <h4>{selectedMessage.subject}</h4>
             <p><strong>De :</strong> {selectedMessage.from}</p>
@@ -2434,7 +2465,7 @@ function FrenchMailWorkspace({ token }) {
       {composeOpen ? <ModalShell title="Nouveau message" eyebrow="info@doinglight.fr" onClose={() => setComposeOpen(false)}>
         <form className="mail-compose" onSubmit={sendDraft}>
           <div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div>
-          <label>À<input type="text" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /></label>
+          <label>À<input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist></label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
           <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
