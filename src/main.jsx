@@ -2285,6 +2285,8 @@ function FrenchMailWorkspace({ token }) {
   const [savingDraft, setSavingDraft] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", email: "" });
   const [savingContact, setSavingContact] = useState(false);
+  const [recipientPickerOpen, setRecipientPickerOpen] = useState(false);
+  const [recipientSearch, setRecipientSearch] = useState("");
   const labels = {
     inbox: "Boîte de réception",
     sent: "Messages envoyés",
@@ -2393,6 +2395,17 @@ function FrenchMailWorkspace({ token }) {
     setComposeOpen(true);
   }
 
+  function addRecipient(contact) {
+    const email = String(contact?.email || "").trim();
+    if (!email) return;
+    const current = String(draft.to || "").split(",").map((value) => value.trim()).filter(Boolean);
+    if (!current.some((value) => value.toLowerCase() === email.toLowerCase())) {
+      current.push(email);
+      setDraft({ ...draft, to: current.join(", ") });
+    }
+    setRecipientSearch("");
+  }
+
   async function saveContact(event) {
     event.preventDefault();
     setSavingContact(true);
@@ -2418,6 +2431,10 @@ function FrenchMailWorkspace({ token }) {
     const query = String(draft.to || "").split(",").pop().trim().toLowerCase();
     return query && `${contact.name || ""} ${contact.email}`.toLowerCase().includes(query);
   }).slice(0, 6);
+  const recipientContacts = (contacts.data?.items || []).filter((contact) => {
+    const search = recipientSearch.trim().toLowerCase();
+    return !search || `${contact.name || ""} ${contact.email}`.toLowerCase().includes(search);
+  });
   const libraryFolders = library.data?.folders || [];
 
   return (
@@ -2487,7 +2504,7 @@ function FrenchMailWorkspace({ token }) {
         </nav>
         <form className="mail-compose" onSubmit={sendDraft}>
           <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div><h4>Nouveau message</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>Retour au courrier</button></header>
-          <label>À<input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist>{contactSuggestions.length ? <span className="mail-recipient-suggestions">{contactSuggestions.map((contact) => <button type="button" key={contact.id} onClick={() => setDraft({ ...draft, to: contact.email })}><strong>{contact.name || contact.email}</strong><small>{contact.email}</small></button>)}</span> : null}</label>
+          <label>À<span className="mail-recipient-input"><input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><button className="mail-recipient-add" type="button" onClick={() => setRecipientPickerOpen(true)} aria-label="Ajouter des destinataires depuis le carnet d’adresses" title="Ajouter depuis le carnet d’adresses"><Plus size={18} /></button></span><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist>{contactSuggestions.length ? <span className="mail-recipient-suggestions">{contactSuggestions.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><strong>{contact.name || contact.email}</strong><small>{contact.email}</small></button>)}</span> : null}</label>
           <label>CCO<input type="text" list="french-mail-contacts" value={draft.bcc} onChange={(event) => setDraft({ ...draft, bcc: event.target.value })} placeholder="Destinataires en copie cachée" /></label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
@@ -2500,6 +2517,7 @@ function FrenchMailWorkspace({ token }) {
           </div>
         </form>
         <aside className="mail-library" aria-label="Explorateur de fichiers"><header><small>DRIVE FRANCE</small><h4>Explorateur de fichiers</h4><p>Choisissez les PDF du Drive de Francia para adjuntarlos al mensaje.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderItem) => <button type="button" key={folderItem.id} onClick={() => setLibraryFolder(folderItem.id)}><FileText size={18} /><span>{folderItem.name}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Retour au Drive</button><h5>PDF</h5>{(library.data?.files || []).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><FileText size={16}/><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}{!(library.data?.files || []).length ? <p className="mail-state">Aucun PDF dans ce dossier.</p> : null}</section>}</aside>
+        {recipientPickerOpen ? <div className="operation-modal-backdrop mail-recipient-modal-backdrop" onMouseDown={() => setRecipientPickerOpen(false)}><section className="operation-modal mail-recipient-modal" role="dialog" aria-modal="true" aria-label="Carnet d’adresses" onMouseDown={(event) => event.stopPropagation()}><header><div><small>CARNET D’ADRESSES</small><h4>Ajouter des destinataires</h4></div><button className="icon-button" type="button" onClick={() => setRecipientPickerOpen(false)} aria-label="Fermer"><X size={20} /></button></header><label className="mail-recipient-search"><Search size={17} /><input autoFocus value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} placeholder="Rechercher un nom ou une adresse e-mail" /></label><div className="mail-recipient-contact-list">{recipientContacts.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><span><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</span><Plus size={17} /></button>)}{!recipientContacts.length ? <p>Aucun contact trouvé.</p> : null}</div><footer><button className="mail-send-button" type="button" onClick={() => setRecipientPickerOpen(false)}>Terminé</button></footer></section></div> : null}
       </section>}
     </div>
   );
