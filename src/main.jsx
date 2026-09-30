@@ -4728,6 +4728,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
                       {deliveryNote.hasAttachment ? <Paperclip size={17} /> : null}
                       <FileText size={18} />
                       {deliveryNote.sent ? <Mail size={18} aria-label="Documento enviado por correo" /> : null}
+                      {deliveryNote.warehouseSentAt ? <Package className="warehouse-sent-icon" size={18} aria-label="Albarán enviado a almacén" title="Enviado a almacén" /> : null}
                       {deliveryNote.responsible ? <span className="document-owner-pill">{deliveryNote.responsible}</span> : null}
                     </span>
                   </td>

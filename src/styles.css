@@ -2714,6 +2714,7 @@ select:focus {
 .drive-folder,.drive-file { display: grid; justify-items: start; gap: 6px; min-height: 126px; border: 1px solid #dce5d7; border-radius: 8px; padding: 15px; color: #42523d; background: #fff; text-align: left; font: inherit; }
 .drive-folder:hover,.drive-file:hover { border-color: #9ec241; background: #f2f8e4; }.drive-folder svg { color: #9cc31b; }.drive-file svg { color: #dc4540; }.drive-folder small,.drive-file small { color: #7a8775; font-size: 11px; }
 .drive-preview { margin: 18px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }.drive-preview header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); }.drive-preview iframe { display:block; width:100%; height:min(72vh,780px); border:0; }
+.warehouse-sent-icon { color: var(--green); }
 
 .download-card {
   min-height: 132px;
