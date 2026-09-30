@@ -1901,7 +1901,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} /> : null}
-          {activeView === "downloads" ? <DownloadsView user={session.user} distributor={isDistributor} locale={panelLocale} /> : null}
+          {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} /> : null}
         </section>
       </div>
 
@@ -2298,7 +2298,7 @@ function FrenchMailWorkspace({ token }) {
   );
   const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
   const contacts = useResource(() => apiRequest("/api/french-mail/contacts", { token }), [token]);
-  const library = useResource(() => apiRequest("/api/french-mail/library", { token }), [token]);
+  const library = useResource(() => apiRequest(`/api/drive?country=fr${libraryFolder ? `&folderId=${encodeURIComponent(libraryFolder)}` : ""}`, { token }), [token, libraryFolder]);
 
   useEffect(() => {
     setSelectedMessage(null);
@@ -2417,7 +2417,7 @@ function FrenchMailWorkspace({ token }) {
     const query = String(draft.to || "").split(",").pop().trim().toLowerCase();
     return query && `${contact.name || ""} ${contact.email}`.toLowerCase().includes(query);
   }).slice(0, 6);
-  const libraryFolders = [...new Set((library.data?.items || []).map((item) => item.folder))];
+  const libraryFolders = library.data?.folders || [];
 
   return (
     <div className="module-page mail-workspace">
@@ -2491,13 +2491,13 @@ function FrenchMailWorkspace({ token }) {
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
           <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
           {attachments.length ? <ul className="mail-attachment-list">{attachments.map((file) => <li key={`${file.name}-${file.size}`}>{file.name} <small>{attachmentSize(file.size)}</small></li>)}</ul> : null}
-          {libraryAttachmentIds.length ? <ul className="mail-attachment-list">{libraryAttachmentIds.map((id) => { const item = (library.data?.items || []).find((file) => file.id === id); return <li key={id}>{item?.name || id}<button type="button" onClick={() => setLibraryAttachmentIds((items) => items.filter((itemId) => itemId !== id))}>×</button></li>; })}</ul> : null}
+          {libraryAttachmentIds.length ? <ul className="mail-attachment-list">{libraryAttachmentIds.map((id) => { const item = (library.data?.files || []).find((file) => file.id === id); return <li key={id}>{item?.name || id}<button type="button" onClick={() => setLibraryAttachmentIds((items) => items.filter((itemId) => itemId !== id))}>×</button></li>; })}</ul> : null}
           <div className="mail-compose-actions">
             <button className="mail-draft-button" type="button" disabled={savingDraft || sending} onClick={saveCurrentDraft}>{savingDraft ? "Enregistrement…" : "Enregistrer le brouillon"}</button>
             <button className="mail-send-button" type="submit" disabled={sending || savingDraft}>{sending ? "Envoi…" : "Envoyer le message"}</button>
           </div>
         </form>
-        <aside className="mail-library" aria-label="Explorateur de fichiers"><header><small>DRIVE</small><h4>Explorateur de fichiers</h4><p>Choisissez les documents à joindre depuis le Drive de votre pays.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderName) => <button type="button" key={folderName} onClick={() => setLibraryFolder(folderName)}><FileText size={18} /><span>{folderName}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Retour au Drive</button><h5>{libraryFolder}</h5>{(library.data?.items || []).filter((item) => item.folder === libraryFolder).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}</section>}</aside>
+        <aside className="mail-library" aria-label="Explorateur de fichiers"><header><small>DRIVE FRANCE</small><h4>Explorateur de fichiers</h4><p>Choisissez les PDF du Drive de Francia para adjuntarlos al mensaje.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderItem) => <button type="button" key={folderItem.id} onClick={() => setLibraryFolder(folderItem.id)}><FileText size={18} /><span>{folderItem.name}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Retour au Drive</button><h5>PDF</h5>{(library.data?.files || []).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><FileText size={16}/><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}{!(library.data?.files || []).length ? <p className="mail-state">Aucun PDF dans ce dossier.</p> : null}</section>}</aside>
       </section>}
     </div>
   );
@@ -10204,13 +10204,7 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
   );
 }
 
-function DownloadsView({ user, distributor = false, locale = "es" }) {
-  const downloadSections = [
-    { title: "Catálogos", description: "Documentación comercial y catálogos por idioma." },
-    { title: "Fichas Técnicas", description: "Fichas de producto, medidas y documentación técnica." },
-    { title: "Normativas", description: "Documentos normativos y referencias de instalación." },
-    { title: "Certificados", description: "Certificaciones, garantías y documentación oficial." }
-  ];
+function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   const countries = [
     { id: "es", flag: "🇪🇸", label: "España", description: "Drive comercial y técnico de España." },
     { id: "it", flag: "🇮🇹", label: "Italia", description: "Drive comercial y técnico de Italia." },
@@ -10220,20 +10214,22 @@ function DownloadsView({ user, distributor = false, locale = "es" }) {
   ];
   const administrator = isPanelAdministrator(user);
   const [country, setCountry] = useState(administrator ? "es" : locale);
+  const [folderId, setFolderId] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [preview, setPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const drive = useResource(() => apiRequest(`/api/drive?country=${country}${folderId ? `&folderId=${encodeURIComponent(folderId)}` : ""}`, { token }), [token, country, folderId]);
   const selectedCountry = countries.find((item) => item.id === country) || countries[0];
+  function openFolder(folder) { setHistory((items) => [...items, { id: folderId, name: folder.name }]); setFolderId(folder.id); setPreview(null); }
+  function goBack() { const previous = history[history.length - 1]; setHistory((items) => items.slice(0, -1)); setFolderId(previous?.id || null); setPreview(null); }
+  async function upload(event) { const file = event.target.files?.[0]; if (!file || !folderId) return; setUploading(true); try { await apiRequest("/api/drive/files", { token, method: "POST", body: { country, folderId, name: file.name, content: await fileToBase64(file) } }); drive.reload(); } finally { setUploading(false); event.target.value = ""; } }
+  async function previewFile(file) { const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) return; const blob = await response.blob(); setPreview({ name: file.name, url: URL.createObjectURL(blob) }); }
 
   return (
     <Panel title="Drive">
-      {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => setCountry(item.id)}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
-      <div className="download-grid">
-        {downloadSections.map((section) => (
-          <button className="download-card" key={section.title} type="button">
-            <Download size={22} />
-            <strong>{section.title}</strong>
-            <span>{section.description}</span>
-          </button>
-        ))}
-      </div>
+      {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
+      <section className="drive-browser"><header>{folderId ? <button className="secondary-button" type="button" onClick={goBack}>← Atrás</button> : <span>Mis archivos</span>}{administrator && folderId ? <label className="primary-button drive-upload">{uploading ? "Subiendo…" : "Subir PDF"}<input type="file" accept="application/pdf" onChange={upload} /></label> : null}</header>{drive.loading ? <p className="mail-state">Cargando Drive…</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{folder.name}</strong><small>Carpeta</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">Esta carpeta todavía no contiene archivos.</p> : null}</section>
+      {preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}
     </Panel>
   );
 }
