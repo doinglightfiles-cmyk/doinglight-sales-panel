@@ -1616,6 +1616,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     { id: "quotes", label: distributorLabels.quotes },
     { id: "contacts", label: distributorLabels.clients },
     { id: "catalog", label: distributorLabels.products },
+    { id: "downloads", label: "Drive" },
     ...(isFrenchDistributor ? [{ id: "mail", label: "Mail" }] : [])
   ] : [
     { id: "dashboard", label: "Inicio" },
@@ -1647,7 +1648,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
       items: [
         { id: "contacts", label: "Contactos" },
         { id: "catalog", label: "Productos" },
-        { id: "downloads", label: "Descargas" },
+        { id: "downloads", label: "Drive" },
         { id: "recurring-tasks", label: "Tareas recurrentes" },
         { id: "activity", label: "Actividad" }
       ]
@@ -1900,7 +1901,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} /> : null}
-          {activeView === "downloads" ? <DownloadsView /> : null}
+          {activeView === "downloads" ? <DownloadsView user={session.user} distributor={isDistributor} locale={panelLocale} /> : null}
         </section>
       </div>
 
@@ -2279,6 +2280,7 @@ function FrenchMailWorkspace({ token }) {
   const [draft, setDraft] = useState({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
   const [attachments, setAttachments] = useState([]);
   const [libraryAttachmentIds, setLibraryAttachmentIds] = useState([]);
+  const [libraryFolder, setLibraryFolder] = useState(null);
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", email: "" });
@@ -2415,6 +2417,7 @@ function FrenchMailWorkspace({ token }) {
     const query = String(draft.to || "").split(",").pop().trim().toLowerCase();
     return query && `${contact.name || ""} ${contact.email}`.toLowerCase().includes(query);
   }).slice(0, 6);
+  const libraryFolders = [...new Set((library.data?.items || []).map((item) => item.folder))];
 
   return (
     <div className="module-page mail-workspace">
@@ -2494,7 +2497,7 @@ function FrenchMailWorkspace({ token }) {
             <button className="mail-send-button" type="submit" disabled={sending || savingDraft}>{sending ? "Envoi…" : "Envoyer le message"}</button>
           </div>
         </form>
-        <aside className="mail-library" aria-label="Documents de l’entrepôt"><header><small>ENTREPÔT</small><h4>Documents à joindre</h4><p>Ajoutez les fichiers de la bibliothèque à ce message.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{[...new Set((library.data?.items || []).map((item) => item.folder))].map((libraryFolder) => <section key={libraryFolder}><h5>{libraryFolder}</h5>{(library.data?.items || []).filter((item) => item.folder === libraryFolder).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}</section>)}</aside>
+        <aside className="mail-library" aria-label="Explorateur de fichiers"><header><small>DRIVE</small><h4>Explorateur de fichiers</h4><p>Choisissez les documents à joindre depuis le Drive de votre pays.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderName) => <button type="button" key={folderName} onClick={() => setLibraryFolder(folderName)}><FileText size={18} /><span>{folderName}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Retour au Drive</button><h5>{libraryFolder}</h5>{(library.data?.items || []).filter((item) => item.folder === libraryFolder).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}</section>}</aside>
       </section>}
     </div>
   );
@@ -10201,16 +10204,27 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
   );
 }
 
-function DownloadsView() {
+function DownloadsView({ user, distributor = false, locale = "es" }) {
   const downloadSections = [
     { title: "Catálogos", description: "Documentación comercial y catálogos por idioma." },
     { title: "Fichas Técnicas", description: "Fichas de producto, medidas y documentación técnica." },
     { title: "Normativas", description: "Documentos normativos y referencias de instalación." },
     { title: "Certificados", description: "Certificaciones, garantías y documentación oficial." }
   ];
+  const countries = [
+    { id: "es", flag: "🇪🇸", label: "España", description: "Drive comercial y técnico de España." },
+    { id: "it", flag: "🇮🇹", label: "Italia", description: "Drive comercial y técnico de Italia." },
+    { id: "fr", flag: "🇫🇷", label: "Francia", description: "Drive comercial y técnico de Francia." },
+    { id: "pt", flag: "🇵🇹", label: "Portugal", description: "Drive comercial y técnico de Portugal." },
+    { id: "de", flag: "🇩🇪", label: "Alemania", description: "Drive comercial y técnico de Alemania." }
+  ];
+  const administrator = isPanelAdministrator(user);
+  const [country, setCountry] = useState(administrator ? "es" : locale);
+  const selectedCountry = countries.find((item) => item.id === country) || countries[0];
 
   return (
-    <Panel title="Descargas">
+    <Panel title="Drive">
+      {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => setCountry(item.id)}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
       <div className="download-grid">
         {downloadSections.map((section) => (
           <button className="download-card" key={section.title} type="button">
