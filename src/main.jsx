@@ -2278,6 +2278,7 @@ function FrenchMailWorkspace({ token }) {
   const [composeOpen, setComposeOpen] = useState(false);
   const [draft, setDraft] = useState({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
   const [attachments, setAttachments] = useState([]);
+  const [libraryAttachmentIds, setLibraryAttachmentIds] = useState([]);
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", email: "" });
@@ -2296,6 +2297,7 @@ function FrenchMailWorkspace({ token }) {
   );
   const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
   const contacts = useResource(() => apiRequest("/api/french-mail/contacts", { token }), [token]);
+  const library = useResource(() => apiRequest("/api/french-mail/library", { token }), [token]);
 
   useEffect(() => {
     setSelectedMessage(null);
@@ -2325,10 +2327,11 @@ function FrenchMailWorkspace({ token }) {
         contentType: file.type || "application/octet-stream",
         content: await fileToBase64(file)
       })));
-      await apiRequest("/api/french-mail/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments } });
+      await apiRequest("/api/french-mail/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments, libraryAttachments: libraryAttachmentIds } });
       setComposeOpen(false);
       setDraft({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
       setAttachments([]);
+      setLibraryAttachmentIds([]);
       setFolder("sent");
       window.setTimeout(() => mailbox.reload(), 400);
     } catch (error) {
@@ -2350,7 +2353,7 @@ function FrenchMailWorkspace({ token }) {
     setSavingDraft(true);
     setMessageError("");
     try {
-      await apiRequest("/api/french-mail/drafts", { token, method: "POST", body: { ...draft, attachments: await encodedAttachments() } });
+      await apiRequest("/api/french-mail/drafts", { token, method: "POST", body: { ...draft, attachments: await encodedAttachments(), libraryAttachments: libraryAttachmentIds } });
       setComposeOpen(false);
       setFolder("drafts");
       window.setTimeout(() => mailbox.reload(), 400);
@@ -2379,6 +2382,7 @@ function FrenchMailWorkspace({ token }) {
   function openNewMessage() {
     setDraft({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
     setAttachments([]);
+    setLibraryAttachmentIds([]);
     setComposeOpen(true);
   }
 
@@ -2437,7 +2441,7 @@ function FrenchMailWorkspace({ token }) {
         <Mail size={22} />
         <div><strong>Configuration requise dans Railway</strong><p>Le service backend ne reçoit pas encore : {configuration.data.missing.join(", ")}.</p></div>
       </section> : null}
-      <section className="mail-layout">
+      {!composeOpen ? <section className="mail-layout">
         <nav className="mail-folders" aria-label="Dossiers de messagerie">
           {Object.entries(labels).map(([id, label]) => (
             <button key={id} type="button" className={folder === id ? "active" : ""} onClick={() => setFolder(id)}>{label}</button>
@@ -2481,21 +2485,22 @@ function FrenchMailWorkspace({ token }) {
             </div> : null}
           </article> : null}
         </div>
-      </section>
-      {composeOpen ? <ModalShell title="Nouveau message" eyebrow="info@doinglight.fr" onClose={() => setComposeOpen(false)}>
+      </section> : <section className="mail-compose-page">
         <form className="mail-compose" onSubmit={sendDraft}>
-          <div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div>
+          <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div><h4>Nouveau message</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>Retour au courrier</button></header>
           <label>À<input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist>{contactSuggestions.length ? <span className="mail-recipient-suggestions">{contactSuggestions.map((contact) => <button type="button" key={contact.id} onClick={() => setDraft({ ...draft, to: contact.email })}><strong>{contact.name || contact.email}</strong><small>{contact.email}</small></button>)}</span> : null}</label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
           <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
           {attachments.length ? <ul className="mail-attachment-list">{attachments.map((file) => <li key={`${file.name}-${file.size}`}>{file.name} <small>{attachmentSize(file.size)}</small></li>)}</ul> : null}
+          {libraryAttachmentIds.length ? <ul className="mail-attachment-list">{libraryAttachmentIds.map((id) => { const item = (library.data?.items || []).find((file) => file.id === id); return <li key={id}>{item?.name || id}<button type="button" onClick={() => setLibraryAttachmentIds((items) => items.filter((itemId) => itemId !== id))}>×</button></li>; })}</ul> : null}
           <div className="mail-compose-actions">
             <button className="mail-draft-button" type="button" disabled={savingDraft || sending} onClick={saveCurrentDraft}>{savingDraft ? "Enregistrement…" : "Enregistrer le brouillon"}</button>
             <button className="mail-send-button" type="submit" disabled={sending || savingDraft}>{sending ? "Envoi…" : "Envoyer le message"}</button>
           </div>
         </form>
-      </ModalShell> : null}
+        <aside className="mail-library" aria-label="Documents de l’entrepôt"><header><small>ENTREPÔT</small><h4>Documents à joindre</h4><p>Ajoutez les fichiers de la bibliothèque à ce message.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{[...new Set((library.data?.items || []).map((item) => item.folder))].map((libraryFolder) => <section key={libraryFolder}><h5>{libraryFolder}</h5>{(library.data?.items || []).filter((item) => item.folder === libraryFolder).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}</section>)}</aside>
+      </section>}
     </div>
   );
 }
