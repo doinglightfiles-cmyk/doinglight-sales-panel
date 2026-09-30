@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
-  --green: #8fbc13;
+  /* Verde Doinglight: el mismo tono que identifica el encabezado del panel. */
+  --green: #9cc31b;
   --green-dark: #52740b;
   --ink: #172014;
   --muted: #66705f;
@@ -125,7 +126,7 @@ select:focus {
 
 .primary-button {
   color: var(--white);
-  background: var(--green-dark);
+  background: var(--green);
 }
 
 .primary-button:disabled {
@@ -1870,8 +1871,8 @@ select:focus {
 }
 
 .quote-accepted-column { width: 1%; padding-right: 18px !important; text-align: right; white-space: nowrap; }
-.invoice-row-accept-button { border: 1px solid #81a947; border-radius: 7px; padding: 7px 10px; color: #fff; background: #5b8700; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
-.invoice-row-accept-button:hover { background: #466c00; }
+.invoice-row-accept-button { border: 1px solid #86aa17; border-radius: 7px; padding: 7px 10px; color: #fff; background: var(--green); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.invoice-row-accept-button:hover { background: #8fbc13; }
 
 .invoices-list-panel {
   border-radius: 24px;
@@ -7984,11 +7985,40 @@ th {
 .mail-attachment-picker span { width: max-content; border: 1px solid #cddbc5; border-radius: 6px; padding: 8px 11px; color: #586b52; background: #fff; cursor: pointer; }
 .mail-attachment-list { display: grid; gap: 5px; margin: -7px 0 0; padding: 0; list-style: none; color: #64715f; font-size: 12px; }
 .mail-attachment-list small { color: #94a28e; }
-.mail-send-button { justify-self: start; border: 1px solid #73984b; border-radius: 6px; padding: 12px 18px; color: #fff; background: #5d8629; font: inherit; font-weight: 700; cursor: pointer; }
+.mail-send-button { justify-self: start; border: 1px solid #86aa17; border-radius: 6px; padding: 12px 18px; color: #fff; background: var(--green); font: inherit; font-weight: 700; cursor: pointer; }
 .mail-send-button:disabled { opacity: .65; cursor: wait; }
 .mail-compose-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .mail-draft-button { border: 1px solid #cbd9c2; border-radius: 6px; padding: 12px 15px; color: #596b53; background: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 .mail-draft-button:disabled { opacity: .65; cursor: wait; }
+
+/* Acciones principales: un único verde Doinglight, igual al del encabezado. */
+.action-badge,
+.purchase-kind,
+.contact-kind-badge,
+.invoice-new-split,
+.invoice-new-split button,
+.invoice-new-split.single-action,
+.invoice-new-button,
+.contact-new-button,
+.quote-shipping-button,
+.quote-transfer-lines-button:hover,
+.segmented-control button.active,
+.quote-client-suggestion.empty button,
+.quote-client-quick-edit-head button,
+.quote-client-create-button:hover,
+.quote-client-create-button.active,
+.send-quote-button,
+.quote-send-recipient-entry > button,
+.warehouse-ready-button,
+.carrier-choice-grid button.selected {
+  background: var(--green);
+}
+
+.warehouse-send-button,
+.warehouse-refresh,
+.warehouse-detail > header {
+  background: var(--green);
+}
 
 @media (max-width: 760px) {
   .websites-page { grid-template-columns: 1fr; }
