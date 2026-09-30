@@ -2376,8 +2376,8 @@ function FrenchMailWorkspace({ token }) {
           {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
           {!mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
             {(mailbox.data?.messages || []).map((message) => <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => openMessage(message.id)}>
-              <strong>{message.from || message.to || "—"}</strong>
-              <span>{message.subject}</span>
+              <strong className="mail-message-sender">{message.from || message.to || "—"}</strong>
+              <span className="mail-message-subject">{message.subject}</span>
               <time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time>
             </button>)}
             {!(mailbox.data?.messages || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>Aucun message à afficher.</p></div> : null}

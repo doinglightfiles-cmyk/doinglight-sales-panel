@@ -7958,12 +7958,15 @@ th {
 .mail-empty-state p { max-width: 360px; margin: 0; line-height: 1.5; }
 .mail-content { min-width: 0; }
 .mail-state { padding: 22px; color: var(--muted); }
-.mail-message-list { display: grid; }
-.mail-message { display: grid; grid-template-columns: minmax(150px, .8fr) minmax(0, 2fr) auto; gap: 16px; align-items: center; min-height: 62px; border: 0; border-bottom: 1px solid var(--line); padding: 12px 18px; color: #41503d; background: #fff; font: inherit; text-align: left; cursor: pointer; }
-.mail-message:hover { background: #f7faef; }
-.mail-message.unread { color: #203218; background: #f5f9ea; font-weight: 800; }
-.mail-message span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mail-message time { color: #73816d; font-size: 12px; white-space: nowrap; }
+.mail-message-list { display: grid; padding: 10px; gap: 7px; background: #f7f9f3; }
+.mail-message { display: grid; grid-template-columns: minmax(205px, .85fr) minmax(240px, 2.4fr) 98px; gap: 20px; align-items: center; min-height: 72px; border: 1px solid transparent; border-radius: 8px; padding: 13px 17px; color: #53614d; background: #fff; box-shadow: 0 1px 1px rgba(30, 50, 20, .025); font: inherit; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.mail-message:hover { border-color: #cbdcb2; box-shadow: 0 5px 13px rgba(42, 73, 16, .08); transform: translateY(-1px); }
+.mail-message.unread { border-color: #dbe8c7; color: #263d19; background: #fbfdf7; }
+.mail-message-sender { overflow: hidden; color: #45533f; font-size: 13px; font-weight: 700; line-height: 1.35; }
+.mail-message.unread .mail-message-sender { color: #263d19; font-weight: 850; }
+.mail-message-subject { overflow: hidden; color: #4e5b49; font-size: 13px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.mail-message.unread .mail-message-subject { color: #263d19; font-weight: 750; }
+.mail-message time { justify-self: end; color: #82907d; font-size: 11px; font-weight: 750; white-space: nowrap; }
 .mail-message-detail { padding: 24px; }
 .mail-message-detail h4 { margin: 22px 0 12px; color: #263822; font-size: 21px; }
 .mail-message-detail p { margin: 6px 0; color: #5e6b58; }
@@ -8000,5 +8003,5 @@ th {
   .mail-folders { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .mail-folders button { min-width: max-content; }
   .mail-message { grid-template-columns: 1fr auto; gap: 5px 10px; }
-  .mail-message span { grid-column: 1 / -1; }
+  .mail-message-subject { grid-column: 1 / -1; }
 }
