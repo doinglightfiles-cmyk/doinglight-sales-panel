@@ -2277,7 +2277,7 @@ function FrenchMailWorkspace({ token }) {
   const [messageLoading, setMessageLoading] = useState(false);
   const [messageError, setMessageError] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
-  const [draft, setDraft] = useState({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
+  const [draft, setDraft] = useState({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
   const [attachments, setAttachments] = useState([]);
   const [libraryAttachmentIds, setLibraryAttachmentIds] = useState([]);
   const [libraryFolder, setLibraryFolder] = useState(null);
@@ -2334,7 +2334,7 @@ function FrenchMailWorkspace({ token }) {
       })));
       await apiRequest("/api/french-mail/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments, libraryAttachments: libraryAttachmentIds } });
       setComposeOpen(false);
-      setDraft({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
+      setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
       setAttachments([]);
       setLibraryAttachmentIds([]);
       contacts.reload();
@@ -2377,6 +2377,7 @@ function FrenchMailWorkspace({ token }) {
     const uniqueRecipients = [...new Set(recipients.join(",").split(",").map((item) => item.trim()).filter((item) => item && !item.toLowerCase().includes("info@doinglight.fr")))];
     setDraft({
       to: uniqueRecipients.join(", "),
+      bcc: "",
       subject: /^re:/i.test(selectedMessage.subject || "") ? selectedMessage.subject : `Re: ${selectedMessage.subject || ""}`,
       text: "",
       inReplyTo: selectedMessage.messageId || "",
@@ -2386,7 +2387,7 @@ function FrenchMailWorkspace({ token }) {
   }
 
   function openNewMessage() {
-    setDraft({ to: "", subject: "", text: "", inReplyTo: "", references: "" });
+    setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
     setAttachments([]);
     setLibraryAttachmentIds([]);
     setComposeOpen(true);
@@ -2487,6 +2488,7 @@ function FrenchMailWorkspace({ token }) {
         <form className="mail-compose" onSubmit={sendDraft}>
           <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div><h4>Nouveau message</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>Retour au courrier</button></header>
           <label>À<input type="text" list="french-mail-contacts" required value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} /><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist>{contactSuggestions.length ? <span className="mail-recipient-suggestions">{contactSuggestions.map((contact) => <button type="button" key={contact.id} onClick={() => setDraft({ ...draft, to: contact.email })}><strong>{contact.name || contact.email}</strong><small>{contact.email}</small></button>)}</span> : null}</label>
+          <label>CCO<input type="text" list="french-mail-contacts" value={draft.bcc} onChange={(event) => setDraft({ ...draft, bcc: event.target.value })} placeholder="Destinataires en copie cachée" /></label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
           <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
