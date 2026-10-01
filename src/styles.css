@@ -7164,6 +7164,31 @@ th {
   font-size: 12px;
 }
 
+.invoice-document-number-edit {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.invoice-document-number-edit input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .invoice-series-create-form {
   display: grid;
   gap: 16px;

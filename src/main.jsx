@@ -10644,6 +10644,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
   const [internalNotes, setInternalNotes] = useState(initialQuote?.internalNotes || "");
   const [documentSeries, setDocumentSeries] = useState(initialQuote?.documentSeries || "");
+  const [documentNumberOverride, setDocumentNumberOverride] = useState(
+    initialQuote?.quoteNumber || initialQuote?.documentNumber || initialQuote?.number || ""
+  );
   const [seriesMenuOpen, setSeriesMenuOpen] = useState(false);
   const [seriesCreationOpen, setSeriesCreationOpen] = useState(false);
   const [seriesSaving, setSeriesSaving] = useState(false);
@@ -10688,6 +10691,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       setDocumentSeries(currentDocument.documentSeries || "");
     }
   }, [currentDocument?.documentSeries]);
+
+  useEffect(() => {
+    setDocumentNumberOverride(currentDocument?.quoteNumber || currentDocument?.documentNumber || currentDocument?.number || "");
+  }, [currentDocument?.id, currentDocument?.quoteNumber, currentDocument?.documentNumber, currentDocument?.number]);
 
   const leadsList = leads.data?.items || [];
   const paymentMethods = useMemo(
@@ -11538,6 +11545,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       reverseCharge,
       ...(isInvoice ? { partialPaymentAmount: quoteStatus === "partial" ? Number(partialPaymentAmount) : null } : {}),
       documentSeries,
+      ...(documentNumberOverride.trim() ? { documentNumber: documentNumberOverride.trim() } : {}),
       pdfTemplate,
       visualTemplate: pdfTemplate,
       attachments: attachments.map((attachment) => ({
@@ -12075,6 +12083,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   ? `Número actual: ${currentDocument.quoteNumber || currentDocument.documentNumber}`
                   : `El siguiente número de ${selectedDocumentSeries.code || "la serie sin código"} se asignará al guardar.`}
               </small>
+              <label className="invoice-document-number-edit">
+                <span>Número</span>
+                <input
+                  value={documentNumberOverride}
+                  onChange={(event) => setDocumentNumberOverride(event.target.value)}
+                  placeholder="Automático"
+                  aria-label="Número de documento"
+                />
+              </label>
             </div>
             <label>
               <span>{t("email", "Correo electrónico de envío")}</span>
