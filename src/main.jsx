@@ -1911,7 +1911,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         </section>
       </div>
 
-      {!isDistributor && !createDrawerOpen
+      {!isDistributor && !isAngelSpainDistributor && !createDrawerOpen
         && !globalInvoiceOpen
         && !globalQuoteOpen
         && !globalProformaOpen
