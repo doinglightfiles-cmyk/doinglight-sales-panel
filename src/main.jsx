@@ -4182,13 +4182,14 @@ function AngelBillingView({ token }) {
     .filter((quote) => ["accepted", "approved"].includes(String(quote.status || "").trim().toLowerCase()))
     .map((quote) => {
       const row = serializeSalesQuote(quote, leadsById, "es");
+      const paid = String(quote.angelBillingPaymentStatus || "").trim().toLowerCase() === "paid";
       return {
         ...row,
         documentType: "accepted_quote",
-        status: "Pendiente",
-        statusKey: "pending",
+        status: paid ? "Cobrada" : "Pendiente",
+        statusKey: paid ? "paid" : "pending",
         detail: `Presupuesto ${row.number} aceptado${row.date ? ` ${dateOnly(row.date)}` : ""}`,
-        pendingBalance: row.total
+        pendingBalance: paid ? 0 : row.total
       };
     });
   const visibleInvoices = invoices.filter((invoice) => (
