@@ -1596,6 +1596,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [chatCount,setChatCount]=useState(0);
   const [manufacturingOpen,setManufacturingOpen]=useState(false);
   const userEmail=String(session.user?.email||"").trim().toLowerCase();
+  const isAngelSpainDistributor = userEmail === "a.jimenez@doinglight.es";
   const canUseShopping=SHOPPING_LIST_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
   const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
@@ -1621,7 +1622,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     { id: "quotes", label: distributorLabels.quotes },
     { id: "contacts", label: distributorLabels.clients },
     { id: "catalog", label: distributorLabels.products },
-    { id: "downloads", label: "Drive" },
+    ...(!isAngelSpainDistributor ? [{ id: "downloads", label: "Drive" }] : []),
     ...(isFrenchDistributor ? [{ id: "mail", label: "Mail" }] : [])
   ] : [
     { id: "dashboard", label: "Inicio" },
@@ -1855,7 +1856,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
               <Bell size={18} />
               {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
             </button>
-            {!isDistributor ? <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
+            {!isDistributor && !isAngelSpainDistributor ? <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
               <Settings size={18} />
             </button> : null}
             <button className="icon-button header-action-button" onClick={onLogout} aria-label="Cerrar sesión">
@@ -1905,7 +1906,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "mail" && isFrenchDistributor ? <FrenchMailWorkspace token={session.token} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
-          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} /> : null}
+          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} restrictedUser={isAngelSpainDistributor} /> : null}
           {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} /> : null}
         </section>
       </div>
@@ -9471,7 +9472,7 @@ const QUOTE_ORIGIN_FILTERS = [
   { id: "angel", label: "Ángel", email: "a.jimenez@doinglight.es", icon: "cap" }
 ];
 
-function QuotesView({ token, distributor = false, locale = "es" }) {
+function QuotesView({ token, distributor = false, locale = "es", restrictedUser = false }) {
   const copy = distributorPanelCopy(locale);
   const listCopy = distributorQuoteListCopy(distributor ? locale : "es");
   const [showForm, setShowForm] = useState(false);
@@ -9655,7 +9656,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
           <button className="invoice-new-split single-action" type="button" onClick={() => openEmptyQuote("doinglight")}>
             {distributor ? copy.newQuote : "Nuevo presupuesto"}
           </button>
-          {!distributor ? <button
+          {!distributor && !restrictedUser ? <button
             className="invoice-new-split single-action quote-new-alt-action"
             type="button"
             onClick={() => openEmptyQuote("tubo-solar")}
