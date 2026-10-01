@@ -4164,12 +4164,33 @@ function AngelBillingView({ token }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
-  const invoicesResource = useResource(
-    () => apiRequest("/api/sales/documents/invoice?limit=500", { token }),
+  const quotesResource = useResource(
+    () => apiRequest("/api/sales/quotes?limit=500", { token }),
     [token]
   );
-  useSalesDocumentSavedRefresh("invoice", invoicesResource.reload);
-  const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
+  const leadsResource = useResource(
+    () => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }),
+    [token]
+  );
+  useSalesDocumentSavedRefresh("quote", quotesResource.reload);
+  const leadsById = useMemo(() => {
+    const map = new Map();
+    (leadsResource.data?.items || []).forEach((lead) => map.set(lead.id, lead));
+    return map;
+  }, [leadsResource.data]);
+  const invoices = (quotesResource.data?.items || [])
+    .filter((quote) => ["accepted", "approved"].includes(String(quote.status || "").trim().toLowerCase()))
+    .map((quote) => {
+      const row = serializeSalesQuote(quote, leadsById, "es");
+      return {
+        ...row,
+        documentType: "accepted_quote",
+        status: "Pendiente",
+        statusKey: "pending",
+        detail: `Presupuesto ${row.number} aceptado${row.date ? ` ${dateOnly(row.date)}` : ""}`,
+        pendingBalance: row.total
+      };
+    });
   const visibleInvoices = invoices.filter((invoice) => (
     textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query)
     && (statusFilter === "all" || invoice.statusKey === statusFilter)
@@ -4181,15 +4202,15 @@ function AngelBillingView({ token }) {
       <header className="module-page-header invoices-page-header">
         <div>
           <h3>Facturación</h3>
-          <p className="module-page-subtitle">Facturas vinculadas a tus presupuestos y clientes asignados.</p>
+          <p className="module-page-subtitle">Presupuestos aceptados pendientes de registrar su cobro.</p>
         </div>
       </header>
-      {invoicesResource.error ? <p className="form-error">{invoicesResource.error}</p> : null}
+      {quotesResource.error || leadsResource.error ? <p className="form-error">{quotesResource.error || leadsResource.error}</p> : null}
       <section className="module-panel invoices-list-panel">
         <div className="invoice-toolbar">
           <div className="module-search">
             <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar factura o cliente..." />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar presupuesto o cliente..." />
           </div>
           <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
         </div>
@@ -4210,7 +4231,7 @@ function AngelBillingView({ token }) {
                 <th className="invoice-kind-column"></th>
                 <th>Fecha</th>
                 <th>Estado</th>
-                <th>Serie / Núm.</th>
+                <th>Presupuesto</th>
                 <th>Cliente / Detalle</th>
                 <th>Subtotal</th>
                 <th>Total</th>
@@ -4218,11 +4239,11 @@ function AngelBillingView({ token }) {
               </tr>
             </thead>
             <tbody>
-              {invoicesResource.loading ? <tr className="empty-table-row"><td colSpan={8}>Cargando facturas...</td></tr> : null}
-              {!invoicesResource.loading && !visibleInvoices.length ? <tr className="empty-table-row"><td colSpan={8}>No hay facturas para mostrar.</td></tr> : null}
+              {quotesResource.loading || leadsResource.loading ? <tr className="empty-table-row"><td colSpan={8}>Cargando facturación...</td></tr> : null}
+              {!quotesResource.loading && !leadsResource.loading && !visibleInvoices.length ? <tr className="empty-table-row"><td colSpan={8}>No hay presupuestos aceptados para mostrar.</td></tr> : null}
               {visibleInvoices.map((invoice) => (
                 <tr key={invoice.id} className={invoiceRowStatusClass(invoice)}>
-                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(invoice)}`}>F</span></td>
+                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(invoice)}`}>P</span></td>
                   <td>{dateOnly(invoice.date)}</td>
                   <td><span className={`invoice-payment-status ${invoice.statusKey}`}>{invoice.status}</span></td>
                   <td>{invoice.number}</td>
