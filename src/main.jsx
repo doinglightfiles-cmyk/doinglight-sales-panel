@@ -4168,6 +4168,17 @@ function AngelBillingView({ token }) {
     () => apiRequest("/api/sales/documents/invoice?limit=500", { token }),
     [token]
   );
+  useSalesDocumentSavedRefresh("invoice", invoicesResource.reload);
+  const invoiceReloadRef = useRef(invoicesResource.reload);
+
+  useEffect(() => {
+    invoiceReloadRef.current = invoicesResource.reload;
+  }, [invoicesResource.reload]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => invoiceReloadRef.current?.(), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
   const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
   const visibleInvoices = invoices.filter((invoice) => (
     textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query)
