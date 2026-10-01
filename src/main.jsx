@@ -4169,16 +4169,6 @@ function AngelBillingView({ token }) {
     [token]
   );
   useSalesDocumentSavedRefresh("invoice", invoicesResource.reload);
-  const invoiceReloadRef = useRef(invoicesResource.reload);
-
-  useEffect(() => {
-    invoiceReloadRef.current = invoicesResource.reload;
-  }, [invoicesResource.reload]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => invoiceReloadRef.current?.(), 5000);
-    return () => window.clearInterval(timer);
-  }, []);
   const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
   const visibleInvoices = invoices.filter((invoice) => (
     textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query)
@@ -9583,19 +9573,6 @@ function QuotesView({ token, distributor = false, locale = "es", restrictedUser 
   const quoteSort = useDocumentSort();
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=500", { token }), [token]);
   useSalesDocumentSavedRefresh("quote", quotes.reload);
-  const quoteReloadRef = useRef(quotes.reload);
-
-  useEffect(() => {
-    quoteReloadRef.current = quotes.reload;
-  }, [quotes.reload]);
-
-  // Keep an open distributor list in sync with assignments made by the team.
-  // This avoids requiring the distributor to refresh the browser manually.
-  useEffect(() => {
-    if (!distributor) return undefined;
-    const timer = window.setInterval(() => quoteReloadRef.current?.(), 5000);
-    return () => window.clearInterval(timer);
-  }, [distributor]);
   const leads = useResource(() => apiRequest("/api/sales/leads?limit=500&contactKind=client", { token }), [token]);
   const leadsById = useMemo(() => {
     const map = new Map();
