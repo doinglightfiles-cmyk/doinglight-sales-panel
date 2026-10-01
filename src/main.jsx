@@ -30,6 +30,7 @@ import {
   Truck,
   Factory,
   Globe2,
+  GraduationCap,
   History,
   Languages,
   UsersRound,
@@ -3522,7 +3523,8 @@ function serializeSalesQuote(quote, leadsById, locale = "es") {
     pdfTemplate: salesDocumentTemplate(quote),
     sent: Boolean(quote.emailedAt),
     generatedDocuments: Array.isArray(quote.generatedDocuments) ? quote.generatedDocuments : [],
-    hasAttachment: false
+    hasAttachment: false,
+    ownerEmail: quote.ownerEmail || ""
   };
 }
 
@@ -9394,6 +9396,14 @@ const QUOTE_TEMPLATES = [
   }
 ];
 
+const QUOTE_ORIGIN_FILTERS = [
+  { id: "italy", label: "Italia", email: "info@doinglight.it", flag: "🇮🇹" },
+  { id: "france", label: "Francia", email: "info@doinglight.fr", flag: "🇫🇷" },
+  { id: "portugal", label: "Portugal", email: "info@doinglight.pt", flag: "🇵🇹" },
+  { id: "germany", label: "Alemania", email: "info@doinglight.de", flag: "🇩🇪" },
+  { id: "angel", label: "Ángel", email: "a.jimenez@doinglight.es", icon: "cap" }
+];
+
 function QuotesView({ token, distributor = false, locale = "es" }) {
   const copy = distributorPanelCopy(locale);
   const listCopy = distributorQuoteListCopy(distributor ? locale : "es");
@@ -9405,6 +9415,7 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
+  const [originFilter, setOriginFilter] = useState("all");
   const quoteSort = useDocumentSort();
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=500", { token }), [token]);
   useSalesDocumentSavedRefresh("quote", quotes.reload);
@@ -9419,12 +9430,15 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
     const matchesQuery = textMatchesQuery([quote.number, quote.contact, quote.status, quote.total, quote.detail], query);
     const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
     const matchesDate = documentMatchesDateFilter(quote, dateFilter);
-    return matchesQuery && matchesStatus && matchesDate;
+    const selectedOrigin = QUOTE_ORIGIN_FILTERS.find((filter) => filter.id === originFilter);
+    const matchesOrigin = !selectedOrigin
+      || String(quote.ownerEmail || "").trim().toLowerCase() === selectedOrigin.email;
+    return matchesQuery && matchesStatus && matchesDate && matchesOrigin;
   });
   const sortedQuotes = sortDocumentRows(filteredQuotes, quoteSort.sortConfig);
   const quoteRowsList = useIncrementalDocumentRows(
     sortedQuotes.length,
-    [query, statusFilter, dateFilter, quoteSort.sortConfig.key, quoteSort.sortConfig.direction].join("|")
+    [query, statusFilter, dateFilter, originFilter, quoteSort.sortConfig.key, quoteSort.sortConfig.direction].join("|")
   );
   const visibleQuotes = sortedQuotes.slice(0, quoteRowsList.visibleCount);
   const filteredQuoteIds = filteredQuotes.map((quote) => quote.id);
@@ -9603,6 +9617,24 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
               ))}
             </select>
           </label>
+          <div className="quote-origin-filters" role="group" aria-label="Filtrar presupuestos por distribuidor">
+            {QUOTE_ORIGIN_FILTERS.map((filter) => {
+              const active = originFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  className={`quote-origin-filter${active ? " active" : ""}`}
+                  type="button"
+                  title={`Filtrar presupuestos creados por ${filter.label}`}
+                  aria-label={`Filtrar presupuestos creados por ${filter.label}`}
+                  aria-pressed={active}
+                  onClick={() => setOriginFilter(active ? "all" : filter.id)}
+                >
+                  {filter.icon === "cap" ? <GraduationCap size={18} strokeWidth={2.3} /> : <span aria-hidden="true">{filter.flag}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div> : null}
         {!distributor && selectedQuoteIds.length ? (
           <div className="document-selection-actions" aria-live="polite">
