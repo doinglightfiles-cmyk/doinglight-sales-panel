@@ -3098,11 +3098,14 @@ const DELIVERY_NOTE_STATUS_FILTER_OPTIONS = [
 
 const REVERSE_CHARGE_TAX_CODE = "reverse_charge";
 const REVERSE_CHARGE_TAX_LABEL = "Sujeto Pasivo";
+const INTRACOMMUNITY_TAX_CODE = "intra_community";
+const INTRACOMMUNITY_TAX_LABEL = "Intracomunitario";
 const REVERSE_CHARGE_PDF_SUBTITLE = "SUJETO PASIVO";
 const REVERSE_CHARGE_LEGAL_TEXT = "Operación con inversión del sujeto pasivo conforme al Artículo 84. Uno. 2º de la Ley 37/1992 del IVA";
 
 const DOCUMENT_TAX_OPTIONS = [
   { value: "0", rate: 0, label: "Exento · 0%" },
+  { value: INTRACOMMUNITY_TAX_CODE, rate: 0, label: `${INTRACOMMUNITY_TAX_LABEL} · 0%`, reverseCharge: true },
   { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: `${REVERSE_CHARGE_TAX_LABEL} · 0%`, reverseCharge: true },
   { value: "21", rate: 21, label: "España · 21%" },
   { value: "23", rate: 23, label: "Portugal · 23%" },
@@ -3121,6 +3124,9 @@ function normalizedTaxProbe(value) {
 function taxOptionFromMode(value) {
   const normalized = String(value ?? "");
   const folded = normalizedTaxProbe(normalized);
+  if (folded.includes("intracomunit")) {
+    return DOCUMENT_TAX_OPTIONS.find((option) => option.value === INTRACOMMUNITY_TAX_CODE);
+  }
   if (folded.includes("sujeto") || folded.includes("inversion") || folded.includes("reverse")) {
     return DOCUMENT_TAX_OPTIONS.find((option) => option.value === REVERSE_CHARGE_TAX_CODE);
   }
@@ -10501,15 +10507,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const distributorTaxOptions = {
     fr: [
       { value: "21", rate: 21, label: "21%" },
-      { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracommunautaire · 0%", reverseCharge: true }
+      { value: INTRACOMMUNITY_TAX_CODE, rate: 0, label: "Intracommunautaire · 0%", reverseCharge: true }
     ],
     it: [
       { value: "22", rate: 22, label: "IVA 22%" },
-      { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracomunitario · 0%", reverseCharge: true }
+      { value: INTRACOMMUNITY_TAX_CODE, rate: 0, label: "Intracomunitario · 0%", reverseCharge: true }
     ],
     pt: [
       { value: "23", rate: 23, label: "IVA 23%" },
-      { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: "Intracomunitário · 0%", reverseCharge: true }
+      { value: INTRACOMMUNITY_TAX_CODE, rate: 0, label: "Intracomunitário · 0%", reverseCharge: true }
     ]
   };
   const distributorLocale = String(locale).toLowerCase();
