@@ -3661,6 +3661,30 @@ function serializeInternalSalesDocument(item) {
   };
 }
 
+const COUNTRY_DOCUMENT_FILTERS = [
+  { id: "spain", label: "España", country: "ES", flag: "🇪🇸" },
+  { id: "italy", label: "Italia", country: "IT", flag: "🇮🇹" },
+  { id: "france", label: "Francia", country: "FR", flag: "🇫🇷" },
+  { id: "portugal", label: "Portugal", country: "PT", flag: "🇵🇹" },
+  { id: "germany", label: "Alemania", country: "DE", flag: "🇩🇪" }
+];
+
+function documentCountryCode(document) {
+  const rawItem = document?.raw?.item || {};
+  const series = String(document?.series || rawItem.documentSeries || "").trim().toUpperCase();
+  const seriesCountry = series.match(/^(ES|IT|FR|PT|DE)(?:\b|[-_\d])/);
+  if (seriesCountry) return seriesCountry[1];
+
+  const explicitCountry = String(
+    rawItem.contactCountry || rawItem.lead?.countryCode || rawItem.lead?.country || document?.raw?.main?.counterpart?.countryCode || ""
+  ).trim().toUpperCase();
+  if (["ES", "IT", "FR", "PT", "DE"].includes(explicitCountry)) return explicitCountry;
+
+  const locale = String(rawItem.locale || "").trim().toLowerCase();
+  const localeCountry = { es: "ES", it: "IT", fr: "FR", pt: "PT", de: "DE" }[locale];
+  return localeCountry || "ES";
+}
+
 function invoiceRowStatusClass(invoice) {
   const statusKey = String(invoice?.statusKey || "").trim().toLowerCase();
   const statusLabel = String(invoice?.status || "").trim().toLowerCase();
@@ -4125,6 +4149,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
   const invoiceSort = useDocumentSort();
@@ -4138,12 +4163,14 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
     const matchesQuery = textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query);
     const matchesStatus = statusFilter === "all" || invoice.statusKey === statusFilter;
     const matchesDate = documentMatchesDateFilter(invoice, dateFilter);
-    return matchesQuery && matchesStatus && matchesDate;
+    const selectedCountry = COUNTRY_DOCUMENT_FILTERS.find((filter) => filter.id === countryFilter);
+    const matchesCountry = !selectedCountry || documentCountryCode(invoice) === selectedCountry.country;
+    return matchesQuery && matchesStatus && matchesDate && matchesCountry;
   });
   const sortedInvoices = sortDocumentRows(filteredInvoices, invoiceSort.sortConfig);
   const invoiceRows = useIncrementalDocumentRows(
     sortedInvoices.length,
-    [query, statusFilter, dateFilter, invoiceSort.sortConfig.key, invoiceSort.sortConfig.direction].join("|")
+    [query, statusFilter, dateFilter, countryFilter, invoiceSort.sortConfig.key, invoiceSort.sortConfig.direction].join("|")
   );
   const visibleInvoices = sortedInvoices.slice(0, invoiceRows.visibleCount);
   const filteredInvoiceIds = filteredInvoices.map((invoice) => invoice.id);
@@ -4218,6 +4245,34 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
               ))}
             </select>
           </label>
+          <div className="quote-origin-filters" role="group" aria-label="Filtrar facturas por país">
+            {COUNTRY_DOCUMENT_FILTERS.map((filter) => {
+              const active = countryFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  className={`quote-origin-filter${active ? " active" : ""}`}
+                  type="button"
+                  title={`Filtrar facturas de ${filter.label}`}
+                  aria-label={`Filtrar facturas de ${filter.label}`}
+                  aria-pressed={active}
+                  onClick={() => setCountryFilter(active ? "all" : filter.id)}
+                >
+                  <span aria-hidden="true">{filter.flag}</span>
+                </button>
+              );
+            })}
+            <button
+              className="quote-origin-filter clear"
+              type="button"
+              title="Eliminar filtro de país"
+              aria-label="Eliminar filtro de país"
+              disabled={countryFilter === "all"}
+              onClick={() => setCountryFilter("all")}
+            >
+              <X size={17} strokeWidth={2.4} />
+            </button>
+          </div>
           <div className="bulk-document-actions">
             <button className="bulk-document-action danger" type="button" onClick={deleteSelectedInvoices} disabled={!selectedInvoiceIds.length}>
               Eliminar{selectedInvoiceIds.length ? ` (${selectedInvoiceIds.length})` : ""}
@@ -9400,6 +9455,7 @@ const QUOTE_TEMPLATES = [
 ];
 
 const QUOTE_ORIGIN_FILTERS = [
+  { id: "spain", label: "España", flag: "🇪🇸", matches: (email) => email.endsWith("@doinglight.es") },
   { id: "italy", label: "Italia", email: "info@doinglight.it", flag: "🇮🇹" },
   { id: "france", label: "Francia", email: "info@doinglight.fr", flag: "🇫🇷" },
   { id: "portugal", label: "Portugal", email: "info@doinglight.pt", flag: "🇵🇹" },
@@ -9434,8 +9490,9 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
     const matchesStatus = statusFilter === "all" || quote.statusKey === statusFilter;
     const matchesDate = documentMatchesDateFilter(quote, dateFilter);
     const selectedOrigin = QUOTE_ORIGIN_FILTERS.find((filter) => filter.id === originFilter);
+    const ownerEmail = String(quote.ownerEmail || "").trim().toLowerCase();
     const matchesOrigin = !selectedOrigin
-      || String(quote.ownerEmail || "").trim().toLowerCase() === selectedOrigin.email;
+      || (selectedOrigin.matches ? selectedOrigin.matches(ownerEmail) : ownerEmail === selectedOrigin.email);
     return matchesQuery && matchesStatus && matchesDate && matchesOrigin;
   });
   const sortedQuotes = sortDocumentRows(filteredQuotes, quoteSort.sortConfig);
@@ -9637,6 +9694,16 @@ function QuotesView({ token, distributor = false, locale = "es" }) {
                 </button>
               );
             })}
+            <button
+              className="quote-origin-filter clear"
+              type="button"
+              title="Eliminar filtro de país"
+              aria-label="Eliminar filtro de país"
+              disabled={originFilter === "all"}
+              onClick={() => setOriginFilter("all")}
+            >
+              <X size={17} strokeWidth={2.4} />
+            </button>
           </div>
         </div> : null}
         {!distributor && selectedQuoteIds.length ? (

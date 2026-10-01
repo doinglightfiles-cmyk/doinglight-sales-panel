@@ -2215,6 +2215,26 @@ select:focus {
   filter: saturate(.9);
 }
 
+.quote-origin-filter.clear {
+  color: var(--muted);
+  font-size: 0;
+}
+
+.quote-origin-filter.clear:not(:disabled) {
+  border-color: #dd776f;
+  color: #bf4038;
+}
+
+.quote-origin-filter.clear:not(:disabled):hover {
+  border-color: #bf4038;
+  background: #fff2f0;
+}
+
+.quote-origin-filter:disabled {
+  cursor: default;
+  opacity: .4;
+}
+
 .invoice-add-filter {
   display: inline-flex;
   align-items: center;
