@@ -3866,7 +3866,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           </button>
         </div>
         <div className="invoice-create-title-row">
-          <h4>{selectedClient?.taxId ? "Factura" : "Factura simplificada"}</h4>
+          <h4>{String(selectedClient?.taxId || selectedClient?.tax_id || selectedClient?.cif || selectedClient?.nif || "").trim() ? "Factura" : "Factura simplificada"}</h4>
           <div className="invoice-create-total">
             <span>Total</span>
             <strong>{money(total)}</strong>
@@ -10603,8 +10603,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
+  const invoiceLead = selectedLead || currentDocument?.lead || initialQuote?.lead || selectedLeadSnapshot || null;
+  const invoiceHasTaxId = Boolean(String(
+    invoiceLead?.taxId || invoiceLead?.tax_id || invoiceLead?.cif || invoiceLead?.nif || ""
+  ).trim());
   const documentTitle = isInvoice
-    ? (String(selectedLead?.taxId || "").trim() ? "Factura" : "Factura simplificada")
+    ? (invoiceHasTaxId ? "Factura" : "Factura simplificada")
     : baseDocumentTitle;
   const effectiveLeadId = selectedLeadId || selectedLeadSnapshot?.id || currentDocument?.leadId || initialQuote?.leadId || "";
   const selectedLeadDefaultDiscount = distributor || netPricing || zeroDiscountByDefault ? 0 : Number(selectedLead?.defaultDiscountPercent || 0);
