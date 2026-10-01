@@ -1968,7 +1968,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
       ) : null}
       {globalInvoiceOpen ? (
         <ModalShell
-          title="Factura simplificada"
+          title="Nueva factura"
           eyebrow="Factura de venta"
           size="invoice-create-modal"
           onClose={() => setGlobalInvoiceOpen(false)}
@@ -3866,7 +3866,7 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           </button>
         </div>
         <div className="invoice-create-title-row">
-          <h4>Factura simplificada</h4>
+          <h4>{selectedClient?.taxId ? "Factura" : "Factura simplificada"}</h4>
           <div className="invoice-create-total">
             <span>Total</span>
             <strong>{money(total)}</strong>
@@ -9796,7 +9796,7 @@ const SALES_DOCUMENT_FORM_META = {
   },
   invoice: {
     type: "invoice",
-    title: "Factura simplificada",
+    title: "Factura",
     eyebrow: "Factura de venta",
     createLabel: "Crear factura",
     updateLabel: "Guardar cambios",
@@ -10434,7 +10434,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [pdfTemplate, setPdfTemplate] = useState(
     () => currentDocument?.pdfTemplate || currentDocument?.visualTemplate || currentDocument?.metadata?.pdfTemplate || visualTemplate || "doinglight"
   );
-  const documentTitle = distributor && isQuote ? distributorCopy.quote : meta.title;
+  const baseDocumentTitle = distributor && isQuote ? distributorCopy.quote : meta.title;
   const documentEyebrow = meta.eyebrow;
   const createButtonLabel = currentDocument ? meta.updateLabel : distributor && isQuote ? distributorCopy.saveQuote : meta.createLabel;
   const [clientMode, setClientMode] = useState("existing");
@@ -10603,6 +10603,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
   const selectedLead = (selectedLeadSnapshot?.id === selectedLeadId ? selectedLeadSnapshot : null) || leadsList.find((lead) => lead.id === selectedLeadId) || null;
+  const documentTitle = isInvoice
+    ? (String(selectedLead?.taxId || "").trim() ? "Factura" : "Factura simplificada")
+    : baseDocumentTitle;
   const effectiveLeadId = selectedLeadId || selectedLeadSnapshot?.id || currentDocument?.leadId || initialQuote?.leadId || "";
   const selectedLeadDefaultDiscount = distributor || netPricing || zeroDiscountByDefault ? 0 : Number(selectedLead?.defaultDiscountPercent || 0);
   const filteredLeadSuggestions = useMemo(() => {
