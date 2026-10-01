@@ -4182,7 +4182,12 @@ function AngelBillingView({ token }) {
     .filter((quote) => ["accepted", "approved"].includes(String(quote.status || "").trim().toLowerCase()))
     .map((quote) => {
       const row = serializeSalesQuote(quote, leadsById, "es");
-      const paid = String(quote.angelBillingPaymentStatus || "").trim().toLowerCase() === "paid";
+      const explicitPaymentStatus = String(quote.angelBillingPaymentStatus || "").trim().toLowerCase();
+      // Mientras los históricos de FacturaDirecta no traigan el dato de cobro
+      // en su payload, esta es la regla acordada para la cartera de Ángel.
+      const paid = explicitPaymentStatus
+        ? explicitPaymentStatus === "paid"
+        : !["11600", "11782"].includes(String(row.number));
       return {
         ...row,
         documentType: "accepted_quote",
