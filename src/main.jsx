@@ -3353,14 +3353,17 @@ function DocumentPdfPage({
   redsysPaymentUrl = "",
   reverseCharge = false,
   netPricing = false,
-  pdfTemplate = "doinglight"
+  pdfTemplate = "doinglight",
+  forceDoinglightIssuer = false
 }) {
   const text = documentPdfText(language, type);
   const isDeliveryNote = type === "delivery-note";
   const validityLabel = isDeliveryNote ? text.deliveryDate : type === "invoice" ? text.dueDate : text.validUntil;
   const isTuboSolarTemplate = pdfTemplate === "tubo-solar";
   const logoSrc = isTuboSolarTemplate ? TUBO_SOLAR_PDF_LOGO : DOCUMENT_PDF_LOGO;
-  const issuerLines = language === "fr"
+  const issuerLines = forceDoinglightIssuer
+    ? ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Polígono Industrial Campollano, Calle E nº 24", "02007 ALBACETE", "España", "info@doinglight.es", "www.doinglight.es", "658856869"]
+    : language === "fr"
     ? ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Pol.Emp.Campollano, C/E, 24", "02007 - Albacete - Spain", "+34 967 704 919"]
     : language === "it"
       ? ["ROBROS IMPORT EXPORT", "IT04457180240", "VIA DON G. MINZONI 38", "36030 Lugo di Vicenza (VI)", "T. +39 351 564 0554", "info@doinglight.it", "www.doinglight.it"]
@@ -10684,10 +10687,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const quoteClientBlock = selectedLead
     ? [
         leadBillingSource.fullName || leadBillingSource.companyName,
+        leadBillingSource.taxId,
         [leadBillingSource.address, leadBillingSource.postalCode, leadBillingSource.population || leadBillingSource.city, leadBillingSource.province].filter(Boolean).join(" "),
         countryLabel(leadBillingSource.country)
       ].filter(Boolean)
     : ["Cliente sin asignar"];
+  const forceDoinglightIssuer = isInvoice && Boolean(
+    currentDocument?.payload?.italianDistributorInvoice || initialQuote?.payload?.italianDistributorInvoice
+  );
 
   useEffect(() => {
     if (!selectedLead || lastDiscountLeadId.current === selectedLead.id) return;
@@ -12659,6 +12666,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   redsysPaymentUrl={redsysPaymentUrl}
                   netPricing={isQuote && netPricing}
                   pdfTemplate={pdfTemplate}
+                  forceDoinglightIssuer={forceDoinglightIssuer}
                 />
               </section>
             </div>
@@ -12699,6 +12707,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           redsysPaymentUrl={redsysPaymentUrl}
           netPricing={isQuote && netPricing}
           pdfTemplate={pdfTemplate}
+          forceDoinglightIssuer={forceDoinglightIssuer}
         />
       </div>
       {documentPicker ? (
