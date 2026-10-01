@@ -3652,16 +3652,12 @@ function serializeInternalSalesDocument(item) {
   };
 }
 
-function invoiceRowStatusClass(invoice, today = inputDate()) {
+function invoiceRowStatusClass(invoice) {
   const statusKey = String(invoice?.statusKey || "").trim().toLowerCase();
   const statusLabel = String(invoice?.status || "").trim().toLowerCase();
 
   if (statusKey === "paid" || statusLabel === "cobrada") {
     return "invoice-row-paid";
-  }
-
-  if (statusKey === "overdue" || statusLabel === "vencida") {
-    return "invoice-row-overdue";
   }
 
   if (statusKey === "partial" || statusLabel === "parcial") {

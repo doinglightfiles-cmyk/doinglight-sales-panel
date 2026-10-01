@@ -2256,10 +2256,6 @@ select:focus {
   background: #fff2dc;
 }
 
-.invoice-table .invoice-row-overdue td {
-  background: #fdeaea;
-}
-
 .invoice-table .invoice-row-paid:hover td {
   background: #e5f4da;
 }
@@ -2270,10 +2266,6 @@ select:focus {
 
 .invoice-table .invoice-row-partial:hover td {
   background: #ffe6c2;
-}
-
-.invoice-table .invoice-row-overdue:hover td {
-  background: #fbdcdc;
 }
 
 .clickable-table-row:focus {
