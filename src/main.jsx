@@ -4198,11 +4198,6 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
 
       <section className="module-panel invoices-list-panel">
         <div className="invoice-toolbar">
-          <button className="invoice-view-filter" type="button">
-            <FileText size={18} />
-            Todas las facturas
-            <ChevronDown size={16} />
-          </button>
           <div className="module-search">
             <Search size={18} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar..." />
