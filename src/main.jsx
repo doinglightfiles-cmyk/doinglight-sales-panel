@@ -4121,6 +4121,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
   const invoiceSort = useDocumentSort();
   const invoicesResource = useResource(
     () => apiRequest("/api/sales/documents/invoice?limit=500", { token }),
@@ -4140,6 +4141,41 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
     [query, statusFilter, dateFilter, invoiceSort.sortConfig.key, invoiceSort.sortConfig.direction].join("|")
   );
   const visibleInvoices = sortedInvoices.slice(0, invoiceRows.visibleCount);
+  const filteredInvoiceIds = filteredInvoices.map((invoice) => invoice.id);
+  const allFilteredInvoicesSelected = Boolean(filteredInvoiceIds.length) && filteredInvoiceIds.every((idValue) => selectedInvoiceIds.includes(idValue));
+
+  useEffect(() => {
+    setSelectedInvoiceIds((current) => current.filter((idValue) => filteredInvoiceIds.includes(idValue)));
+  }, [filteredInvoiceIds.join("|")]);
+
+  function toggleInvoiceSelection(invoiceId) {
+    setSelectedInvoiceIds((current) => current.includes(invoiceId)
+      ? current.filter((idValue) => idValue !== invoiceId)
+      : [...current, invoiceId]);
+  }
+
+  function toggleAllInvoiceSelections() {
+    setSelectedInvoiceIds(allFilteredInvoicesSelected ? [] : filteredInvoiceIds);
+  }
+
+  async function deleteSelectedInvoices() {
+    if (!selectedInvoiceIds.length) return;
+    const count = selectedInvoiceIds.length;
+    if (!window.confirm(`¿Eliminar ${count} factura${count === 1 ? "" : "s"} seleccionada${count === 1 ? "" : "s"}? Esta acción no se puede deshacer.`)) return;
+
+    try {
+      await Promise.all(selectedInvoiceIds.map((invoiceId) =>
+        apiRequest(`/api/sales/documents/invoice/${invoiceId}`, {
+          token,
+          method: "DELETE"
+        })
+      ));
+      setSelectedInvoiceIds([]);
+      invoicesResource.reload();
+    } catch (error) {
+      window.alert(error.message || "No se han podido eliminar las facturas seleccionadas.");
+    }
+  }
 
   return (
     <div className="module-page invoices-mirror-page">
@@ -4182,12 +4218,17 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
               ))}
             </select>
           </label>
+          <div className="bulk-document-actions">
+            <button className="bulk-document-action danger" type="button" onClick={deleteSelectedInvoices} disabled={!selectedInvoiceIds.length}>
+              Eliminar{selectedInvoiceIds.length ? ` (${selectedInvoiceIds.length})` : ""}
+            </button>
+          </div>
         </div>
         <div className="table-wrap invoice-table-wrap" onScroll={invoiceRows.handleTableScroll}>
           <table className="module-table invoice-table">
             <thead>
               <tr>
-                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todas las facturas" /></th>
+                <th className="select-column"><input type="checkbox" aria-label="Seleccionar todas las facturas" checked={allFilteredInvoicesSelected} onChange={toggleAllInvoiceSelections} /></th>
                 <th className="invoice-kind-column"></th>
                 <SortableDocumentHeader sortKey="date" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Fecha</SortableDocumentHeader>
                 <SortableDocumentHeader sortKey="verifactuStatus" sortConfig={invoiceSort.sortConfig} onSort={invoiceSort.requestSort}>Verifactu</SortableDocumentHeader>
@@ -4229,6 +4270,8 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                     <input
                       type="checkbox"
                       aria-label={`Seleccionar factura ${invoice.number}`}
+                      checked={selectedInvoiceIds.includes(invoice.id)}
+                      onChange={() => toggleInvoiceSelection(invoice.id)}
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}
                     />
