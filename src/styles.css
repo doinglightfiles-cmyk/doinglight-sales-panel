@@ -6568,6 +6568,8 @@ th {
   position: relative;
   color: #111;
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
 }
 
 .quote-pdf-page-tubo-solar {
@@ -6747,17 +6749,17 @@ th {
 
 .quote-pdf-line-row {
   display: grid;
-  grid-template-columns: 34px minmax(52px, 0.5fr) minmax(178px, 1.55fr) 34px 46px 38px 52px;
+  grid-template-columns: 30px minmax(44px, 0.42fr) minmax(0, 1.8fr) 32px 42px 34px 48px;
   width: 100%;
   align-items: stretch;
 }
 
 .quote-pdf-no-discount .quote-pdf-line-row {
-  grid-template-columns: 34px minmax(52px, 0.5fr) minmax(178px, 1.55fr) 34px 46px 52px;
+  grid-template-columns: 30px minmax(44px, 0.42fr) minmax(0, 1.8fr) 32px 42px 48px;
 }
 
 .delivery-pdf-lines-grid .quote-pdf-line-row {
-  grid-template-columns: 34px minmax(62px, 0.55fr) minmax(0, 1fr) 40px;
+  grid-template-columns: 30px minmax(54px, 0.5fr) minmax(0, 1fr) 34px;
 }
 
 .quote-pdf-lines-head > span {
@@ -6780,8 +6782,8 @@ th {
   background: #f3f3f3;
   border-bottom: 2px solid #fff;
   color: #111;
-  font-size: 11.5px;
-  line-height: 1.18;
+  font-size: 12.6px;
+  line-height: 1.24;
   overflow-wrap: anywhere;
   word-break: normal;
 }
@@ -6793,7 +6795,7 @@ th {
 }
 
 .quote-pdf-line-row .quote-pdf-line-number {
-  font-size: 10.8px;
+  font-size: 11.6px;
   text-align: right;
   white-space: nowrap;
 }
@@ -6907,8 +6909,8 @@ th {
 .quote-pdf-line-concept {
   display: grid;
   gap: 2px;
-  font-size: 11.5px;
-  line-height: 1.18;
+  font-size: 12.6px;
+  line-height: 1.24;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -6923,7 +6925,7 @@ th {
 
 .quote-pdf-summary {
   width: 44%;
-  margin-top: 10px;
+  margin-top: 0;
   gap: 8px 18px;
 }
 
@@ -6936,7 +6938,7 @@ th {
   width: 100% !important;
   max-width: 100% !important;
   table-layout: fixed;
-  margin-top: 52px;
+  margin-top: 18px;
 }
 
 .quote-pdf-validity-table col.quote-pdf-validity-main-col {
@@ -6966,7 +6968,7 @@ th {
 .quote-pdf-long-notes {
   display: block;
   border-top: 0;
-  margin-top: 12px;
+  margin-top: 10px;
   padding-top: 0;
   color: #111;
   line-height: 1.25;
@@ -6989,6 +6991,13 @@ th {
   color: #111;
   font-size: 7.4px;
   line-height: 1.18;
+}
+
+.quote-pdf-bottom {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 20px;
+  padding-bottom: 42px;
 }
 
 .quote-pdf-privacy strong {

@@ -3453,51 +3453,53 @@ function DocumentPdfPage({
           </div>
         )}
       </section>
-      {!isDeliveryNote ? (
-        <div className="quote-pdf-totals quote-pdf-summary">
-          <span>{text.subtotal}</span>
-          <strong>{tableMoney(subtotal)}</strong>
-          <span>{reverseCharge ? REVERSE_CHARGE_TAX_LABEL : `${text.vat} ${taxRate}%`} (Base: {tableMoney(subtotal)})</span>
-          <strong>{tableMoney(taxTotal)}</strong>
-          <span>{text.totalCurrency || `Total (${currency})`}</span>
-          <strong>{money(total)}</strong>
-        </div>
-      ) : null}
-      <table className="quote-pdf-validity-table">
-        <colgroup>
-          <col className="quote-pdf-validity-main-col" />
-          <col className="quote-pdf-validity-payment-col" />
-          <col className="quote-pdf-validity-empty-col" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>{validityLabel}</th>
-            <th>{text.paymentMethod}</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{dateOnly(dueDate)}</td>
-            <td>{paymentMethod || ""}</td>
-            <td />
-          </tr>
-        </tbody>
-      </table>
-      <div className="quote-pdf-notes quote-pdf-long-notes">
-        {notes ? <p>{notes}</p> : null}
-        {type === "quote" && includePaymentDetails ? (
-          <div className="quote-pdf-payment-details">
-            <strong>Datos de pago</strong>
-            <span>Transferencia bancaria: IBAN {paymentIban}</span>
-            {redsysPaymentUrl ? <span>Pago con tarjeta: {redsysPaymentUrl}</span> : null}
+      <section className="quote-pdf-bottom">
+        {!isDeliveryNote ? (
+          <div className="quote-pdf-totals quote-pdf-summary">
+            <span>{text.subtotal}</span>
+            <strong>{tableMoney(subtotal)}</strong>
+            <span>{reverseCharge ? REVERSE_CHARGE_TAX_LABEL : `${text.vat} ${taxRate}%`} (Base: {tableMoney(subtotal)})</span>
+            <strong>{tableMoney(taxTotal)}</strong>
+            <span>{text.totalCurrency || `Total (${currency})`}</span>
+            <strong>{money(total)}</strong>
           </div>
         ) : null}
-        {!isDeliveryNote ? (
-          <p>{commercialConditions}</p>
-        ) : null}
-        {reverseCharge ? <p className="quote-pdf-reverse-charge-note">{REVERSE_CHARGE_LEGAL_TEXT}</p> : null}
-      </div>
+        <table className="quote-pdf-validity-table">
+          <colgroup>
+            <col className="quote-pdf-validity-main-col" />
+            <col className="quote-pdf-validity-payment-col" />
+            <col className="quote-pdf-validity-empty-col" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>{validityLabel}</th>
+              <th>{text.paymentMethod}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{dateOnly(dueDate)}</td>
+              <td>{paymentMethod || ""}</td>
+              <td />
+            </tr>
+          </tbody>
+        </table>
+        <div className="quote-pdf-notes quote-pdf-long-notes">
+          {notes ? <p>{notes}</p> : null}
+          {type === "quote" && includePaymentDetails ? (
+            <div className="quote-pdf-payment-details">
+              <strong>Datos de pago</strong>
+              <span>Transferencia bancaria: IBAN {paymentIban}</span>
+              {redsysPaymentUrl ? <span>Pago con tarjeta: {redsysPaymentUrl}</span> : null}
+            </div>
+          ) : null}
+          {!isDeliveryNote ? (
+            <p>{commercialConditions}</p>
+          ) : null}
+          {reverseCharge ? <p className="quote-pdf-reverse-charge-note">{REVERSE_CHARGE_LEGAL_TEXT}</p> : null}
+        </div>
+      </section>
       <footer className="quote-pdf-privacy">
         <strong>{text.privacyTitle}</strong>
         <span>{text.privacyText}</span>
