@@ -2249,7 +2249,11 @@ select:focus {
 }
 
 .invoice-table .invoice-row-pending td {
-  background: #fff8d9;
+  background: #fff0ef;
+}
+
+.invoice-table .invoice-row-partial td {
+  background: #fff2dc;
 }
 
 .invoice-table .invoice-row-overdue td {
@@ -2261,7 +2265,11 @@ select:focus {
 }
 
 .invoice-table .invoice-row-pending:hover td {
-  background: #fff2bd;
+  background: #ffe2df;
+}
+
+.invoice-table .invoice-row-partial:hover td {
+  background: #ffe6c2;
 }
 
 .invoice-table .invoice-row-overdue:hover td {
@@ -2321,11 +2329,38 @@ select:focus {
 }
 
 .invoice-payment-status.pending {
-  color: #d98200;
+  color: #c7332d;
 }
 
 .invoice-payment-status.partial {
-  color: #b36b00;
+  color: #c56b00;
+}
+
+.invoice-document-kind {
+  max-width: min(280px, 36vw);
+  font-family: "Arial Black", Arial, sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-align: right;
+}
+
+.invoice-document-kind.complete {
+  color: #278136;
+}
+
+.invoice-document-kind.simplified {
+  color: #cf322d;
+}
+
+.partial-payment-modal {
+  width: min(480px, calc(100vw - 48px));
+}
+
+.partial-payment-intro {
+  margin: 0 0 18px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .invoice-payment-status.overdue {

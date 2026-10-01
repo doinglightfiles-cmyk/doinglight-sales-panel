@@ -2813,6 +2813,12 @@ function invoicePaymentState(main, total, fdState = "") {
     "totals.pending",
     "totals.pendingAmount"
   ], 0));
+  const partialPaymentAmount = normalizeMoneyValue(firstValue(main, [
+    "partialPaymentAmount",
+    "partial_payment_amount",
+    "paidAmount",
+    "amountPaid"
+  ], 0));
 
   if (main.voided || ["voided", "credited", "abonada", "abonado"].includes(explicitStatus) || explicitStatus.includes("cancel")) {
     return { key: "credited", label: "Abonada", pendingBalance: 0 };
@@ -2827,7 +2833,12 @@ function invoicePaymentState(main, total, fdState = "") {
     return { key: "paid", label: "Cobrada", pendingBalance: 0 };
   }
   if (explicitStatus.includes("partial") || explicitStatus.includes("parcial") || (pendingBalance > 0 && pendingBalance < total)) {
-    return { key: "partial", label: "Parcial", pendingBalance };
+    return {
+      key: "partial",
+      label: "Parcial",
+      pendingBalance: pendingBalance || Math.max(total - partialPaymentAmount, 0),
+      partialPaymentAmount
+    };
   }
   if (pendingBalance > 0 || explicitStatus.includes("pending") || explicitStatus.includes("pendiente")) {
     return { key: "pending", label: "Pendiente", pendingBalance: pendingBalance || total };
@@ -3556,7 +3567,10 @@ function internalDocumentState(status = "", documentType = "invoice") {
 }
 
 function serializeInternalSalesDocument(item) {
-  const status = internalDocumentState(item.status, item.documentType);
+  const payment = item.documentType === "invoice"
+    ? invoicePaymentState({ ...(item.payload || {}), status: item.status }, Number(item.total || 0), item.status)
+    : null;
+  const status = payment || internalDocumentState(item.status, item.documentType);
   const date = item.issueDate || item.createdAt;
   const firstLine = Array.isArray(item.items) ? item.items[0] : null;
   const numberLabel = item.documentNumber || item.number || "-";
@@ -3604,7 +3618,7 @@ function serializeInternalSalesDocument(item) {
     status: status.label,
     statusKey: status.key,
     verifactuStatus: "",
-    pendingBalance: ["pending", "partial"].includes(status.key) ? Number(item.total || 0) : 0,
+    pendingBalance: ["pending", "partial"].includes(status.key) ? Number(status.pendingBalance ?? item.total ?? 0) : 0,
     subtotal: Number(item.subtotal || 0),
     taxTotal: Number(item.taxTotal || 0),
     total: Number(item.total || 0),
@@ -3650,9 +3664,12 @@ function invoiceRowStatusClass(invoice, today = inputDate()) {
     return "invoice-row-overdue";
   }
 
-  if (["pending", "partial"].includes(statusKey) || ["pendiente", "parcial"].includes(statusLabel)) {
-    const dueDate = inputDate(invoice?.dueDate);
-    return dueDate && dueDate < today ? "invoice-row-overdue" : "invoice-row-pending";
+  if (statusKey === "partial" || statusLabel === "parcial") {
+    return "invoice-row-partial";
+  }
+
+  if (statusKey === "pending" || statusLabel === "pendiente") {
+    return "invoice-row-pending";
   }
 
   return "";
@@ -4258,6 +4275,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
             documentNumber: selectedInvoice.number,
             number: selectedInvoice.number,
             status: selectedInvoice.raw?.item?.status || "draft",
+            partialPaymentAmount: selectedInvoice.raw?.item?.payload?.partialPaymentAmount || 0,
             locale: selectedInvoice.raw?.item?.locale || "es",
             currency: selectedInvoice.currency,
             subtotal: selectedInvoice.subtotal,
@@ -9786,6 +9804,8 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   );
   const documentLocked = isLockedDeliveryNote;
   const documentNumber = item?.quoteNumber || item?.documentNumber || activeDocument.number || quote.number;
+  const invoiceTaxId = String(item?.lead?.taxId || "").trim();
+  const invoiceKindLabel = invoiceTaxId ? "FACTURA" : "FACTURA SIMPLIFICADA";
   const lockMessage = isLockedDeliveryNote
     ? itemStatus.includes("invoice") || itemStatus.includes("factur")
       ? "Albarán facturado. No se puede modificar ni eliminar."
@@ -9902,6 +9922,11 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
       onClose={onClose}
       actions={(
         <>
+          {activeDocument.documentType === "invoice" && item ? (
+            <span className={`invoice-document-kind ${invoiceTaxId ? "complete" : "simplified"}`}>
+              {invoiceKindLabel}
+            </span>
+          ) : null}
           <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label={`Opciones de ${meta.title.toLowerCase()}`}>
             <MoreVertical size={22} />
           </button>
@@ -10456,6 +10481,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       ? invoicePaymentState({ status: initialQuote?.status }, Number(initialQuote?.total || 0), initialQuote?.status).key
       : initialQuote?.status || "draft"
   ));
+  const [partialPaymentAmount, setPartialPaymentAmount] = useState(() => String(initialQuote?.partialPaymentAmount || initialQuote?.payload?.partialPaymentAmount || ""));
+  const [partialPaymentPromptOpen, setPartialPaymentPromptOpen] = useState(false);
+  const [partialPaymentError, setPartialPaymentError] = useState("");
   const [quoteDate, setQuoteDate] = useState(inputDate(initialQuote?.issueDate || initialQuote?.createdAt || new Date()));
   const [validUntil, setValidUntil] = useState(initialQuote?.dueDate ? inputDate(initialQuote.dueDate) : addDaysInput(initialQuote?.issueDate || initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
@@ -11341,6 +11369,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       taxMode: activeTaxOption.value,
       taxCode: activeTaxOption.value,
       reverseCharge,
+      ...(isInvoice ? { partialPaymentAmount: quoteStatus === "partial" ? Number(partialPaymentAmount) : null } : {}),
       ...(isInvoice ? { documentSeries } : {}),
       pdfTemplate,
       visualTemplate: pdfTemplate,
@@ -11372,6 +11401,29 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         .filter((line) => line.sku),
       ...overrides
     };
+  }
+
+  function handleInvoiceStatusChange(nextStatus) {
+    if (!isInvoice || nextStatus !== "partial") {
+      setQuoteStatus(nextStatus);
+      if (nextStatus !== "partial") setPartialPaymentAmount("");
+      return;
+    }
+
+    setPartialPaymentError("");
+    setPartialPaymentPromptOpen(true);
+  }
+
+  function confirmPartialPayment(event) {
+    event.preventDefault();
+    const amount = Number(String(partialPaymentAmount).replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0 || amount >= total) {
+      setPartialPaymentError("Indica un importe mayor que cero e inferior al total de la factura.");
+      return;
+    }
+    setPartialPaymentAmount(String(amount));
+    setQuoteStatus("partial");
+    setPartialPaymentPromptOpen(false);
   }
 
   async function savePaymentMethod(method) {
@@ -11917,7 +11969,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             ) : null}
             <label>
               <span>{t("status", `Estado del ${documentTitle.toLowerCase()}`)}</span>
-              <select value={quoteStatus} onChange={(event) => setQuoteStatus(event.target.value)}>
+              <select value={quoteStatus} onChange={(event) => handleInvoiceStatusChange(event.target.value)}>
                 {visibleStatusOptions.map((status) => (
                   <option key={status.value} value={status.value}>{status.label}</option>
                 ))}
@@ -12570,6 +12622,37 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           onClose={() => setDocumentPicker(null)}
           onSelect={(document) => addAttachment({ type: documentPicker, name: document.title, source: "library" })}
         />
+      ) : null}
+      {partialPaymentPromptOpen ? (
+        <ModalShell
+          title="Cobro parcial"
+          eyebrow="Factura"
+          size="payment-modal partial-payment-modal"
+          onClose={() => setPartialPaymentPromptOpen(false)}
+        >
+          <form className="payment-method-modal-form" onSubmit={confirmPartialPayment}>
+            <p className="partial-payment-intro">Indica el importe ya cobrado. El saldo pendiente se calculará automáticamente.</p>
+            <label>
+              <span>Importe cobrado</span>
+              <input
+                type="number"
+                min="0.01"
+                max={Math.max(total - 0.01, 0)}
+                step="0.01"
+                value={partialPaymentAmount}
+                onChange={(event) => setPartialPaymentAmount(event.target.value)}
+                placeholder="0,00"
+                autoFocus
+              />
+              <small>Total de la factura: {money(total)}</small>
+            </label>
+            {partialPaymentError ? <p className="form-error">{partialPaymentError}</p> : null}
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setPartialPaymentPromptOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="submit">Confirmar cobro parcial</button>
+            </div>
+          </form>
+        </ModalShell>
       ) : null}
     </div>
   );
