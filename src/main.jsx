@@ -1620,6 +1620,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   useEffect(()=>{loadChatCount();if(!canUseChat)return undefined;const timer=window.setInterval(loadChatCount,15000);return()=>window.clearInterval(timer);},[session.token,canUseChat]);
   const primaryNav = isDistributor ? [
     { id: "quotes", label: distributorLabels.quotes },
+    ...(isAngelSpainDistributor ? [{ id: "angel-billing", label: "Facturación" }] : []),
     { id: "contacts", label: distributorLabels.clients },
     { id: "catalog", label: distributorLabels.products },
     ...(!isAngelSpainDistributor ? [{ id: "downloads", label: "Drive" }] : []),
@@ -1886,6 +1887,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           ) : null}
           {activeView === "settings" ? <SettingsView /> : null}
           {activeView === "invoices" ? <InvoicesMirrorView token={session.token} onCreateInvoice={openGlobalInvoice} /> : null}
+          {activeView === "angel-billing" && isAngelSpainDistributor ? <AngelBillingView token={session.token} /> : null}
           {activeView === "purchases" ? (
             <PurchasesView
               token={session.token}
@@ -4154,6 +4156,85 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
           </div>
         </ModalShell>
       ) : null}
+    </div>
+  );
+}
+
+function AngelBillingView({ token }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const invoicesResource = useResource(
+    () => apiRequest("/api/sales/documents/invoice?limit=500", { token }),
+    [token]
+  );
+  const invoices = (invoicesResource.data?.items || []).map(serializeInternalSalesDocument);
+  const visibleInvoices = invoices.filter((invoice) => (
+    textMatchesQuery([invoice.number, invoice.contact, invoice.status, invoice.total, invoice.detail], query)
+    && (statusFilter === "all" || invoice.statusKey === statusFilter)
+    && documentMatchesDateFilter(invoice, dateFilter)
+  ));
+
+  return (
+    <div className="module-page invoices-mirror-page angel-billing-page">
+      <header className="module-page-header invoices-page-header">
+        <div>
+          <h3>Facturación</h3>
+          <p className="module-page-subtitle">Facturas vinculadas a tus presupuestos y clientes asignados.</p>
+        </div>
+      </header>
+      {invoicesResource.error ? <p className="form-error">{invoicesResource.error}</p> : null}
+      <section className="module-panel invoices-list-panel">
+        <div className="invoice-toolbar">
+          <div className="module-search">
+            <Search size={18} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar factura o cliente..." />
+          </div>
+          <DocumentDateFilter value={dateFilter} onChange={setDateFilter} />
+        </div>
+        <div className="module-filters invoice-filter-row">
+          <label className="invoice-filter-select">
+            <span>Estado</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              {INVOICE_STATUS_FILTER_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="table-wrap invoice-table-wrap">
+          <table className="module-table invoice-table">
+            <thead>
+              <tr>
+                <th className="invoice-kind-column"></th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Serie / Núm.</th>
+                <th>Cliente / Detalle</th>
+                <th>Subtotal</th>
+                <th>Total</th>
+                <th>Moneda</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoicesResource.loading ? <tr className="empty-table-row"><td colSpan={8}>Cargando facturas...</td></tr> : null}
+              {!invoicesResource.loading && !visibleInvoices.length ? <tr className="empty-table-row"><td colSpan={8}>No hay facturas para mostrar.</td></tr> : null}
+              {visibleInvoices.map((invoice) => (
+                <tr key={invoice.id} className={invoiceRowStatusClass(invoice)}>
+                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(invoice)}`}>F</span></td>
+                  <td>{dateOnly(invoice.date)}</td>
+                  <td><span className={`invoice-payment-status ${invoice.statusKey}`}>{invoice.status}</span></td>
+                  <td>{invoice.number}</td>
+                  <td><div className="invoice-detail-cell"><strong>{invoice.contact}</strong><span>{invoice.detail}</span></div></td>
+                  <td>{tableMoney(invoice.subtotal)}</td>
+                  <td>{tableMoney(invoice.total)}</td>
+                  <td>{invoice.currency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
