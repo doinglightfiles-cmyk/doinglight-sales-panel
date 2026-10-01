@@ -2355,6 +2355,76 @@ select:focus {
   line-height: 1.5;
 }
 
+.partial-payments-history-modal {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 20px;
+}
+
+.partial-payments-summary {
+  display: flex;
+  gap: 12px;
+  padding: 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.partial-payments-summary strong {
+  color: var(--ink);
+}
+
+.partial-payments-list {
+  display: grid;
+  gap: 8px;
+  max-height: 270px;
+  overflow: auto;
+  padding: 0 20px;
+}
+
+.partial-payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffaf1;
+}
+
+.partial-payment-row span {
+  display: grid;
+  gap: 3px;
+}
+
+.partial-payment-row small {
+  color: var(--muted);
+}
+
+.partial-payment-add-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12px;
+  padding: 0 20px;
+}
+
+.partial-payment-add-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.partial-payment-add-form input {
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 14px;
+  font: inherit;
+}
+
 .invoice-payment-status.overdue {
   color: var(--danger);
 }

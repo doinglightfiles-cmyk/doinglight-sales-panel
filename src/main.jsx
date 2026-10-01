@@ -662,6 +662,9 @@ const NUMBERING_DEFAULTS = {
     deliveryNote: [
       { id: "delivery-none", code: "", template: "Principal", restart: "Nunca", initialNumber: 1, manual: false, hidden: false, notes: "Sin serie" },
       { id: "delivery-00001", code: "00001", template: "Principal", restart: "Cada año", initialNumber: 1, manual: false, hidden: false, notes: "" }
+    ],
+    proforma: [
+      { id: "proforma-none", code: "", template: "Principal", restart: "Nunca", initialNumber: 1, manual: false, hidden: false, notes: "Sin serie" }
     ]
   }
 };
@@ -676,7 +679,8 @@ function normalizeNumbering(raw) {
     series: {
       invoice: Array.isArray(rawSeries.invoice) ? rawSeries.invoice : NUMBERING_DEFAULTS.series.invoice,
       quote: Array.isArray(rawSeries.quote) ? rawSeries.quote : NUMBERING_DEFAULTS.series.quote,
-      deliveryNote: Array.isArray(rawSeries.deliveryNote) ? rawSeries.deliveryNote : NUMBERING_DEFAULTS.series.deliveryNote
+      deliveryNote: Array.isArray(rawSeries.deliveryNote) ? rawSeries.deliveryNote : NUMBERING_DEFAULTS.series.deliveryNote,
+      proforma: Array.isArray(rawSeries.proforma) ? rawSeries.proforma : NUMBERING_DEFAULTS.series.proforma
     }
   };
 }
@@ -5804,6 +5808,12 @@ const NUMBERING_DOCUMENTS = {
     singular: "albarán",
     description: "Puedes tener múltiples series para utilizar en tus albaranes",
     columns: ["Serie", "Plantilla", "Reinicio", "Número inicial", "Manual", "Ocultar", "Notas"]
+  },
+  proforma: {
+    title: "Series de proforma",
+    singular: "proforma",
+    description: "Puedes tener múltiples series para utilizar en tus facturas proforma",
+    columns: ["Serie", "Plantilla", "Reinicio", "Número inicial", "Manual", "Ocultar", "Notas"]
   }
 };
 
@@ -10523,6 +10533,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [partialPaymentAmount, setPartialPaymentAmount] = useState(() => String(initialQuote?.partialPaymentAmount || initialQuote?.payload?.partialPaymentAmount || ""));
   const [partialPaymentPromptOpen, setPartialPaymentPromptOpen] = useState(false);
   const [partialPaymentError, setPartialPaymentError] = useState("");
+  const [partialPaymentsOpen, setPartialPaymentsOpen] = useState(false);
   const [quoteDate, setQuoteDate] = useState(inputDate(initialQuote?.issueDate || initialQuote?.createdAt || new Date()));
   const [validUntil, setValidUntil] = useState(initialQuote?.dueDate ? inputDate(initialQuote.dueDate) : addDaysInput(initialQuote?.issueDate || initialQuote?.createdAt || new Date(), 30));
   const [paymentMethod, setPaymentMethod] = useState(initialQuote?.paymentMethod || "");
@@ -10582,11 +10593,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     () => normalizeNumbering(paymentSettings.data?.item?.numbering),
     [paymentSettings.data]
   );
-  const invoiceSeriesRows = useMemo(
-    () => (numberingSettings.series.invoice || []).filter((series) => !series.hidden),
-    [numberingSettings]
+  const documentSeriesType = isInvoice ? "invoice" : isDeliveryNote ? "deliveryNote" : isProforma ? "proforma" : "quote";
+  const documentSeriesRows = useMemo(
+    () => (numberingSettings.series[documentSeriesType] || []).filter((series) => !series.hidden),
+    [numberingSettings, documentSeriesType]
   );
-  const selectedInvoiceSeries = invoiceSeriesRows.find((series) => String(series.code || "") === documentSeries)
+  const selectedDocumentSeries = documentSeriesRows.find((series) => String(series.code || "") === documentSeries)
     || { code: documentSeries, notes: "" };
   const leadOptionLabel = (lead) =>
     `${lead.fullName}${lead.companyName ? ` · ${lead.companyName}` : ""}${lead.taxId ? ` · ${lead.taxId}` : ""}`;
@@ -11409,7 +11421,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       taxCode: activeTaxOption.value,
       reverseCharge,
       ...(isInvoice ? { partialPaymentAmount: quoteStatus === "partial" ? Number(partialPaymentAmount) : null } : {}),
-      ...(isInvoice ? { documentSeries } : {}),
+      documentSeries,
       pdfTemplate,
       visualTemplate: pdfTemplate,
       attachments: attachments.map((attachment) => ({
@@ -11889,44 +11901,44 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <span>{t("date", "Fecha")}</span>
               <input type="date" value={quoteDate} onChange={(event) => setQuoteDate(event.target.value)} />
             </label>
-            {isInvoice ? (
-              <div className="invoice-series-field">
-                <span>Número de documento</span>
-                <button
-                  className="invoice-series-trigger"
-                  type="button"
-                  onClick={() => setSeriesMenuOpen((open) => !open)}
-                  aria-expanded={seriesMenuOpen}
-                  aria-haspopup="listbox"
-                >
-                  <span>
-                    <strong>{invoiceSeriesLabel(documentSeries)}</strong>
-                    <small>{currentDocument?.documentNumber || "Numeración automática"}</small>
-                  </span>
-                  <ChevronDown size={17} />
-                </button>
-                {seriesMenuOpen ? (
-                  <div className="invoice-series-menu" role="listbox" aria-label="Series de factura">
-                    {invoiceSeriesRows.map((series) => {
-                      const code = String(series.code || "");
-                      const active = code === documentSeries;
-                      return (
-                        <button
-                          key={series.id || code || "invoice-no-series"}
-                          className={active ? "invoice-series-option active" : "invoice-series-option"}
-                          type="button"
-                          role="option"
-                          aria-selected={active}
-                          onClick={() => {
-                            setDocumentSeries(code);
-                            setSeriesMenuOpen(false);
-                          }}
-                        >
-                          <strong>{invoiceSeriesLabel(code)}</strong>
-                          <small>{series.notes || (code ? "Numeración automática" : "Sin serie")}</small>
-                        </button>
-                      );
-                    })}
+            <div className="invoice-series-field">
+              <span>Número de documento</span>
+              <button
+                className="invoice-series-trigger"
+                type="button"
+                onClick={() => setSeriesMenuOpen((open) => !open)}
+                aria-expanded={seriesMenuOpen}
+                aria-haspopup="listbox"
+              >
+                <span>
+                  <strong>{invoiceSeriesLabel(documentSeries)}</strong>
+                  <small>{currentDocument?.quoteNumber || currentDocument?.documentNumber || "Numeración automática"}</small>
+                </span>
+                <ChevronDown size={17} />
+              </button>
+              {seriesMenuOpen ? (
+                <div className="invoice-series-menu" role="listbox" aria-label={`Series de ${documentTitle.toLowerCase()}`}>
+                  {documentSeriesRows.map((series) => {
+                    const code = String(series.code || "");
+                    const active = code === documentSeries;
+                    return (
+                      <button
+                        key={series.id || code || `${documentSeriesType}-no-series`}
+                        className={active ? "invoice-series-option active" : "invoice-series-option"}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onClick={() => {
+                          setDocumentSeries(code);
+                          setSeriesMenuOpen(false);
+                        }}
+                      >
+                        <strong>{invoiceSeriesLabel(code)}</strong>
+                        <small>{series.notes || (code ? "Numeración automática" : "Sin serie")}</small>
+                      </button>
+                    );
+                  })}
+                  {isInvoice ? (
                     <button
                       className="invoice-series-add"
                       type="button"
@@ -11939,20 +11951,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                       <Plus size={18} />
                       Añadir nueva serie
                     </button>
-                  </div>
-                ) : null}
-                <small className="invoice-series-help">
-                  {currentDocument?.documentNumber
-                    ? `Número actual: ${currentDocument.documentNumber}`
-                    : `El siguiente número de ${selectedInvoiceSeries.code || "la serie sin código"} se asignará al guardar.`}
-                </small>
-              </div>
-            ) : (
-              <label>
-                <span>{t("documentNumber", "Número de documento")}</span>
-                <input value={currentDocument?.quoteNumber || currentDocument?.documentNumber || ""} placeholder={t("automaticNumber", "Se generará automáticamente")} readOnly />
-              </label>
-            )}
+                  ) : null}
+                </div>
+              ) : null}
+              <small className="invoice-series-help">
+                {currentDocument?.quoteNumber || currentDocument?.documentNumber
+                  ? `Número actual: ${currentDocument.quoteNumber || currentDocument.documentNumber}`
+                  : `El siguiente número de ${selectedDocumentSeries.code || "la serie sin código"} se asignará al guardar.`}
+              </small>
+            </div>
             <label>
               <span>{t("email", "Correo electrónico de envío")}</span>
               <input value={leadDraft?.email || selectedLead?.email || ""} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder={t("noEmail", "Sin correo electrónico")} readOnly={!selectedLead} />
@@ -12360,6 +12367,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             {warehouseSending ? "ENVIANDO…" : currentDocument.warehouseSentAt ? "ENVIADO A ALMACÉN" : "ENVIAR A ALMACÉN"}
           </button>
         ) : null}
+        {isInvoice && currentDocument?.id ? (
+          <button className="secondary-button" type="button" onClick={() => setPartialPaymentsOpen(true)}>
+            Cobros parciales
+          </button>
+        ) : null}
         <button className="primary-button send-quote-button" type="button" onClick={openSendModal}>
           {t("send", "Enviar")}
         </button>
@@ -12693,7 +12705,104 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           </form>
         </ModalShell>
       ) : null}
+      {partialPaymentsOpen && currentDocument?.id ? (
+        <PartialPaymentsModal
+          token={token}
+          invoice={currentDocument}
+          onClose={() => setPartialPaymentsOpen(false)}
+          onUpdated={(item) => {
+            setSavedDocument(item);
+            const nextStatus = invoicePaymentState({ ...(item.payload || {}), status: item.status }, Number(item.total || total), item.status);
+            setQuoteStatus(nextStatus.key);
+            setPartialPaymentAmount(nextStatus.partialPaymentAmount ? String(nextStatus.partialPaymentAmount) : "");
+          }}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function PartialPaymentsModal({ token, invoice, onClose, onUpdated }) {
+  const [amount, setAmount] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const payments = Array.isArray(invoice?.payload?.partialPayments)
+    ? invoice.payload.partialPayments
+    : Number(invoice?.payload?.partialPaymentAmount || 0) > 0
+      ? [{ id: "legacy_partial_payment", amount: Number(invoice.payload.partialPaymentAmount), recordedAt: invoice.payload.partialPaymentUpdatedAt || invoice.updatedAt }]
+      : [];
+  const paidAmount = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const remaining = Math.max(Number(invoice?.total || 0) - paidAmount, 0);
+
+  async function addPayment(event) {
+    event.preventDefault();
+    const value = Number(String(amount).replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0 || value > remaining) {
+      setError("Indica un importe mayor que cero y que no supere el saldo pendiente.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const result = await apiRequest(`/api/sales/documents/invoice/${invoice.id}/partial-payments`, {
+        token,
+        method: "POST",
+        body: { amount: value }
+      });
+      onUpdated(result?.item || result);
+      setAmount("");
+    } catch (err) {
+      setError(err.message || "No se ha podido registrar el cobro parcial.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removePayment(payment) {
+    if (!window.confirm(`¿Eliminar el cobro de ${tableMoney(payment.amount)} €?`)) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await apiRequest(`/api/sales/documents/invoice/${invoice.id}/partial-payments/${encodeURIComponent(payment.id)}`, {
+        token,
+        method: "DELETE"
+      });
+      onUpdated(result?.item || result);
+    } catch (err) {
+      setError(err.message || "No se ha podido eliminar el cobro parcial.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <ModalShell title="Cobros parciales" eyebrow={`Factura ${invoice.documentNumber || invoice.number || ""}`} size="payment-modal partial-payments-history-modal" onClose={onClose}>
+      <div className="partial-payments-summary">
+        <span>Cobrado: <strong>{tableMoney(paidAmount)} €</strong></span>
+        <span>Pendiente: <strong>{tableMoney(remaining)} €</strong></span>
+      </div>
+      <div className="partial-payments-list">
+        {payments.length ? payments.map((payment) => (
+          <div key={payment.id} className="partial-payment-row">
+            <span>
+              <strong>{tableMoney(payment.amount)} €</strong>
+              <small>{payment.recordedAt ? new Date(payment.recordedAt).toLocaleString("es-ES") : "Sin fecha"}</small>
+            </span>
+            <button className="secondary-button danger" type="button" disabled={busy} onClick={() => removePayment(payment)}>Eliminar</button>
+          </div>
+        )) : <p className="muted-text">Todavía no hay cobros parciales registrados.</p>}
+      </div>
+      {remaining > 0 ? (
+        <form className="partial-payment-add-form" onSubmit={addPayment}>
+          <label>
+            <span>Registrar nuevo cobro</span>
+            <input type="number" min="0.01" max={remaining} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0,00" />
+          </label>
+          <button className="primary-button" type="submit" disabled={busy}>{busy ? "Guardando..." : "Añadir cobro"}</button>
+        </form>
+      ) : null}
+      {error ? <p className="form-error">{error}</p> : null}
+    </ModalShell>
   );
 }
 
