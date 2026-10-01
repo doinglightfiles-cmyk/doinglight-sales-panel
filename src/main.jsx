@@ -11563,7 +11563,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       reverseCharge,
       ...(isInvoice ? { partialPaymentAmount: quoteStatus === "partial" ? Number(partialPaymentAmount) : null } : {}),
       documentSeries,
-      ...(documentNumberOverride.trim() ? { documentNumber: documentNumberOverride.trim() } : {}),
+      ...(!isQuote && documentNumberOverride.trim() ? { documentNumber: documentNumberOverride.trim() } : {}),
       pdfTemplate,
       visualTemplate: pdfTemplate,
       attachments: attachments.map((attachment) => ({
@@ -12101,7 +12101,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   ? `Número actual: ${currentDocument.quoteNumber || currentDocument.documentNumber}`
                   : `El siguiente número de ${selectedDocumentSeries.code || "la serie sin código"} se asignará al guardar.`}
               </small>
-              <label className="invoice-document-number-edit">
+              {!isQuote ? <label className="invoice-document-number-edit">
                 <span>Número</span>
                 <input
                   value={documentNumberOverride}
@@ -12109,7 +12109,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   placeholder="Automático"
                   aria-label="Número de documento"
                 />
-              </label>
+              </label> : null}
             </div>
             <label>
               <span>{t("email", "Correo electrónico de envío")}</span>
