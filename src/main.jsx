@@ -1677,6 +1677,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   );
   const visibleNav = activeMoreItem ? [...primaryNav, activeMoreItem] : primaryNav;
 
+  useEffect(() => {
+    if (isAngelSpainDistributor && activeView === "dashboard") onNavigate("quotes");
+  }, [activeView, isAngelSpainDistributor, onNavigate]);
+
   function navigate(viewId, options = {}) {
     setMoreOpen(false);
     setCreateDrawerOpen(false);
@@ -1737,7 +1741,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   return (
     <div className={`app-shell ${themeAlert.active ? "ultraviolet-alert" : ""}`}>
       <header className="app-header">
-        <button className="header-brand" type="button" onClick={() => navigate(isDistributor ? "quotes" : "dashboard")} aria-label={isDistributor ? distributorLabels.quotes : "Ir a Inicio"}>
+        <button className="header-brand" type="button" onClick={() => navigate(isDistributor || isAngelSpainDistributor ? "quotes" : "dashboard")} aria-label={isDistributor || isAngelSpainDistributor ? distributorLabels.quotes : "Ir a Inicio"}>
           <img src="/logo-backend.png" alt="Doinglight Intranet" />
         </button>
         <nav className="main-nav" aria-label="Navegación principal">
@@ -1873,7 +1877,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 
       <div className="main-area">
         <section className="content">
-          {activeView === "dashboard" && !isDistributor ? (
+          {activeView === "dashboard" && !isDistributor && !isAngelSpainDistributor ? (
             <Dashboard
               token={session.token}
               locale={session.user.locale}
