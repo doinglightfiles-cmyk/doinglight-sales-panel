@@ -11690,8 +11690,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       taxCode: activeTaxOption.value,
       reverseCharge,
       ...(isInvoice ? { partialPaymentAmount: quoteStatus === "partial" ? Number(partialPaymentAmount) : null } : {}),
-      documentSeries,
-      ...(!isQuote && documentNumberOverride.trim() ? { documentNumber: documentNumberOverride.trim() } : {}),
       pdfTemplate,
       visualTemplate: pdfTemplate,
       attachments: attachments.map((attachment) => ({
@@ -12173,73 +12171,19 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <span>{t("date", "Fecha")}</span>
               <input type="date" value={quoteDate} onChange={(event) => setQuoteDate(event.target.value)} />
             </label>
-            <div className="invoice-series-field">
+            <div className="invoice-series-field invoice-series-field-locked">
               <span>Número de documento</span>
-              <button
-                className="invoice-series-trigger"
-                type="button"
-                onClick={() => setSeriesMenuOpen((open) => !open)}
-                aria-expanded={seriesMenuOpen}
-                aria-haspopup="listbox"
-              >
+              <div className="invoice-series-trigger" aria-label="Numeración automática">
                 <span>
-                  <strong>{invoiceSeriesLabel(documentSeries)}</strong>
-                  <small>{currentDocument?.quoteNumber || currentDocument?.documentNumber || "Numeración automática"}</small>
+                  <strong>{currentDocument?.quoteNumber || currentDocument?.documentNumber || "Automático"}</strong>
+                  <small>{currentDocument ? "Número y serie asignados" : "Serie automática según el país del cliente"}</small>
                 </span>
-                <ChevronDown size={17} />
-              </button>
-              {seriesMenuOpen ? (
-                <div className="invoice-series-menu" role="listbox" aria-label={`Series de ${documentTitle.toLowerCase()}`}>
-                  {documentSeriesRows.map((series) => {
-                    const code = String(series.code || "");
-                    const active = code === documentSeries;
-                    return (
-                      <button
-                        key={series.id || code || `${documentSeriesType}-no-series`}
-                        className={active ? "invoice-series-option active" : "invoice-series-option"}
-                        type="button"
-                        role="option"
-                        aria-selected={active}
-                        onClick={() => {
-                          setDocumentSeries(code);
-                          setSeriesMenuOpen(false);
-                        }}
-                      >
-                        <strong>{invoiceSeriesLabel(code)}</strong>
-                        <small>{series.notes || (code ? "Numeración automática" : "Sin serie")}</small>
-                      </button>
-                    );
-                  })}
-                  {isInvoice ? (
-                    <button
-                      className="invoice-series-add"
-                      type="button"
-                      onClick={() => {
-                        setSeriesError("");
-                        setSeriesCreationOpen(true);
-                        setSeriesMenuOpen(false);
-                      }}
-                    >
-                      <Plus size={18} />
-                      Añadir nueva serie
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
+              </div>
               <small className="invoice-series-help">
                 {currentDocument?.quoteNumber || currentDocument?.documentNumber
-                  ? `Número actual: ${currentDocument.quoteNumber || currentDocument.documentNumber}`
-                  : `El siguiente número de ${selectedDocumentSeries.code || "la serie sin código"} se asignará al guardar.`}
+                  ? "La numeración de un documento emitido no se puede modificar."
+                  : "El número correlativo se asignará automáticamente al guardar."}
               </small>
-              {!isQuote ? <label className="invoice-document-number-edit">
-                <span>Número</span>
-                <input
-                  value={documentNumberOverride}
-                  onChange={(event) => setDocumentNumberOverride(event.target.value)}
-                  placeholder="Automático"
-                  aria-label="Número de documento"
-                />
-              </label> : null}
             </div>
             <label>
               <span>{t("email", "Correo electrónico de envío")}</span>
