@@ -3107,6 +3107,7 @@ const REVERSE_CHARGE_TAX_CODE = "reverse_charge";
 const REVERSE_CHARGE_TAX_LABEL = "Sujeto Pasivo";
 const INTRACOMMUNITY_TAX_CODE = "intra_community";
 const INTRACOMMUNITY_TAX_LABEL = "Intracomunitario";
+const INTRACOMMUNITY_LEGAL_TEXT = "Operación exenta de IVA según la Ley 37/1992, de 28 de diciembre, del Impuesto sobre el Valor Añadido.";
 const REVERSE_CHARGE_PDF_SUBTITLE = "SUJETO PASIVO";
 const REVERSE_CHARGE_LEGAL_TEXT = "Operación con inversión del sujeto pasivo conforme al Artículo 84. Uno. 2º de la Ley 37/1992 del IVA";
 
@@ -3149,7 +3150,18 @@ function taxRateFromTaxMode(value) {
 }
 
 function isReverseChargeTaxMode(value) {
-  return Boolean(taxOptionFromMode(value).reverseCharge);
+  const option = taxOptionFromMode(value);
+  return Boolean(option.reverseCharge) && option.value !== INTRACOMMUNITY_TAX_CODE;
+}
+
+function isIntracommunityTaxMode(value) {
+  return taxOptionFromMode(value).value === INTRACOMMUNITY_TAX_CODE;
+}
+
+function notesWithIntracommunityLegalText(notes = "") {
+  const current = String(notes || "").trim();
+  if (current.includes(INTRACOMMUNITY_LEGAL_TEXT)) return current;
+  return [current, INTRACOMMUNITY_LEGAL_TEXT].filter(Boolean).join("\n\n");
 }
 
 function isReverseChargeDocument(document) {
@@ -3365,6 +3377,7 @@ function DocumentPdfPage({
   paymentIban = DOINGLIGHT_PAYMENT_IBAN,
   redsysPaymentUrl = "",
   reverseCharge = false,
+  intraCommunity = false,
   netPricing = false,
   pdfTemplate = "doinglight",
   forceDoinglightIssuer = false
@@ -3387,6 +3400,10 @@ function DocumentPdfPage({
   const quantityHeader = language === "es" ? "Cant." : text.quantity;
   const discountHeader = language === "es" ? "Dto." : text.discount;
   const priceHeader = language === "es" ? "Precio" : text.price;
+  const taxSummaryLabel = intraCommunity
+    ? `${text.vat} 0% · ${INTRACOMMUNITY_TAX_LABEL}`
+    : reverseCharge ? REVERSE_CHARGE_TAX_LABEL : `${text.vat} ${taxRate}%`;
+  const notesWithTaxLegalText = intraCommunity ? notesWithIntracommunityLegalText(notes) : notes;
   const formatLineQuantity = (value) => {
     const parsed = Number(value || 0);
     return Number.isInteger(parsed) ? String(parsed) : tableMoney(parsed);
@@ -3465,7 +3482,7 @@ function DocumentPdfPage({
           <div className="quote-pdf-totals quote-pdf-summary">
             <span>{text.subtotal}</span>
             <strong>{tableMoney(subtotal)}</strong>
-            <span>{reverseCharge ? REVERSE_CHARGE_TAX_LABEL : `${text.vat} ${taxRate}%`} (Base: {tableMoney(subtotal)})</span>
+            <span>{taxSummaryLabel} (Base: {tableMoney(subtotal)})</span>
             <strong>{tableMoney(taxTotal)}</strong>
             <span>{text.totalCurrency || `Total (${currency})`}</span>
             <strong>{money(total)}</strong>
@@ -3493,7 +3510,7 @@ function DocumentPdfPage({
           </tbody>
         </table>
         <div className="quote-pdf-notes quote-pdf-long-notes">
-          {notes ? <p>{notes}</p> : null}
+          {notesWithTaxLegalText ? <p>{notesWithTaxLegalText}</p> : null}
           {type === "quote" && includePaymentDetails ? (
             <div className="quote-pdf-payment-details">
               <strong>Datos de pago</strong>
@@ -4709,6 +4726,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
               taxTotal={taxTotal}
               total={total}
               reverseCharge={reverseCharge}
+              intraCommunity={isIntracommunityTaxMode(taxMode)}
               currency={documentRecord.currency}
               paymentMethod={firstValue(documentRecord.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
               notes={type === "invoice" ? firstValue(documentRecord.raw?.main || {}, ["notes", "observations", "publicNotes"], "") : ""}
@@ -4819,6 +4837,7 @@ function InvoiceDetailModal({ token, invoice, onClose }) {
             taxTotal={Math.max(invoice.total - invoice.subtotal, 0)}
             total={invoice.total}
             reverseCharge={isReverseChargeTaxMode(taxModeFromDocument(invoice))}
+            intraCommunity={isIntracommunityTaxMode(taxModeFromDocument(invoice))}
             currency={invoice.currency}
             paymentMethod={firstValue(invoice.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
             notes={firstValue(invoice.raw?.main || {}, ["notes", "observations", "publicNotes"], "")}
@@ -5481,6 +5500,7 @@ function DeliveryNoteDetailModal({ token, deliveryNote, onClose }) {
             taxTotal={Math.max(deliveryNote.total - deliveryNote.subtotal, 0)}
             total={deliveryNote.total}
             reverseCharge={isReverseChargeTaxMode(taxModeFromDocument(deliveryNote))}
+            intraCommunity={isIntracommunityTaxMode(taxModeFromDocument(deliveryNote))}
             currency={deliveryNote.currency}
             paymentMethod={firstValue(deliveryNote.raw?.main || {}, ["paymentMethod.name", "paymentMethod", "paymentTerms"], "")}
             notes={firstValue(deliveryNote.raw?.main || {}, ["notes", "observations", "publicNotes"], "")}
@@ -12572,7 +12592,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       <section className="quote-totals">
         <label>
           {t("vat", "IVA")}
-          <select value={taxRate} onChange={(event) => setTaxRate(event.target.value)}>
+          <select
+            value={taxRate}
+            onChange={(event) => {
+              const nextTaxMode = event.target.value;
+              setTaxRate(nextTaxMode);
+              if (isIntracommunityTaxMode(nextTaxMode)) {
+                setNotes((current) => notesWithIntracommunityLegalText(current));
+              }
+            }}
+          >
             {taxOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
@@ -12876,6 +12905,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   subtotal={subtotal}
                   taxRate={activeTaxRate}
                   reverseCharge={reverseCharge}
+                  intraCommunity={isIntracommunityTaxMode(taxRate)}
                   taxTotal={taxTotal}
                   total={total}
                   paymentMethod={paymentMethod}
@@ -12917,6 +12947,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           subtotal={subtotal}
           taxRate={activeTaxRate}
           reverseCharge={reverseCharge}
+          intraCommunity={isIntracommunityTaxMode(taxRate)}
           taxTotal={taxTotal}
           total={total}
           paymentMethod={paymentMethod}
