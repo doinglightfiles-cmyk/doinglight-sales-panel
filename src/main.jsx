@@ -3387,7 +3387,9 @@ function DocumentPdfPage({
   const validityLabel = isDeliveryNote ? text.deliveryDate : type === "invoice" ? text.dueDate : text.validUntil;
   const isTuboSolarTemplate = pdfTemplate === "tubo-solar";
   const logoSrc = isTuboSolarTemplate ? TUBO_SOLAR_PDF_LOGO : DOCUMENT_PDF_LOGO;
-  const issuerLines = forceDoinglightIssuer
+  const issuerLines = isTuboSolarTemplate
+    ? ["TUBO SOLAR", "ESB02555001", "Polígono Industrial Campollano, Calle E nº 24", "02007 ALBACETE", "España", "info@doinglight.es", "www.doinglight.es", "658856869"]
+    : forceDoinglightIssuer
     ? ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Polígono Industrial Campollano, Calle E nº 24", "02007 ALBACETE", "España", "info@doinglight.es", "www.doinglight.es", "658856869"]
     : language === "fr"
     ? ["DOINGLIGHT TECHNOLOGIES, SLU", "ESB02555001", "Pol.Emp.Campollano, C/E, 24", "02007 - Albacete - Spain", "+34 967 704 919"]
