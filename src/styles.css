@@ -6749,13 +6749,13 @@ th {
 
 .quote-pdf-line-row {
   display: grid;
-  grid-template-columns: 30px minmax(44px, 0.42fr) minmax(0, 1.8fr) 32px 42px 34px 48px;
+  grid-template-columns: 30px minmax(60px, 0.55fr) minmax(0, 1.55fr) 42px 58px 48px 62px;
   width: 100%;
   align-items: stretch;
 }
 
 .quote-pdf-no-discount .quote-pdf-line-row {
-  grid-template-columns: 30px minmax(44px, 0.42fr) minmax(0, 1.8fr) 32px 42px 48px;
+  grid-template-columns: 30px minmax(60px, 0.55fr) minmax(0, 1.55fr) 42px 58px 62px;
 }
 
 .delivery-pdf-lines-grid .quote-pdf-line-row {

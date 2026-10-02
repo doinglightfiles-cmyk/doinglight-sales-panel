@@ -11494,7 +11494,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     const selectedProduct = productForLine(line);
     const quantity = Number(line.quantity || 0);
     const lineAmount = lineTotal(line);
-    const unitPrice = quantity ? lineAmount / quantity : lineAmount;
+    const discount = Number(line.discountPercent || 0);
+    const hasUnitPriceOverride = line.unitPriceOverride !== undefined
+      && line.unitPriceOverride !== null
+      && line.unitPriceOverride !== "";
+    // El precio debe ser el PVP unitario, mientras que el total refleja el
+    // descuento aplicado. Antes se mostraba el precio ya descontado en ambas
+    // columnas, haciendo que el descuento pareciera no tener efecto.
+    const unitPrice = hasUnitPriceOverride
+      ? Number(line.unitPriceOverride)
+      : Number(selectedProduct?.pricePvpEur || (quantity ? lineAmount / quantity / Math.max(1 - discount / 100, 0.0001) : lineAmount));
     const lineImageUrl =
       getProductImage(selectedProduct) ||
       line.imageUrl ||
@@ -11510,7 +11519,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       lineType: line.lineType || line.productSnapshot?.type || "product",
       quantity,
       price: unitPrice,
-      discount: Number(line.discountPercent || 0),
+      discount,
       total: lineAmount
     };
   });
