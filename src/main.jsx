@@ -10064,20 +10064,22 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
   const isTransferBlockedQuote =
     activeDocument.documentType === "quote" && isQuoteTransferBlockedStatus(itemStatus);
   const isLockedDeliveryNote = activeDocument.documentType === "delivery_note" && (
-    itemStatus.includes("factur") ||
-    itemStatus.includes("invoice") ||
     itemStatus.includes("void") ||
     itemStatus.includes("anulad") ||
     itemStatus.includes("cancel")
   );
   const documentLocked = isLockedDeliveryNote;
   const documentNumber = item?.quoteNumber || item?.documentNumber || activeDocument.number || quote.number;
+  const relatedInvoice = activeDocument.documentType === "delivery_note"
+    ? (item?.trace || []).find((entry) => entry.type === "invoice")
+    : null;
+  const invoicedDeliveryWarning = relatedInvoice
+    ? `¡Cuidado! Albarán facturado (${relatedInvoice.number || "sin número"}). Puedes editarlo.`
+    : "";
   const invoiceTaxId = String(item?.lead?.taxId || "").trim();
   const invoiceKindLabel = invoiceTaxId ? "FACTURA" : "FACTURA SIMPLIFICADA";
   const lockMessage = isLockedDeliveryNote
-    ? itemStatus.includes("invoice") || itemStatus.includes("factur")
-      ? "Albarán facturado. No se puede modificar ni eliminar."
-      : "Albarán anulado. No se puede modificar ni eliminar."
+    ? "Albarán anulado. No se puede modificar ni eliminar."
     : "";
 
   function openQuoteSendFromMenu() {
@@ -10223,6 +10225,7 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
     >
       {detail.error ? <p className="form-error">{detail.error}</p> : null}
       {detail.loading ? <p className="muted-text">Cargando documento...</p> : null}
+      {invoicedDeliveryWarning ? <p className="delivery-note-invoiced-warning">{invoicedDeliveryWarning}</p> : null}
       {item ? (
         <QuoteForm
           key={item.id}

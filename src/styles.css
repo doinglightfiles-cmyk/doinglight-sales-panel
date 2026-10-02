@@ -8165,6 +8165,16 @@ th {
 .mail-connection-card p { margin: 5px 0 0; color: #61705b; line-height: 1.5; }
 .mail-setup-warning { display: flex; align-items: flex-start; gap: 12px; margin: 18px 0; padding: 15px 18px; border: 1px solid #e3b3aa; border-radius: 8px; color: #8e261d; background: #fff3f1; }
 .mail-setup-warning p { margin: 4px 0 0; color: #9f453b; }
+
+.delivery-note-invoiced-warning {
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border: 1px solid #e6bd76;
+  border-radius: 8px;
+  color: #78520f;
+  background: #fff7e6;
+  font-weight: 700;
+}
 .mail-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 350px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--white); }
 .mail-folders { display: grid; align-content: start; gap: 4px; padding: 12px; border-right: 1px solid var(--line); background: #f8faf5; }
 .mail-folders button { border: 0; border-radius: 6px; padding: 11px 12px; color: #50604b; background: transparent; font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer; }
