@@ -11130,13 +11130,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   function productForLine(line) {
     if (line.lineType === "shipping" || line.productSnapshot?.type === "shipping") {
+      const shippingTitle = String(line.productSnapshot?.title || line.title || "Portes").trim();
       return {
         ...(line.productSnapshot || {}),
         source: "system",
         type: "shipping",
         sku: "PORTES",
-        title: "Portes",
-        shortDescription: "Gastos de transporte"
+        title: shippingTitle,
+        shortDescription: shippingTitle === "PORTES PAGADOS" ? "Portes incluidos" : "Gastos de transporte"
       };
     }
     if (line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON") {
@@ -11291,6 +11292,35 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           sku: "PORTES",
           title: "Portes",
           shortDescription: "Gastos de transporte"
+        }
+      };
+      if (existingIndex < 0) return [...current, shippingLine];
+      return current.map((line, index) => (index === existingIndex ? shippingLine : line));
+    });
+    setShippingModalOpen(false);
+  }
+
+  function savePaidShippingLine() {
+    setLines((current) => {
+      const existingIndex = current.findIndex((line) => line.lineType === "shipping" || line.productSnapshot?.type === "shipping");
+      const shippingLine = {
+        id: existingIndex >= 0 ? current[existingIndex].id : crypto.randomUUID(),
+        lineType: "shipping",
+        skuQuery: "PORTES",
+        sku: "PORTES",
+        quantity: 1,
+        discountPercent: 0,
+        unitPriceOverride: 0,
+        manualTotal: 0,
+        title: "PORTES PAGADOS",
+        customNote: "",
+        customNoteOpen: false,
+        productSnapshot: {
+          source: "system",
+          type: "shipping",
+          sku: "PORTES",
+          title: "PORTES PAGADOS",
+          shortDescription: "Portes incluidos"
         }
       };
       if (existingIndex < 0) return [...current, shippingLine];
@@ -11707,13 +11737,19 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           const isCustomLine = line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON";
           return {
             sku: isShippingLine ? "PORTES" : isCustomLine ? "ALMORCHON" : line.sku,
-            title: isShippingLine ? "Portes" : isCustomLine ? String(line.title || "").trim() : product?.title || line.title || line.sku,
+            title: isShippingLine ? String(product?.title || line.title || "Portes").trim() : isCustomLine ? String(line.title || "").trim() : product?.title || line.title || line.sku,
             quantity: Number(line.quantity),
             discountPercent: Number(line.discountPercent),
             unitPrice: unitPriceForSubmit(line),
             customNote: String(line.customNote || "").trim(),
             productSnapshot: isShippingLine
-              ? { source: "system", type: "shipping", sku: "PORTES", title: "Portes", shortDescription: "Gastos de transporte" }
+              ? {
+                  source: "system",
+                  type: "shipping",
+                  sku: "PORTES",
+                  title: String(product?.title || line.title || "Portes").trim(),
+                  shortDescription: product?.shortDescription || "Gastos de transporte"
+                }
               : isCustomLine
                 ? { source: "system", type: "custom", sku: "ALMORCHON", title: String(line.title || "").trim(), shortDescription: String(line.title || "").trim() }
               : product || line.productSnapshot || {}
@@ -12642,6 +12678,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             {shippingError ? <p className="form-error">{shippingError}</p> : null}
             <div className="form-actions">
               <button className="secondary-button" type="button" onClick={() => setShippingModalOpen(false)}>Cancelar</button>
+              <button className="secondary-button" type="button" onClick={savePaidShippingLine}>PORTES PAGADOS</button>
               <button className="primary-button" type="submit">Añadir portes</button>
             </div>
           </form>
