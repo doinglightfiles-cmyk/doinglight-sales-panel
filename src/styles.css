@@ -1561,6 +1561,19 @@ select:focus {
   margin-top: 12px;
 }
 
+.purchase-attachments-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 12px;
+}
+
+.purchase-attachments-workspace .purchase-attachment-list {
+  margin-top: 0;
+  align-content: start;
+}
+
 .purchase-attachment-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -1570,6 +1583,11 @@ select:focus {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--white);
+}
+
+.purchase-attachment-row.is-previewed {
+  border-color: var(--green);
+  background: var(--green-soft);
 }
 
 .purchase-attachment-info {
@@ -1586,6 +1604,48 @@ select:focus {
 .purchase-attachment-actions {
   display: flex;
   gap: 4px;
+}
+
+.purchase-attachment-preview {
+  display: grid;
+  grid-template-rows: auto minmax(260px, 1fr);
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.purchase-attachment-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.purchase-attachment-preview > p {
+  align-self: center;
+  margin: 0;
+  padding: 22px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.purchase-attachment-preview iframe,
+.purchase-attachment-preview img {
+  display: block;
+  width: 100%;
+  min-height: 260px;
+  height: 100%;
+  border: 0;
+  object-fit: contain;
+  background: #f4f5f1;
 }
 
 .purchase-attachment-empty {
@@ -7362,7 +7422,8 @@ th {
   .quote-client-tools,
   .quote-line-card,
   .quote-line-card.net-pricing,
-  .quote-totals {
+  .quote-totals,
+  .purchase-attachments-workspace {
     grid-template-columns: 1fr;
   }
 

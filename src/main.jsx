@@ -8071,6 +8071,8 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
   const [attachments, setAttachments] = useState(purchase?.attachments || []);
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
+  const [attachmentPreviewBusy, setAttachmentPreviewBusy] = useState(false);
   const suppliers = useResource(
     () => apiRequest("/api/sales/leads?contactKind=supplier&limit=500", { token }),
     [token]
@@ -8103,6 +8105,10 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
       .finally(() => active && setLoadingDetail(false));
     return () => { active = false; };
   }, [purchase?.id, token]);
+
+  useEffect(() => () => {
+    if (attachmentPreview?.url) URL.revokeObjectURL(attachmentPreview.url);
+  }, [attachmentPreview?.url]);
 
   const supplierItems = suppliers.data?.items || suppliers.data?.leads || [];
   const totals = form.lines.reduce((acc, line) => {
@@ -8140,6 +8146,34 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
     }));
   }
 
+  async function previewAttachment(attachment, pending = false) {
+    setError("");
+    setAttachmentPreviewBusy(true);
+    try {
+      let blob;
+      if (pending) {
+        const bytes = Uint8Array.from(atob(attachment.dataBase64), (character) => character.charCodeAt(0));
+        blob = new Blob([bytes], { type: attachment.mimeType });
+      } else {
+        const response = await fetch(`${API_BASE_URL}${attachment.url}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (!response.ok) throw new Error("No se ha podido cargar la vista previa del archivo.");
+        blob = await response.blob();
+      }
+      setAttachmentPreview({
+        id: attachment.id || attachment.localId,
+        fileName: attachment.fileName,
+        mimeType: blob.type || attachment.mimeType,
+        url: URL.createObjectURL(blob)
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAttachmentPreviewBusy(false);
+    }
+  }
+
   async function addAttachments(event) {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
@@ -8163,8 +8197,11 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
             body: input
           });
           setAttachments((current) => [...current, result.item]);
+          await previewAttachment(result.item);
         } else {
-          setPendingAttachments((current) => [...current, { ...input, localId: crypto.randomUUID() }]);
+          const pendingAttachment = { ...input, localId: crypto.randomUUID() };
+          setPendingAttachments((current) => [...current, pendingAttachment]);
+          await previewAttachment(pendingAttachment, true);
         }
       }
     } catch (err) {
@@ -8190,6 +8227,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
 
   async function removeAttachment(attachment, pending = false) {
     setError("");
+    if (attachmentPreview?.id === (attachment.id || attachment.localId)) setAttachmentPreview(null);
     if (pending) {
       setPendingAttachments((current) => current.filter((item) => item.localId !== attachment.localId));
       return;
@@ -8333,21 +8371,32 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
               <span>{attachmentBusy ? "Adjuntando..." : `${attachments.length + pendingAttachments.length} archivo(s)`}</span>
             </header>
             {attachments.length || pendingAttachments.length ? (
-              <div className="purchase-attachment-list">
-                {[...attachments.map((item) => ({ item, pending: false })), ...pendingAttachments.map((item) => ({ item, pending: true }))].map(({ item, pending }) => (
-                  <div className="purchase-attachment-row" key={item.id || item.localId}>
-                    <FileText size={18} />
-                    <div className="purchase-attachment-info">
-                      <strong>{item.fileName}</strong>
-                      <span>{attachmentSize(item.fileSize)}</span>
+              <div className="purchase-attachments-workspace">
+                <div className="purchase-attachment-list">
+                  {[...attachments.map((item) => ({ item, pending: false })), ...pendingAttachments.map((item) => ({ item, pending: true }))].map(({ item, pending }) => (
+                    <div className={`purchase-attachment-row ${attachmentPreview?.id === (item.id || item.localId) ? "is-previewed" : ""}`} key={item.id || item.localId}>
+                      <FileText size={18} />
+                      <div className="purchase-attachment-info">
+                        <strong>{item.fileName}</strong>
+                        <span>{attachmentSize(item.fileSize)}</span>
+                      </div>
+                      {pending ? <span className="purchase-attachment-pending">Se guardará con la factura</span> : null}
+                      <div className="purchase-attachment-actions">
+                        <button className="icon-button" type="button" title="Vista previa" aria-label={`Vista previa de ${item.fileName}`} onClick={() => previewAttachment(item, pending)}><ImageIcon size={16} /></button>
+                        <button className="icon-button" type="button" title="Descargar" onClick={() => downloadAttachment(item, pending)}><Download size={16} /></button>
+                        <button className="icon-button" type="button" title="Quitar adjunto" onClick={() => removeAttachment(item, pending)}><X size={16} /></button>
+                      </div>
                     </div>
-                    {pending ? <span className="purchase-attachment-pending">Se guardará con la factura</span> : null}
-                    <div className="purchase-attachment-actions">
-                      <button className="icon-button" type="button" title="Descargar" onClick={() => downloadAttachment(item, pending)}><Download size={16} /></button>
-                      <button className="icon-button" type="button" title="Quitar adjunto" onClick={() => removeAttachment(item, pending)}><X size={16} /></button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <aside className="purchase-attachment-preview" aria-live="polite">
+                  <div className="purchase-attachment-preview-title"><ImageIcon size={16} /><span>Vista previa</span></div>
+                  {attachmentPreviewBusy ? <p>Cargando archivo…</p> : attachmentPreview ? (
+                    attachmentPreview.mimeType.startsWith("image/")
+                      ? <img src={attachmentPreview.url} alt={`Vista previa de ${attachmentPreview.fileName}`} />
+                      : <iframe title={`Vista previa de ${attachmentPreview.fileName}`} src={attachmentPreview.url} />
+                  ) : <p>Selecciona o sube un PDF o una imagen para verla aquí.</p>}
+                </aside>
               </div>
             ) : <p className="purchase-attachment-empty">No hay ninguna factura original adjunta.</p>}
           </section>
