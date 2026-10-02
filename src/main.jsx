@@ -11901,7 +11901,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       notifySalesDocumentSaved(documentType, saved);
       setSaveState("saved");
 
-      if (!isQuote) {
+      // A saved edit should always return to its list. New quotes remain open
+      // so their creator can review or send them immediately after creation.
+      if (currentDocument || !isQuote) {
         await new Promise((resolve) => window.setTimeout(resolve, 650));
         onDone();
       } else {
