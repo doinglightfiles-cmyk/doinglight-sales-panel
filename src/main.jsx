@@ -3408,6 +3408,9 @@ function DocumentPdfPage({
     ? `${text.vat} 0% · ${INTRACOMMUNITY_TAX_LABEL}`
     : reverseCharge ? REVERSE_CHARGE_TAX_LABEL : `${text.vat} ${taxRate}%`;
   const notesWithTaxLegalText = intraCommunity ? notesWithIntracommunityLegalText(notes) : notes;
+  // La factura emitida a Italia mantiene la cláusula legal española de la
+  // sociedad emisora, aunque el resto del documento esté en italiano.
+  const privacyText = type === "invoice" && language === "it" ? QUOTE_PDF_TEXT.es : text;
   const formatLineQuantity = (value) => {
     const parsed = Number(value || 0);
     return Number.isInteger(parsed) ? String(parsed) : tableMoney(parsed);
@@ -3529,8 +3532,8 @@ function DocumentPdfPage({
         </div>
       </section>
       <footer className="quote-pdf-privacy">
-        <strong>{text.privacyTitle}</strong>
-        <span>{text.privacyText}</span>
+        <strong>{privacyText.privacyTitle}</strong>
+        <span>{privacyText.privacyText}</span>
       </footer>
     </div>
   );
