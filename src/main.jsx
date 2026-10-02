@@ -3522,7 +3522,7 @@ function DocumentPdfPage({
               {redsysPaymentUrl ? <span>Pago con tarjeta: {redsysPaymentUrl}</span> : null}
             </div>
           ) : null}
-          {!isDeliveryNote && commercialConditions ? (
+          {type !== "invoice" && !isDeliveryNote && commercialConditions ? (
             <p>{commercialConditions}</p>
           ) : null}
           {reverseCharge ? <p className="quote-pdf-reverse-charge-note">{REVERSE_CHARGE_LEGAL_TEXT}</p> : null}
