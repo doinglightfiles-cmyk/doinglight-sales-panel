@@ -2370,6 +2370,8 @@ const MODULES = {
 function FrenchMailWorkspace({ token }) {
   const [folder, setFolder] = useState("inbox");
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [selectedMessageIds, setSelectedMessageIds] = useState([]);
+  const [deletingMessages, setDeletingMessages] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const [messageError, setMessageError] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
@@ -2411,8 +2413,16 @@ function FrenchMailWorkspace({ token }) {
 
   useEffect(() => {
     setSelectedMessage(null);
+    setSelectedMessageIds([]);
     setMessageError("");
   }, [folder]);
+
+  const mailboxMessages = mailbox.data?.messages || [];
+  const allMailboxMessagesSelected = Boolean(mailboxMessages.length) && mailboxMessages.every((message) => selectedMessageIds.includes(message.id));
+
+  useEffect(() => {
+    setSelectedMessageIds((current) => current.filter((id) => mailboxMessages.some((message) => message.id === id)));
+  }, [mailboxMessages.map((message) => message.id).join("|")]);
 
   useEffect(() => {
     if (["inbox", "sent"].includes(folder) && !mailbox.loading) contacts.reload();
@@ -2462,6 +2472,43 @@ function FrenchMailWorkspace({ token }) {
       setMessageError(error.message || "Impossible d’ouvrir le brouillon.");
     } finally {
       setMessageLoading(false);
+    }
+  }
+
+  function toggleMessageSelection(id) {
+    setSelectedMessageIds((current) => current.includes(id)
+      ? current.filter((item) => item !== id)
+      : [...current, id]);
+  }
+
+  function toggleAllMessageSelection() {
+    setSelectedMessageIds(allMailboxMessagesSelected ? [] : mailboxMessages.map((message) => message.id));
+  }
+
+  async function deleteSelectedMessages() {
+    if (!selectedMessageIds.length) return;
+    const permanently = folder === "trash";
+    const count = selectedMessageIds.length;
+    const question = permanently
+      ? `Supprimer définitivement ${count} message${count > 1 ? "s" : ""} ? Cette action est irréversible.`
+      : `Placer ${count} message${count > 1 ? "s" : ""} dans la corbeille ?`;
+    if (!window.confirm(question)) return;
+
+    setDeletingMessages(true);
+    setMessageError("");
+    try {
+      await apiRequest("/api/french-mail/messages", {
+        token,
+        method: "DELETE",
+        body: { folder, ids: selectedMessageIds }
+      });
+      setSelectedMessageIds([]);
+      setSelectedMessage(null);
+      mailbox.reload();
+    } catch (error) {
+      setMessageError(error.message || "Impossible de supprimer les messages.");
+    } finally {
+      setDeletingMessages(false);
     }
   }
 
@@ -2661,15 +2708,22 @@ function FrenchMailWorkspace({ token }) {
             {!contacts.loading && !(contacts.data?.items || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>Aucun contact</h4><p>Ajoutez ici les clients et contacts utiles à Claudine.</p></div> : null}
           </div> : null}
           {folder !== "contacts" && !mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
-            {(mailbox.data?.messages || []).map((message) => {
+            <div className="mail-selection-toolbar">
+              <label><input type="checkbox" checked={allMailboxMessagesSelected} onChange={toggleAllMessageSelection} aria-label="Sélectionner tous les messages" /> Sélectionner</label>
+              {selectedMessageIds.length ? <button className="bulk-document-action danger" type="button" onClick={deleteSelectedMessages} disabled={deletingMessages}>{deletingMessages ? "Suppression…" : folder === "trash" ? `Supprimer définitivement (${selectedMessageIds.length})` : `Supprimer (${selectedMessageIds.length})`}</button> : null}
+            </div>
+            {mailboxMessages.map((message) => {
               const sender = mailboxIdentity(folder === "sent" ? message.to : message.from);
-              return <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => folder === "drafts" ? editDraft(message.id) : openMessage(message.id)}>
-              <strong className="mail-message-sender"><span>{sender.name}</span>{sender.email ? <small>{sender.email}</small> : null}</strong>
-              <span className="mail-message-subject">{message.subject}</span>
-              <time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time>
-            </button>;
+              return <div className="mail-message-row" key={message.id}>
+                <input type="checkbox" checked={selectedMessageIds.includes(message.id)} onChange={() => toggleMessageSelection(message.id)} aria-label={`Sélectionner ${message.subject}`} />
+                <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" onClick={() => folder === "drafts" ? editDraft(message.id) : openMessage(message.id)}>
+                  <strong className="mail-message-sender"><span>{sender.name}</span>{sender.email ? <small>{sender.email}</small> : null}</strong>
+                  <span className="mail-message-subject">{message.subject}</span>
+                  <time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time>
+                </button>
+              </div>;
             })}
-            {!(mailbox.data?.messages || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>Aucun message à afficher.</p></div> : null}
+            {!mailboxMessages.length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>Aucun message à afficher.</p></div> : null}
           </div> : null}
           {folder !== "contacts" && selectedMessage ? <article className="mail-message-detail">
             <button className="secondary-button" type="button" onClick={() => setSelectedMessage(null)}>← Retour à la liste</button>
