@@ -10867,6 +10867,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const mailContacts = useResource(() => apiRequest("/api/mail/contacts", { token }), [token]);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
+  const [driveAttachmentPickerOpen, setDriveAttachmentPickerOpen] = useState(false);
   const [transferLinesOpen, setTransferLinesOpen] = useState(false);
   const [transferLineIds, setTransferLineIds] = useState([]);
   const [shippingModalOpen, setShippingModalOpen] = useState(false);
@@ -10969,6 +10970,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const lineReferenceRefs = useRef({});
   const fileInputRef = useRef(null);
   const lastDiscountLeadId = useRef("");
+  const driveCountry = ["es", "it", "fr", "pt", "de"].includes(String(quoteLanguage || "").toLowerCase())
+    ? String(quoteLanguage).toLowerCase()
+    : "es";
 
   const products = catalog.data?.products || [];
   const ownerUsers = assignableUsers.data?.items || [];
@@ -11839,6 +11843,28 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       const pdfBase64 = sendDraft.attachPdf
         ? await renderDocumentElementAsPdf(quotePdfElementId, quotePdfName, { save: false })
         : "";
+      const emailAttachments = await Promise.all(attachments.map(async (attachment) => {
+        if (attachment.file) {
+          return {
+            filename: attachment.name,
+            contentType: attachment.file.type || "application/pdf",
+            content: await fileToBase64(attachment.file)
+          };
+        }
+        if (attachment.url) {
+          const response = await fetch(`${API_BASE_URL}${attachment.url}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (!response.ok) throw new Error(`No se ha podido adjuntar ${attachment.name}.`);
+          const blob = await response.blob();
+          return {
+            filename: attachment.name,
+            contentType: blob.type || "application/pdf",
+            content: await fileToBase64(blob)
+          };
+        }
+        return null;
+      }));
       await apiRequest("/api/quotes/documents/send", {
         token,
         method: "POST",
@@ -11855,7 +11881,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           includePaymentDetails: isQuote ? includePaymentDetails : false,
           paymentUrl: isQuote && includePaymentDetails ? redsysPaymentUrl : "",
           filename: quotePdfName,
-          pdfBase64
+          pdfBase64,
+          attachments: emailAttachments.filter(Boolean)
         }
       });
       setSendStatus("Correo enviado correctamente.");
@@ -12140,7 +12167,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   function handleFileInput(event) {
     const files = Array.from(event.target.files || []);
-    files.forEach((file) => addAttachment({ type: "Archivo", name: file.name, source: "local" }));
+    files.forEach((file) => addAttachment({ type: "Archivo", name: file.name, source: "local", file }));
     event.target.value = "";
   }
 
@@ -12995,9 +13022,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                       {attachmentMenuOpen ? (
                         <div className="attachment-menu" role="menu">
                           <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">Subir un archivo</button>
-                          <button type="button" onClick={() => setDocumentPicker("Catálogos")} role="menuitem">Catálogos</button>
-                          <button type="button" onClick={() => setDocumentPicker("Fichas técnicas")} role="menuitem">Fichas técnicas</button>
-                          <button type="button" onClick={() => setDocumentPicker("Certificados")} role="menuitem">Certificados</button>
+                          <button type="button" onClick={() => { setAttachmentMenuOpen(false); setDriveAttachmentPickerOpen(true); }} role="menuitem">Elegir desde Drive</button>
                         </div>
                       ) : null}
                       <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
@@ -13121,6 +13146,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           category={documentPicker}
           onClose={() => setDocumentPicker(null)}
           onSelect={(document) => addAttachment({ type: documentPicker, name: document.title, source: "library" })}
+        />
+      ) : null}
+      {driveAttachmentPickerOpen ? (
+        <DriveAttachmentPicker
+          token={token}
+          country={driveCountry}
+          onClose={() => setDriveAttachmentPickerOpen(false)}
+          onSelect={(file) => addAttachment({ type: "Drive", name: file.name, source: "drive", url: file.url })}
         />
       ) : null}
       {partialPaymentPromptOpen ? (
@@ -13252,6 +13285,80 @@ function PartialPaymentsModal({ token, invoice, onClose, onUpdated }) {
       ) : null}
       {error ? <p className="form-error">{error}</p> : null}
     </ModalShell>
+  );
+}
+
+function DriveAttachmentPicker({ token, country, onClose, onSelect }) {
+  const [folderId, setFolderId] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [preview, setPreview] = useState(null);
+  const [error, setError] = useState("");
+  const drive = useResource(
+    () => apiRequest(`/api/drive?country=${country}${folderId ? `&folderId=${encodeURIComponent(folderId)}` : ""}`, { token }),
+    [token, country, folderId]
+  );
+
+  function openFolder(folder) {
+    setHistory((items) => [...items, { id: folderId, name: folder.name }]);
+    setFolderId(folder.id);
+    setPreview(null);
+  }
+
+  function goBack() {
+    const previous = history[history.length - 1];
+    setHistory((items) => items.slice(0, -1));
+    setFolderId(previous?.id || null);
+    setPreview(null);
+  }
+
+  async function previewFile(file) {
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("No se ha podido abrir el PDF.");
+      const blob = await response.blob();
+      if (preview?.url) URL.revokeObjectURL(preview.url);
+      setPreview({ name: file.name, url: URL.createObjectURL(blob) });
+    } catch (previewError) {
+      setError(previewError.message || "No se ha podido abrir el PDF.");
+    }
+  }
+
+  return (
+    <div className="modal-backdrop nested-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <article className="document-picker-modal drive-attachment-picker" role="dialog" aria-modal="true" aria-labelledby="drive-attachment-picker-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="product-detail-header">
+          <div>
+            <p>Adjuntar documento</p>
+            <h3 id="drive-attachment-picker-title">Drive</h3>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar Drive"><X size={18} /></button>
+        </header>
+        <div className="drive-picker-location">
+          <span>Drive / {String(country).toUpperCase()}</span>
+          {history.map((item) => <span key={`${item.id || "root"}-${item.name}`}> / {item.name}</span>)}
+          {folderId ? <button className="secondary-button" type="button" onClick={goBack}>← Atrás</button> : null}
+        </div>
+        {error ? <p className="form-error">{error}</p> : null}
+        {drive.loading ? <p className="mail-state">Cargando Drive…</p> : null}
+        {drive.error ? <p className="form-error">{drive.error}</p> : null}
+        <div className="document-picker-body drive-picker-body">
+          {(drive.data?.folders || []).map((folder) => (
+            <button className="document-picker-row" type="button" key={folder.id} onClick={() => openFolder(folder)}>
+              <FileText size={18} /><span>{folder.name}</span><strong>Abrir</strong>
+            </button>
+          ))}
+          {(drive.data?.files || []).map((file) => (
+            <div className="document-picker-row drive-picker-file" key={file.id}>
+              <button type="button" onClick={() => previewFile(file)}><FileText size={18} /><span>{file.name}</span><small>PDF · {attachmentSize(file.size)}</small></button>
+              <button className="primary-button" type="button" onClick={() => { onSelect(file); onClose(); }}>Adjuntar</button>
+            </div>
+          ))}
+          {!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">Esta carpeta todavía no contiene archivos.</p> : null}
+        </div>
+        {preview ? <section className="drive-preview drive-picker-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18} /></button></header><iframe title={preview.name} src={preview.url} /></section> : null}
+      </article>
+    </div>
   );
 }
 
