@@ -11160,8 +11160,27 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         leadBillingSource.country
       ].filter(Boolean).join("\n")
     : t("noBillingData", "Sin datos de facturación");
+  // Los distribuidores no gestionan el flujo interno español: solo pueden
+  // consultar el estado actual y marcar un presupuesto como rechazado.
+  const distributorCurrentStatus = quoteStatus || "draft";
   const visibleStatusOptions = distributor && isQuote
-    ? statusOptions.map((status) => ({ ...status, label: distributorQuoteStatusLabel(locale, status.value, status.label) }))
+    ? [
+        {
+          value: distributorCurrentStatus,
+          label: distributorQuoteStatusLabel(
+            locale,
+            distributorCurrentStatus,
+            quoteStatusState(distributorCurrentStatus).label
+          ),
+          disabled: true
+        },
+        ...(distributorCurrentStatus === "rejected"
+          ? []
+          : [{
+              value: "rejected",
+              label: distributorQuoteStatusLabel(locale, "rejected", "Rechazado")
+            }])
+      ]
     : statusOptions;
   const selectedStatusLabel = visibleStatusOptions.find((status) => status.value === quoteStatus)?.label
     || (isInvoice
@@ -12636,7 +12655,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <span>{t("status", `Estado del ${documentTitle.toLowerCase()}`)}</span>
               <select value={quoteStatus} onChange={(event) => handleInvoiceStatusChange(event.target.value)}>
                 {visibleStatusOptions.map((status) => (
-                  <option key={status.value} value={status.value}>{status.label}</option>
+                  <option key={status.value} value={status.value} disabled={status.disabled}>{status.label}</option>
                 ))}
               </select>
               <small>{selectedStatusLabel}</small>
@@ -13647,10 +13666,11 @@ function distributorQuoteListCopy(locale) {
 
 function distributorQuoteStatusLabel(locale, value, fallback) {
   const labels = {
-    fr: { draft: "En attente", pending: "En attente", sent: "Transféré", transferred: "Transféré", partial: "Partiel", accepted: "Accepté", approved: "Accepté", closed: "Clôturé", rejected: "Refusé", cancelled: "Annulé", canceled: "Annulé" },
-    it: { draft: "In attesa", pending: "In attesa", sent: "Trasferito", transferred: "Trasferito", partial: "Parziale", accepted: "Accettato", approved: "Accettato", closed: "Chiuso", rejected: "Rifiutato", cancelled: "Annullato", canceled: "Annullato" },
-    pt: { draft: "Pendente", pending: "Pendente", sent: "Transferido", transferred: "Transferido", partial: "Parcial", accepted: "Aceite", approved: "Aceite", closed: "Fechado", rejected: "Recusado", cancelled: "Cancelado", canceled: "Cancelado" },
-    de: { draft: "Ausstehend", pending: "Ausstehend", sent: "Übertragen", transferred: "Übertragen", partial: "Teilweise", accepted: "Angenommen", approved: "Angenommen", closed: "Geschlossen", rejected: "Abgelehnt", cancelled: "Storniert", canceled: "Storniert" },
+    es: { draft: "Pendiente", pending: "Pendiente", sent: "Enviado", transferred: "Enviado", partial: "Parcial", accepted: "Aceptado", approved: "Aceptado", closed: "Cerrado", rejected: "Rechazado", cancelled: "Cancelado", canceled: "Cancelado" },
+    fr: { draft: "En attente", pending: "En attente", sent: "Envoyé", transferred: "Envoyé", partial: "Partiel", accepted: "Accepté", approved: "Accepté", closed: "Clôturé", rejected: "Refusé", cancelled: "Annulé", canceled: "Annulé" },
+    it: { draft: "In attesa", pending: "In attesa", sent: "Inviato", transferred: "Inviato", partial: "Parziale", accepted: "Accettato", approved: "Accettato", closed: "Chiuso", rejected: "Rifiutato", cancelled: "Annullato", canceled: "Annullato" },
+    pt: { draft: "Pendente", pending: "Pendente", sent: "Enviado", transferred: "Enviado", partial: "Parcial", accepted: "Aceite", approved: "Aceite", closed: "Fechado", rejected: "Recusado", cancelled: "Cancelado", canceled: "Cancelado" },
+    de: { draft: "Ausstehend", pending: "Ausstehend", sent: "Gesendet", transferred: "Gesendet", partial: "Teilweise", accepted: "Angenommen", approved: "Angenommen", closed: "Geschlossen", rejected: "Abgelehnt", cancelled: "Storniert", canceled: "Storniert" },
     nl: { draft: "In afwachting", pending: "In afwachting", sent: "Overgedragen", transferred: "Overgedragen", partial: "Gedeeltelijk", accepted: "Geaccepteerd", approved: "Geaccepteerd", closed: "Gesloten", rejected: "Afgewezen", cancelled: "Geannuleerd", canceled: "Geannuleerd" }
   };
   return labels[String(locale).toLowerCase()]?.[value] || fallback;
