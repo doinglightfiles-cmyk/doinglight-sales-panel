@@ -10754,18 +10754,43 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   const [history, setHistory] = useState([]);
   const [preview, setPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const drive = useResource(() => apiRequest(`/api/drive?country=${country}${folderId ? `&folderId=${encodeURIComponent(folderId)}` : ""}`, { token }), [token, country, folderId]);
   const selectedCountry = countries.find((item) => item.id === country) || countries[0];
   function openFolder(folder) { setHistory((items) => [...items, { id: folderId, name: folder.name }]); setFolderId(folder.id); setPreview(null); }
   function goBack() { const previous = history[history.length - 1]; setHistory((items) => items.slice(0, -1)); setFolderId(previous?.id || null); setPreview(null); }
   function goToBreadcrumb(index) { if (index < 0) { setFolderId(null); setHistory([]); setPreview(null); return; } const targetId = index === history.length - 1 ? folderId : history[index + 1]?.id; setFolderId(targetId || null); setHistory((items) => items.slice(0, index + 1)); setPreview(null); }
-  async function upload(event) { const file = event.target.files?.[0]; if (!file || !folderId) return; setUploading(true); try { await apiRequest("/api/drive/files", { token, method: "POST", body: { country, folderId, name: file.name, content: await fileToBase64(file) } }); drive.reload(); } finally { setUploading(false); event.target.value = ""; } }
+  async function upload(event) {
+    const file = event.target.files?.[0];
+    if (!file || !folderId) return;
+    setUploadError("");
+    if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf")) {
+      setUploadError("Solo se admiten archivos PDF.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("El PDF no puede superar 10 MB.");
+      event.target.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      await apiRequest("/api/drive/files", { token, method: "POST", body: { country, folderId, name: file.name, content: await fileToBase64(file) } });
+      await drive.reload();
+    } catch (error) {
+      setUploadError(error.message || "No se ha podido subir el PDF.");
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
   async function previewFile(file) { const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) return; const blob = await response.blob(); setPreview({ name: file.name, url: URL.createObjectURL(blob) }); }
 
   return (
     <Panel title="Drive">
       {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
-      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Ruta del Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{item.name}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>← Atrás</button> : null}</div>{administrator && folderId ? <label className="primary-button drive-upload">{uploading ? "Subiendo…" : "Subir PDF"}<input type="file" accept="application/pdf" onChange={upload} /></label> : null}</header>{drive.loading ? <p className="mail-state">Cargando Drive…</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{folder.name}</strong><small>Carpeta</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">Esta carpeta todavía no contiene archivos.</p> : null}</section>
+      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Ruta del Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{item.name}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>← Atrás</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? "Subiendo…" : "Subir PDF"}<input type="file" accept="application/pdf,.pdf" onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">Cargando Drive…</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{folder.name}</strong><small>Carpeta</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">Esta carpeta todavía no contiene archivos.</p> : null}</section>
       {preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}
     </Panel>
   );
