@@ -11915,10 +11915,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     };
   }
 
-  async function openSendModal() {
+  async function openSendModal({ document: requestedDocument = currentDocument, paymentUrl: requestedPaymentUrl = redsysPaymentUrl } = {}) {
     setError("");
-    let documentForSend = currentDocument;
-    let paymentUrl = redsysPaymentUrl.trim();
+    let documentForSend = requestedDocument;
+    let paymentUrl = String(requestedPaymentUrl || "").trim();
 
     try {
       if (isQuote && includePaymentDetails && needsFreshPaymentUrl(paymentUrl)) {
@@ -12036,6 +12036,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         setSendDraft(null);
         setSendStatus("");
         setSendSubmitting(false);
+        onDone();
       }, 700);
     } catch (err) {
       setSendStatus(err.message);
@@ -12212,7 +12213,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     };
   });
 
-  async function submit(event) {
+  async function submit(event, { openSendAfterSave = false } = {}) {
     event?.preventDefault();
     if (readOnly) {
       setError(lockMessage || "Este documento está bloqueado y no se puede modificar.");
@@ -12289,13 +12290,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       notifySalesDocumentSaved(documentType, saved);
       setSaveState("saved");
 
-      // A saved edit should always return to its list. New quotes remain open
-      // so their creator can review or send them immediately after creation.
-      if (currentDocument || !isQuote) {
+      if (openSendAfterSave) {
+        await openSendModal({
+          document: saved,
+          paymentUrl: saved?.redsysPaymentUrl || redsysPaymentUrl
+        });
+      } else {
         await new Promise((resolve) => window.setTimeout(resolve, 650));
         onDone();
-      } else {
-        window.setTimeout(() => setSaveState("idle"), 1800);
       }
     } catch (err) {
       setError(err.message);
@@ -12996,7 +12998,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             Cobros parciales
           </button>
         ) : null}
-        <button className="primary-button send-quote-button" type="button" onClick={openSendModal}>
+        <button className="primary-button send-quote-button" type="button" onClick={() => submit(null, { openSendAfterSave: true })}>
           {t("send", "Enviar")}
         </button>
       </div>
