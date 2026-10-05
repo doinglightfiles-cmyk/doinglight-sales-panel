@@ -890,6 +890,26 @@ async function apiRequest(path, { token, method = "GET", body } = {}) {
   return payload;
 }
 
+async function fetchDrivePdf(token, path) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`No se ha podido abrir el PDF (error ${response.status}).`);
+    const blob = await response.blob();
+    if (!blob.size) throw new Error("El archivo PDF está vacío.");
+    return blob;
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("La carga del PDF ha tardado demasiado. Inténtalo de nuevo.");
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -10808,7 +10828,16 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
       event.target.value = "";
     }
   }
-  async function previewFile(file) { const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) { setUploadError(copy.openError); return; } const blob = await response.blob(); setPreview({ name: file.name, url: URL.createObjectURL(blob) }); }
+  async function previewFile(file) {
+    setUploadError("");
+    try {
+      const blob = await fetchDrivePdf(token, file.url);
+      if (preview?.url) URL.revokeObjectURL(preview.url);
+      setPreview({ name: file.name, url: URL.createObjectURL(blob) });
+    } catch (error) {
+      setUploadError(error.message || copy.openError);
+    }
+  }
 
   return (
     <Panel title="Drive">
@@ -11873,11 +11902,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           };
         }
         if (attachment.url) {
-          const response = await fetch(`${API_BASE_URL}${attachment.url}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (!response.ok) throw new Error(`No se ha podido adjuntar ${attachment.name}.`);
-          const blob = await response.blob();
+          let blob;
+          try {
+            blob = await fetchDrivePdf(token, attachment.url);
+          } catch (error) {
+            throw new Error(`No se ha podido adjuntar ${attachment.name}: ${error.message}`);
+          }
           return {
             filename: attachment.name,
             contentType: blob.type || "application/pdf",
@@ -13321,9 +13351,7 @@ function DriveAttachmentPicker({ token, country, locale = "es", onClose, onSelec
   async function previewFile(file) {
     setError("");
     try {
-      const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error(copy.openError);
-      const blob = await response.blob();
+      const blob = await fetchDrivePdf(token, file.url);
       if (preview?.url) URL.revokeObjectURL(preview.url);
       setPreview({ name: file.name, url: URL.createObjectURL(blob) });
     } catch (previewError) {
