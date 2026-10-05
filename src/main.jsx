@@ -13363,7 +13363,7 @@ function DriveAttachmentPicker({ token, country, locale = "es", onClose, onSelec
   }
 
   return (
-    <div className="modal-backdrop nested-modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="modal-backdrop nested-modal-backdrop drive-attachment-picker-backdrop" role="presentation" onMouseDown={onClose}>
       <article className="document-picker-modal drive-attachment-picker" role="dialog" aria-modal="true" aria-labelledby="drive-attachment-picker-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="product-detail-header">
           <div>

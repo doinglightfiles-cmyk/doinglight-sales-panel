@@ -3408,6 +3408,12 @@ th {
   background: rgba(23, 32, 20, 0.22);
 }
 
+/* El selector del Drive se abre desde el modal de envío (z-index: 90), así
+   que necesita vivir por encima de él y no quedar oculto detrás. */
+.drive-attachment-picker-backdrop {
+  z-index: 110;
+}
+
 .create-drawer-backdrop {
   position: fixed;
   inset: 0;
