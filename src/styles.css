@@ -6262,10 +6262,17 @@ th {
 
 .quote-send-recipient-field {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 7px;
   color: var(--muted);
   font-size: 14px;
   font-weight: 750;
+}
+
+.quote-send-recipient-field > :first-child,
+.quote-send-recipient-control,
+.quote-send-recipient-error {
+  grid-column: 1 / -1;
 }
 
 .quote-send-recipient-control {
@@ -6375,6 +6382,18 @@ th {
   font-weight: 700;
 }
 
+.quote-send-recipient-suggestions button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.quote-send-recipient-suggestions button small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .quote-send-recipient-suggestions button:hover {
   background: #dfeabf;
 }
@@ -6382,6 +6401,35 @@ th {
 .quote-send-recipient-error {
   color: var(--danger);
   font-weight: 700;
+}
+
+.quote-send-recipient-search-button {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: end;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--green);
+  border-radius: 7px;
+  color: var(--green-dark);
+  background: var(--white);
+  font: inherit;
+  font-weight: 800;
+}
+
+.quote-send-recipient-search-button:hover {
+  background: #f1f7df;
+}
+
+.quote-recipient-picker {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.quote-recipient-picker .mail-recipient-contact-list {
+  max-height: min(52vh, 440px);
 }
 
 .quote-send-fields input,

@@ -187,17 +187,35 @@ function companyEmailRecipients(company) {
   ]).filter(isValidEmailRecipient);
 }
 
-function EmailRecipientsField({ value, onChange, suggestions = [], labels = {} }) {
+function EmailRecipientsField({ value, onChange, suggestions = [], contacts = [], labels = {} }) {
   const recipients = splitEmailRecipients(value);
   const [entry, setEntry] = useState("");
   const [error, setError] = useState("");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
   const recipientKeys = new Set(recipients.map((item) => item.toLowerCase()));
   const normalizedEntry = entry.trim().toLowerCase();
-  const availableSuggestions = splitEmailRecipients(suggestions)
-    .filter(isValidEmailRecipient)
-    .filter((item) => !recipientKeys.has(item.toLowerCase()))
-    .filter((item) => !normalizedEntry || item.toLowerCase().includes(normalizedEntry));
+  const contactEntries = Array.isArray(contacts)
+    ? contacts
+      .map((contact) => ({
+        id: contact.id || contact.email,
+        name: String(contact.name || contact.displayName || "").trim(),
+        email: String(contact.email || "").trim()
+      }))
+      .filter((contact) => isValidEmailRecipient(contact.email))
+    : [];
+  const suggestionsByEmail = new Map();
+  [...contactEntries, ...splitEmailRecipients(suggestions).map((email) => ({ id: email, name: "", email }))].forEach((contact) => {
+    const key = contact.email.toLowerCase();
+    if (!suggestionsByEmail.has(key)) suggestionsByEmail.set(key, contact);
+  });
+  const availableSuggestions = [...suggestionsByEmail.values()]
+    .filter((contact) => !recipientKeys.has(contact.email.toLowerCase()))
+    .filter((contact) => !normalizedEntry || `${contact.name} ${contact.email}`.toLowerCase().includes(normalizedEntry));
+  const pickerContacts = contactEntries
+    .filter((contact) => !recipientKeys.has(contact.email.toLowerCase()))
+    .filter((contact) => !pickerQuery.trim() || `${contact.name} ${contact.email}`.toLowerCase().includes(pickerQuery.trim().toLowerCase()));
 
   function addRecipients(rawValue = entry) {
     const candidates = splitEmailRecipients(rawValue);
@@ -263,24 +281,56 @@ function EmailRecipientsField({ value, onChange, suggestions = [], labels = {} }
           </button>
         </div>
         {suggestionsOpen && availableSuggestions.length ? (
-          <div className="quote-send-recipient-suggestions" aria-label="Correos de la compañía">
-            <small>Correos de la compañía</small>
+          <div className="quote-send-recipient-suggestions" aria-label={labels.addressBook || "Libreta de contactos"}>
+            <small>{labels.suggestions || "Sugerencias de contactos"}</small>
             <div>
-              {availableSuggestions.map((email) => (
+              {availableSuggestions.map((contact) => (
                 <button
                   type="button"
-                  key={email.toLowerCase()}
+                  key={contact.email.toLowerCase()}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => addRecipients(email)}
+                  onClick={() => addRecipients(contact.email)}
                 >
-                  {email}
+                  <span>{contact.name || contact.email}</span>
+                  {contact.name ? <small>{contact.email}</small> : null}
                 </button>
               ))}
             </div>
           </div>
         ) : null}
       </div>
+      <button type="button" className="quote-send-recipient-search-button" onClick={() => setPickerOpen(true)}>
+        <Search size={16} />
+        {labels.search || "Buscar"}
+      </button>
       {error ? <small className="quote-send-recipient-error">{error}</small> : null}
+      {pickerOpen ? (
+        <div className="operation-modal-backdrop quote-recipient-picker-backdrop" onMouseDown={() => setPickerOpen(false)}>
+          <section className="operation-modal quote-recipient-picker" role="dialog" aria-modal="true" aria-label={labels.addressBook || "Libreta de contactos"} onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <small>{labels.addressBookEyebrow || "CONTACTOS"}</small>
+                <h4>{labels.addressBook || "Libreta de contactos"}</h4>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setPickerOpen(false)} aria-label={labels.close || "Cerrar"}><X size={20} /></button>
+            </header>
+            <label className="mail-recipient-search">
+              <Search size={17} />
+              <input autoFocus value={pickerQuery} onChange={(event) => setPickerQuery(event.target.value)} placeholder={labels.searchContacts || "Buscar nombre o correo"} />
+            </label>
+            <div className="mail-recipient-contact-list">
+              {pickerContacts.map((contact) => (
+                <button type="button" key={contact.id} onClick={() => addRecipients(contact.email)}>
+                  <span><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</span>
+                  <Plus size={17} />
+                </button>
+              ))}
+              {!pickerContacts.length ? <p>{labels.noContacts || "No hay contactos disponibles."}</p> : null}
+            </div>
+            <footer><button className="mail-send-button" type="button" onClick={() => setPickerOpen(false)}>{labels.done || "Terminado"}</button></footer>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2322,7 +2372,7 @@ function FrenchMailWorkspace({ token }) {
     [token, composeLookupFolder]
   );
   const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
-  const contacts = useResource(() => apiRequest("/api/french-mail/contacts", { token }), [token]);
+  const contacts = useResource(() => apiRequest("/api/mail/contacts", { token }), [token]);
   const library = useResource(() => apiRequest(`/api/drive?country=fr${libraryFolder ? `&folderId=${encodeURIComponent(libraryFolder)}` : ""}`, { token }), [token, libraryFolder]);
 
   useEffect(() => {
@@ -2483,7 +2533,7 @@ function FrenchMailWorkspace({ token }) {
     setSavingContact(true);
     setMessageError("");
     try {
-      await apiRequest("/api/french-mail/contacts", { token, method: "POST", body: contactForm });
+      await apiRequest("/api/mail/contacts", { token, method: "POST", body: contactForm });
       setContactForm({ name: "", email: "" });
       contacts.reload();
     } catch (error) {
@@ -10116,10 +10166,10 @@ const DISTRIBUTOR_QUOTE_UI_COPY = {
 
 function quoteSendCopy(locale) {
   const copy = {
-    fr: { title: "Envoyer par e-mail", sender: "Expéditeur", subject: "Objet", content: "Contenu", attachments: "Pièces jointes", language: "Langue du document", preview: "Aperçu du PDF", cancel: "Annuler", send: "Envoyer", sending: "Envoi...", to: "Envoyer à", addEmail: "Ajouter une autre adresse", add: "Ajouter" },
-    it: { title: "Invia per email", sender: "Mittente", subject: "Oggetto", content: "Contenuto", attachments: "Allegati", language: "Lingua del documento", preview: "Anteprima PDF", cancel: "Annulla", send: "Invia", sending: "Invio...", to: "Invia a", addEmail: "Aggiungi un'altra email", add: "Aggiungi" },
-    pt: { title: "Enviar por e-mail", sender: "Remetente", subject: "Assunto", content: "Conteúdo", attachments: "Anexos", language: "Idioma do documento", preview: "Pré-visualização do PDF", cancel: "Cancelar", send: "Enviar", sending: "A enviar...", to: "Enviar para", addEmail: "Adicionar outro e-mail", add: "Adicionar" },
-    de: { title: "Per E-Mail senden", sender: "Absender", subject: "Betreff", content: "Inhalt", attachments: "Anhänge", language: "Dokumentsprache", preview: "PDF-Vorschau", cancel: "Abbrechen", send: "Senden", sending: "Wird gesendet...", to: "Senden an", addEmail: "Weitere E-Mail hinzufügen", add: "Hinzufügen" }
+    fr: { title: "Envoyer par e-mail", sender: "Expéditeur", subject: "Objet", content: "Contenu", attachments: "Pièces jointes", language: "Langue du document", preview: "Aperçu du PDF", cancel: "Annuler", send: "Envoyer", sending: "Envoi...", to: "Envoyer à", addEmail: "Ajouter une autre adresse", add: "Ajouter", search: "Rechercher", addressBook: "Carnet d’adresses", addressBookEyebrow: "CONTACTS", searchContacts: "Rechercher un nom ou une adresse", noContacts: "Aucun contact disponible.", done: "Terminé", close: "Fermer", suggestions: "Suggestions de contacts" },
+    it: { title: "Invia per email", sender: "Mittente", subject: "Oggetto", content: "Contenuto", attachments: "Allegati", language: "Lingua del documento", preview: "Anteprima PDF", cancel: "Annulla", send: "Invia", sending: "Invio...", to: "Invia a", addEmail: "Aggiungi un'altra email", add: "Aggiungi", search: "Cerca", addressBook: "Rubrica", addressBookEyebrow: "CONTATTI", searchContacts: "Cerca nome o email", noContacts: "Nessun contatto disponibile.", done: "Fine", close: "Chiudi", suggestions: "Suggerimenti contatti" },
+    pt: { title: "Enviar por e-mail", sender: "Remetente", subject: "Assunto", content: "Conteúdo", attachments: "Anexos", language: "Idioma do documento", preview: "Pré-visualização do PDF", cancel: "Cancelar", send: "Enviar", sending: "A enviar...", to: "Enviar para", addEmail: "Adicionar outro e-mail", add: "Adicionar", search: "Pesquisar", addressBook: "Livro de contactos", addressBookEyebrow: "CONTACTOS", searchContacts: "Pesquisar nome ou e-mail", noContacts: "Não há contactos disponíveis.", done: "Concluído", close: "Fechar", suggestions: "Sugestões de contactos" },
+    de: { title: "Per E-Mail senden", sender: "Absender", subject: "Betreff", content: "Inhalt", attachments: "Anhänge", language: "Dokumentsprache", preview: "PDF-Vorschau", cancel: "Abbrechen", send: "Senden", sending: "Wird gesendet...", to: "Senden an", addEmail: "Weitere E-Mail hinzufügen", add: "Hinzufügen", search: "Suchen", addressBook: "Adressbuch", addressBookEyebrow: "KONTAKTE", searchContacts: "Name oder E-Mail suchen", noContacts: "Keine Kontakte verfügbar.", done: "Fertig", close: "Schließen", suggestions: "Kontaktvorschläge" }
   };
   return copy[String(locale).toLowerCase()] || {};
 }
@@ -10755,6 +10805,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   );
   const assignableUsers = useResource(() => apiRequest("/api/sales/users", { token }), [token]);
   const paymentSettings = useResource(() => apiRequest("/api/settings", { token }), [token]);
+  const mailContacts = useResource(() => apiRequest("/api/mail/contacts", { token }), [token]);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [documentPicker, setDocumentPicker] = useState(null);
   const [transferLinesOpen, setTransferLinesOpen] = useState(false);
@@ -12836,6 +12887,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 <EmailRecipientsField
                   value={sendDraft.to}
                   onChange={(to) => updateSendDraft({ to })}
+                  contacts={mailContacts.data?.items || []}
                   suggestions={companyEmailRecipients({
                     ...(selectedLead || {}),
                     ...(leadDraft || {}),
