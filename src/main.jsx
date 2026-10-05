@@ -2431,6 +2431,40 @@ function FrenchMailWorkspace({ token }) {
     }
   }
 
+  async function editDraft(id) {
+    setMessageLoading(true);
+    setMessageError("");
+    try {
+      const result = await apiRequest(`/api/french-mail/messages/${id}?folder=drafts`, { token });
+      const message = result.item;
+      setDraft({
+        to: message.to || "",
+        bcc: message.bcc || "",
+        subject: message.subject || "",
+        text: message.text || "",
+        inReplyTo: "",
+        references: ""
+      });
+      setAttachments((message.attachments || []).map((attachment) => ({
+        name: attachment.filename,
+        type: attachment.contentType,
+        size: attachment.size || 0,
+        content: attachment.content || ""
+      })));
+      setLibraryAttachmentIds([]);
+      setRecipientEntry("");
+      setComposeLookupFolder(null);
+      setComposeLookupMessage(null);
+      setComposeLookupError("");
+      setSelectedMessage(null);
+      setComposeOpen(true);
+    } catch (error) {
+      setMessageError(error.message || "Impossible d’ouvrir le brouillon.");
+    } finally {
+      setMessageLoading(false);
+    }
+  }
+
   async function sendDraft(event) {
     event.preventDefault();
     setSending(true);
@@ -2439,7 +2473,7 @@ function FrenchMailWorkspace({ token }) {
       const encodedAttachments = await Promise.all(attachments.map(async (file) => ({
         filename: file.name,
         contentType: file.type || "application/octet-stream",
-        content: await fileToBase64(file)
+        content: file.content || await fileToBase64(file)
       })));
       await apiRequest("/api/french-mail/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments, libraryAttachments: libraryAttachmentIds } });
       setComposeOpen(false);
@@ -2460,7 +2494,7 @@ function FrenchMailWorkspace({ token }) {
     return Promise.all(attachments.map(async (file) => ({
       filename: file.name,
       contentType: file.type || "application/octet-stream",
-      content: await fileToBase64(file)
+      content: file.content || await fileToBase64(file)
     })));
   }
 
@@ -2629,7 +2663,7 @@ function FrenchMailWorkspace({ token }) {
           {folder !== "contacts" && !mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
             {(mailbox.data?.messages || []).map((message) => {
               const sender = mailboxIdentity(folder === "sent" ? message.to : message.from);
-              return <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => openMessage(message.id)}>
+              return <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" key={message.id} onClick={() => folder === "drafts" ? editDraft(message.id) : openMessage(message.id)}>
               <strong className="mail-message-sender"><span>{sender.name}</span>{sender.email ? <small>{sender.email}</small> : null}</strong>
               <span className="mail-message-subject">{message.subject}</span>
               <time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time>
