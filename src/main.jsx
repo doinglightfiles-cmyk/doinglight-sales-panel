@@ -86,6 +86,16 @@ function userDisplayName(user) {
 const DOCUMENT_PDF_LOGO = "/doinglight-pdf-logo.png";
 const DOINGLIGHT_PAYMENT_IBAN = "ES11 3144 5700 2720 1693 9122";
 const DOINGLIGHT_BANK_NAME = "CAJA RURAL DE VILLAMALEA, S.C.C.A CASTILLA LA MANCHA";
+
+function paymentBankDetailsText(language) {
+  const labels = {
+    fr: `DONNÉES BANCAIRES: Banque: ${DOINGLIGHT_BANK_NAME}`,
+    it: `DATI BANCARI: Banca: ${DOINGLIGHT_BANK_NAME}`,
+    pt: `DADOS BANCÁRIOS: Banco: ${DOINGLIGHT_BANK_NAME}`,
+    de: `BANKDATEN: Bank: ${DOINGLIGHT_BANK_NAME}`
+  };
+  return labels[String(language || "es").toLowerCase()] || `DATOS BANCARIOS: Banco: ${DOINGLIGHT_BANK_NAME}`;
+}
 const EMAIL_LEGAL_FOOTER = `PROTECCIÓN DE DATOS: Responsable: DOINGLIGHT TECHNOLOGIES SLU. Finalidad: Gestionar las comunicaciones realizadas a través del correo electrónico de los servicios prestados, atender sus solicitudes de información y enviarle comunicaciones comerciales. Legitimación: Ejecución de contrato, interés legítimo del responsable o consentimiento del interesado. Destinatarios: No se cederán datos a terceros salvo obligación legal. Derechos: Tiene derecho a acceder, rectificar y suprimir los datos, así como otros derechos, indicados en la información adicional, que puede ejercer dirigiéndose a la dirección del responsable del tratamiento. Información adicional: En un impreso a disposición de los interesados, en POLÍGONO INDUSTRIAL CAMPOLLANO, CALLE E, Nº 24 - 02007 ALBACETE.
 
 CONFIDENCIALIDAD: Este mensaje y sus archivos adjuntos van dirigidos exclusivamente a su destinatario, pudiendo contener información confidencial sometida a secreto profesional. No está permitida su reproducción o distribución sin nuestra autorización expresa. Si usted no es el destinatario final por favor elimínelo e infórmenos por esta vía.`;
@@ -3507,14 +3517,14 @@ function DocumentPdfPage({
   const commercialConditions = isTuboSolarTemplate
     ? null
     : language === "fr"
-      ? <>Garantie : 10 ans. Sauf pour les composants électriques tels que les régulateurs de lumière, les kits LED ou la ventilation, qui sont garantis 2 ans.<br />Délai de livraison : 3 - 4 jours ouvrables pour les produits standards.<br />Modes de paiement : prépaiement, virement bancaire ou carte bancaire.<br />Franco de port pour toute commande supérieure à 1&nbsp;000&nbsp;€, hors livraisons sur les îles et commandes spéciales.</>
+      ? <>Garantie : 10 ans. Sauf pour les composants électriques tels que les régulateurs de lumière, les kits LED ou la ventilation, qui sont garantis 2 ans.<br />Délai de livraison : 3 - 4 jours ouvrables pour les produits standards.<br />Installation non incluse.<br />Modes de paiement : prépaiement, virement bancaire ou carte bancaire.<br />Franco de port pour toute commande supérieure à 1&nbsp;000&nbsp;€, hors livraisons sur les îles et commandes spéciales.</>
       : language === "it"
-        ? <>Garanzia: 10 anni. Fanno eccezione i componenti elettrici, quali regolatori di luce, kit LED o ventilazione, la cui garanzia è di 2 anni.<br />Tempi di consegna: 3 - 4 giorni lavorativi per i prodotti standard.<br />Modalità di pagamento: pagamento anticipato, bonifico bancario o carta di credito.<br />Spese di spedizione incluse per ordini superiori a 1.000 €, esclusi invii alle isole e ordini speciali.</>
+        ? <>Garanzia: 10 anni. Fanno eccezione i componenti elettrici, quali regolatori di luce, kit LED o ventilazione, la cui garanzia è di 2 anni.<br />Tempi di consegna: 3 - 4 giorni lavorativi per i prodotti standard.<br />Installazione non inclusa.<br />Modalità di pagamento: pagamento anticipato, bonifico bancario o carta di credito.<br />Spese di spedizione incluse per ordini superiori a 1.000 €, esclusi invii alle isole e ordini speciali.</>
         : language === "pt"
-          ? <>Garantia: 10 anos. Exceto componentes elétricos, tais como reguladores de luz, kits LED ou ventilação, cuja garantia é de 2 anos.<br />Prazo de entrega: 3 - 4 dias úteis para produtos standard.<br />Formas de pagamento: pré-pagamento, transferência bancária ou cartão de crédito.<br />Portes pagos em encomendas superiores a 1.000 €, exceto envios para ilhas e encomendas especiais.</>
+          ? <>Garantia: 10 anos. Exceto componentes elétricos, tais como reguladores de luz, kits LED ou ventilação, cuja garantia é de 2 anos.<br />Prazo de entrega: 3 - 4 dias úteis para produtos standard.<br />Instalação não incluída.<br />Formas de pagamento: pré-pagamento, transferência bancária ou cartão de crédito.<br />Portes pagos em encomendas superiores a 1.000 €, exceto envios para ilhas e encomendas especiais.</>
           : language === "de"
-            ? <>Garantie: 10 Jahre. Ausgenommen sind elektrische Komponenten wie Lichtregler, LED-Kits oder Lüftung, für die eine Garantie von 2 Jahren gilt.<br />Lieferzeit: 3 - 4 Werktage für Standardprodukte.<br />Zahlungsarten: Vorauszahlung, Banküberweisung oder Kreditkarte.<br />Versandkostenfrei bei Bestellungen über 1.000 €, ausgenommen Lieferungen auf Inseln und Sonderbestellungen.</>
-            : <>Garantía: 10 años. Excepto para componentes eléctricos como reguladores de luz, kits de LED o ventilación, que tienen 2 años de garantía.<br />Plazo de entrega: 3 - 4 días laborables para productos estándar.<br />Formas de pago: pre-pago, transferencia bancaria o tarjeta de crédito.<br />Portes pagados en pedidos superiores a 1.000 € excepto envío a islas y pedidos especiales.</>;
+            ? <>Garantie: 10 Jahre. Ausgenommen sind elektrische Komponenten wie Lichtregler, LED-Kits oder Lüftung, für die eine Garantie von 2 Jahren gilt.<br />Lieferzeit: 3 - 4 Werktage für Standardprodukte.<br />Montage nicht inbegriffen.<br />Zahlungsarten: Vorauszahlung, Banküberweisung oder Kreditkarte.<br />Versandkostenfrei bei Bestellungen über 1.000 €, ausgenommen Lieferungen auf Inseln und Sonderbestellungen.</>
+            : <>Garantía: 10 años. Excepto para componentes eléctricos como reguladores de luz, kits de LED o ventilación, que tienen 2 años de garantía.<br />Plazo de entrega: 3 - 4 días laborables para productos estándar.<br />Instalación no incluida.<br />Formas de pago: pre-pago, transferencia bancaria o tarjeta de crédito.<br />Portes pagados en pedidos superiores a 1.000 € excepto envío a islas y pedidos especiales.</>;
   const quantityHeader = language === "es" ? "Cant." : text.quantity;
   const discountHeader = language === "es" ? "Dto." : text.discount;
   const priceHeader = language === "es" ? "Precio" : text.price;
@@ -3636,7 +3646,7 @@ function DocumentPdfPage({
             <div className="quote-pdf-payment-details">
               <strong>{paymentDetailsText.title}</strong>
               <span>{paymentDetailsText.transfer} {paymentIban}</span>
-              <span>{DOINGLIGHT_BANK_NAME}</span>
+              <span>{paymentBankDetailsText(language)}</span>
               {redsysPaymentUrl ? <span>{paymentDetailsText.card} {redsysPaymentUrl}</span> : null}
             </div>
           ) : null}
