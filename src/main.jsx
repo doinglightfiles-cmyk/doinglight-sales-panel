@@ -10437,29 +10437,31 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
               {invoiceKindLabel}
             </span>
           ) : null}
-          <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label={`Opciones de ${meta.title.toLowerCase()}`}>
-            <MoreVertical size={22} />
-          </button>
-          {actionsOpen ? (
-            <DocumentActionsMenu
-              type={activeDocument.documentType === "delivery_note" ? "delivery_note" : activeDocument.documentType}
-              onClose={() => setActionsOpen(false)}
-              onSend={openQuoteSendFromMenu}
-              onPrint={printQuoteFromMenu}
-              onDownload={downloadQuoteFromMenu}
-              onModify={documentLocked ? null : modifyQuoteFromMenu}
-              onDuplicate={duplicateQuoteFromMenu}
-              onDuplicateAsQuote={duplicateAsQuoteFromMenu}
-              onDuplicateAsDeliveryNote={duplicateAsDeliveryNoteFromMenu}
-              onCreateDeliveryNote={isTransferBlockedQuote ? null : createDeliveryNoteFromQuote}
-              onCreateInvoice={createInvoiceFromQuote}
-              onVoid={voidDocumentFromMenu}
-              onDelete={deleteQuoteFromMenu}
-              canModify={!documentLocked}
-              canDelete={activeDocument.documentType !== "delivery_note" && !isTransferBlockedQuote && !documentLocked}
-              canVoid={activeDocument.documentType === "delivery_note" && !documentLocked}
-            />
-          ) : null}
+          {!distributor ? <>
+            <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label={`Opciones de ${meta.title.toLowerCase()}`}>
+              <MoreVertical size={22} />
+            </button>
+            {actionsOpen ? (
+              <DocumentActionsMenu
+                type={activeDocument.documentType === "delivery_note" ? "delivery_note" : activeDocument.documentType}
+                onClose={() => setActionsOpen(false)}
+                onSend={openQuoteSendFromMenu}
+                onPrint={printQuoteFromMenu}
+                onDownload={downloadQuoteFromMenu}
+                onModify={documentLocked ? null : modifyQuoteFromMenu}
+                onDuplicate={duplicateQuoteFromMenu}
+                onDuplicateAsQuote={duplicateAsQuoteFromMenu}
+                onDuplicateAsDeliveryNote={duplicateAsDeliveryNoteFromMenu}
+                onCreateDeliveryNote={isTransferBlockedQuote ? null : createDeliveryNoteFromQuote}
+                onCreateInvoice={createInvoiceFromQuote}
+                onVoid={voidDocumentFromMenu}
+                onDelete={deleteQuoteFromMenu}
+                canModify={!documentLocked}
+                canDelete={activeDocument.documentType !== "delivery_note" && !isTransferBlockedQuote && !documentLocked}
+                canVoid={activeDocument.documentType === "delivery_note" && !documentLocked}
+              />
+            ) : null}
+          </> : null}
         </>
       )}
     >
