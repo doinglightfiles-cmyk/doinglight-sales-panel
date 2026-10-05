@@ -13302,7 +13302,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   <div>
                     <button type="button" title="Descargar PDF" onClick={downloadQuotePdf}><Download size={17} /></button>
                     <button type="button" title="Imprimir PDF" onClick={printQuotePdf}><Printer size={17} /></button>
-                    <button type="button" title="Más opciones"><MoreVertical size={17} /></button>
+                    {!distributor ? <button type="button" title="Más opciones"><MoreVertical size={17} /></button> : null}
                   </div>
                 </div>
                 <DocumentPdfPage
