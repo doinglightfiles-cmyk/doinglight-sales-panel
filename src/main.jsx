@@ -11956,8 +11956,20 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   function buildDefaultSendDraft({ document = currentDocument, paymentUrl = redsysPaymentUrl } = {}) {
     const clientName = leadDraft?.fullName || leadDraft?.companyName || selectedLead?.fullName || selectedLead?.companyName || "cliente";
     const documentNumber = document?.quoteNumber || document?.documentNumber || document?.number || quoteNumberLabel;
+    const clientRecipients = companyEmailRecipients({
+      ...(selectedLead || {}),
+      ...(leadDraft || {}),
+      email: leadDraft?.email || selectedLead?.email || "",
+      emailAddress: leadDraft?.emailAddress || selectedLead?.emailAddress || "",
+      email_address: leadDraft?.email_address || selectedLead?.email_address || "",
+      emails: [...(selectedLead?.emails || []), ...(leadDraft?.emails || [])],
+      communicationContacts: [
+        ...(selectedLead?.communicationContacts || selectedLead?.communication_contacts || []),
+        ...(leadDraft?.communicationContacts || leadDraft?.communication_contacts || [])
+      ]
+    });
     return {
-      to: splitEmailRecipients(leadDraft?.email || selectedLead?.email || ""),
+      to: clientRecipients,
       from: quoteSender,
       subject: distributor && isQuote
         ? `Doinglight Skylights - ${quotePdfText.title}${documentNumber !== "borrador" ? ` ${documentNumber}` : ""}`
