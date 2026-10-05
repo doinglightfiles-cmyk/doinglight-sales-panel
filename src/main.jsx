@@ -898,7 +898,10 @@ async function fetchDrivePdf(token, path) {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       signal: controller.signal
     });
-    if (!response.ok) throw new Error(`No se ha podido abrir el PDF (error ${response.status}).`);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || `No se ha podido abrir el PDF (error ${response.status}).`);
+    }
     const blob = await response.blob();
     if (!blob.size) throw new Error("El archivo PDF está vacío.");
     return blob;
