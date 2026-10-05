@@ -3517,7 +3517,7 @@ function DocumentPdfPage({
   const commercialConditions = isTuboSolarTemplate
     ? null
     : language === "fr"
-      ? <>Garantie : 10 ans. Sauf pour les composants électriques tels que les régulateurs de lumière, les kits LED ou la ventilation, qui sont garantis 2 ans.<br />Délai de livraison : 3 - 4 jours ouvrables pour les produits standards.<br />Installation non incluse.<br />Modes de paiement : prépaiement, virement bancaire ou carte bancaire.<br />Franco de port pour toute commande supérieure à 1&nbsp;000&nbsp;€, hors livraisons sur les îles et commandes spéciales.</>
+      ? <>Garantie : 10 ans. Sauf pour les composants électriques tels que les régulateurs de lumière, les kits LED ou la ventilation, qui sont garantis 2 ans.<br />Délai de livraison : 3 - 4 jours ouvrables pour les produits standards.<br />Installation non comprise.<br />Modes de paiement : prépaiement, virement bancaire ou carte bancaire.<br />Franco de port pour toute commande supérieure à 1&nbsp;000&nbsp;€, hors livraisons sur les îles et commandes spéciales.</>
       : language === "it"
         ? <>Garanzia: 10 anni. Fanno eccezione i componenti elettrici, quali regolatori di luce, kit LED o ventilazione, la cui garanzia è di 2 anni.<br />Tempi di consegna: 3 - 4 giorni lavorativi per i prodotti standard.<br />Installazione non inclusa.<br />Modalità di pagamento: pagamento anticipato, bonifico bancario o carta di credito.<br />Spese di spedizione incluse per ordini superiori a 1.000 €, esclusi invii alle isole e ordini speciali.</>
         : language === "pt"
