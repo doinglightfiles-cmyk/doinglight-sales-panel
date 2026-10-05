@@ -3469,6 +3469,28 @@ function paidShippingText(language) {
   return copy[String(language || "es").toLowerCase()] || "PORTES PAGADOS";
 }
 
+function shippingText(language) {
+  const copy = {
+    fr: "Frais de port",
+    it: "Spese di spedizione",
+    pt: "Portes",
+    de: "Versandkosten",
+    en: "Shipping costs",
+    nl: "Verzendkosten"
+  };
+  return copy[String(language || "es").toLowerCase()] || "Portes";
+}
+
+function shippingModalText(language) {
+  const copy = {
+    fr: { title: "Frais de port", amount: "Montant des frais de port", hint: "Le montant sera ajouté comme ligne et fera partie de la base imposable.", required: "Saisissez un montant de frais de port supérieur à zéro.", cancel: "Annuler", add: "Ajouter les frais de port" },
+    it: { title: "Spese di spedizione", amount: "Importo delle spese di spedizione", hint: "L'importo verrà aggiunto come riga e farà parte della base imponibile.", required: "Inserisci un importo di spedizione maggiore di zero.", cancel: "Annulla", add: "Aggiungi spese di spedizione" },
+    pt: { title: "Portes", amount: "Valor dos portes", hint: "O valor será adicionado como uma linha e fará parte da base tributável.", required: "Introduza um valor de portes superior a zero.", cancel: "Cancelar", add: "Adicionar portes" },
+    de: { title: "Versandkosten", amount: "Betrag der Versandkosten", hint: "Der Betrag wird als Position hinzugefügt und ist Teil der Steuerbemessungsgrundlage.", required: "Geben Sie einen Versandkostenbetrag größer als null ein.", cancel: "Abbrechen", add: "Versandkosten hinzufügen" }
+  };
+  return copy[String(language || "es").toLowerCase()] || { title: "Portes", amount: "Importe de los portes", hint: "El importe se añadirá como una línea y formará parte de la base imponible.", required: "Introduce un importe de portes mayor que cero.", cancel: "Cancelar", add: "Añadir portes" };
+}
+
 function isPaidShippingLine(line) {
   if (line?.shippingPaid || line?.productSnapshot?.shippingPaid) return true;
   return String(line?.title || line?.concept || line?.productSnapshot?.title || "").trim().toUpperCase() === "PORTES PAGADOS";
@@ -3594,7 +3616,7 @@ function DocumentPdfPage({
             </span>
             <span className="quote-pdf-line-code">{line.code || "-"}</span>
             <span className="quote-pdf-line-concept">
-              <span>{line.lineType === "shipping" && isPaidShippingLine(line) ? paidShippingText(language) : line.concept || "-"}</span>
+              <span>{line.lineType === "shipping" ? (isPaidShippingLine(line) ? paidShippingText(language) : shippingText(language)) : line.concept || "-"}</span>
               {line.customNote ? <em className="quote-pdf-line-custom-note">{line.customNote}</em> : null}
             </span>
             <span className="quote-pdf-line-number">{formatLineQuantity(line.quantity)}</span>
@@ -11055,6 +11077,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [seriesError, setSeriesError] = useState("");
   const [newInvoiceSeries, setNewInvoiceSeries] = useState({ code: "", notes: "" });
   const [quoteLanguage, setQuoteLanguage] = useState(initialQuote?.locale || (distributor ? locale : "es"));
+  const shippingModalCopy = shippingModalText(quoteLanguage || locale);
   const [quoteLanguageTouched, setQuoteLanguageTouched] = useState(false);
   const catalog = useResource(
     () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(quoteLanguage || "es")}&channel=sales_app`, { token }),
@@ -11418,7 +11441,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       const paidShipping = isPaidShippingLine(line);
       const shippingTitle = paidShipping
         ? paidShippingText(quoteLanguage)
-        : String(line.productSnapshot?.title || line.title || "Portes").trim();
+        : shippingText(quoteLanguage);
       return {
         ...(line.productSnapshot || {}),
         source: "system",
@@ -11426,7 +11449,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         sku: "PORTES",
         title: shippingTitle,
         shippingPaid: paidShipping,
-        shortDescription: paidShipping ? shippingTitle : "Gastos de transporte"
+        shortDescription: shippingTitle
       };
     }
     if (line.lineType === "installation" || line.productSnapshot?.type === "installation") {
@@ -11568,7 +11591,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     event?.preventDefault();
     const amount = normalizeMoneyValue(shippingAmount);
     if (amount <= 0) {
-      setShippingError("Introduce un importe de portes mayor que cero.");
+      setShippingError(shippingModalCopy.required);
       return;
     }
 
@@ -11583,15 +11606,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         discountPercent: 0,
         unitPriceOverride: amount,
         manualTotal: amount,
-        title: "Portes",
+        title: shippingText(quoteLanguage),
         customNote: "",
         customNoteOpen: false,
         productSnapshot: {
           source: "system",
           type: "shipping",
           sku: "PORTES",
-          title: "Portes",
-          shortDescription: "Gastos de transporte"
+          title: shippingText(quoteLanguage),
+          shortDescription: shippingText(quoteLanguage)
         }
       };
       if (existingIndex < 0) return [...current, shippingLine];
@@ -12114,7 +12137,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         const isCustomLine = line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON";
         return {
             sku: isShippingLine ? "PORTES" : isInstallationLine ? "INSTALACION" : isCustomLine ? "ALMORCHON" : line.sku,
-            title: isShippingLine ? String(product?.title || line.title || "Portes").trim() : isInstallationLine ? "INSTALACIÓN" : isCustomLine ? String(line.title || "").trim() : product?.title || line.title || line.sku,
+            title: isShippingLine ? (isPaidShippingLine(line) ? paidShippingText(quoteLanguage) : shippingText(quoteLanguage)) : isInstallationLine ? "INSTALACIÓN" : isCustomLine ? String(line.title || "").trim() : product?.title || line.title || line.sku,
             quantity: Number(line.quantity),
             discountPercent: Number(line.discountPercent),
             unitPrice: unitPriceForSubmit(line),
@@ -12124,8 +12147,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   source: "system",
                   type: "shipping",
                   sku: "PORTES",
-                  title: String(product?.title || line.title || "Portes").trim(),
-                  shortDescription: product?.shortDescription || "Gastos de transporte",
+                  title: isPaidShippingLine(line) ? paidShippingText(quoteLanguage) : shippingText(quoteLanguage),
+                  shortDescription: isPaidShippingLine(line) ? paidShippingText(quoteLanguage) : shippingText(quoteLanguage),
                   shippingPaid: Boolean(product?.shippingPaid)
                 }
               : isInstallationLine
@@ -13037,7 +13060,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       </div>
       {shippingModalOpen ? (
         <ModalShell
-          title="Portes"
+          title={shippingModalCopy.title}
           eyebrow={documentEyebrow}
           size="shipping-modal"
           onClose={() => setShippingModalOpen(false)}
@@ -13045,7 +13068,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <form className="shipping-form" onSubmit={saveShippingLine}>
             <div className="shipping-modal-icon" aria-hidden="true"><Truck size={25} /></div>
             <label>
-              <span>Importe de los portes</span>
+              <span>{shippingModalCopy.amount}</span>
               <div className="shipping-amount-field">
                 <input
                   autoFocus
@@ -13056,17 +13079,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     setShippingError("");
                   }}
                   placeholder="0,00"
-                  aria-label="Importe de los portes"
+                  aria-label={shippingModalCopy.amount}
                 />
                 <span>€</span>
               </div>
             </label>
-            <p>El importe se añadirá como una línea y formará parte de la base imponible.</p>
+            <p>{shippingModalCopy.hint}</p>
             {shippingError ? <p className="form-error">{shippingError}</p> : null}
             <div className="form-actions">
-              <button className="secondary-button" type="button" onClick={() => setShippingModalOpen(false)}>Cancelar</button>
+              <button className="secondary-button" type="button" onClick={() => setShippingModalOpen(false)}>{shippingModalCopy.cancel}</button>
               <button className="secondary-button" type="button" onClick={savePaidShippingLine}>{t("paidShipping", "PORTES PAGADOS")}</button>
-              <button className="primary-button" type="submit">Añadir portes</button>
+              <button className="primary-button" type="submit">{shippingModalCopy.add}</button>
             </div>
           </form>
         </ModalShell>
