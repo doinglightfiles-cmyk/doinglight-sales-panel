@@ -11014,7 +11014,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return taxModeFromDocument(initialQuote || { taxMode: "21" });
   });
   const [notes, setNotes] = useState(initialQuote?.notes || "");
-  const [includePaymentDetails, setIncludePaymentDetails] = useState(isQuote || Boolean(initialQuote?.includePaymentDetails));
+  const [includePaymentDetails, setIncludePaymentDetails] = useState(
+    initialQuote ? Boolean(initialQuote.includePaymentDetails) : isQuote
+  );
   const [redsysPaymentUrl, setRedsysPaymentUrl] = useState(initialQuote?.redsysPaymentUrl || "");
   const [quoteStatus, setQuoteStatus] = useState(() => (
     isInvoice
@@ -12051,7 +12053,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       dueDate: validUntil,
       paymentMethod,
       notes,
-      ...(isQuote ? { includePaymentDetails: true, redsysPaymentUrl: redsysPaymentUrl.trim() } : {}),
+      ...(isQuote ? { includePaymentDetails, redsysPaymentUrl: includePaymentDetails ? redsysPaymentUrl.trim() : "" } : {}),
       ...(isQuote ? { netPricing } : {}),
       internalNotes,
       subtotal,
@@ -12603,8 +12605,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             )}
             {isQuote ? (
               <div className="quote-payment-details-field">
-                <strong>{t("includePayment", "Datos de pago incluidos en el PDF")}</strong>
-                <small>{redsysPaymentUrl ? "El enlace de pago con tarjeta está preparado." : "El enlace de pago con tarjeta se genera automáticamente al guardar."}</small>
+                <label className="quote-payment-details-toggle">
+                  <input
+                    type="checkbox"
+                    checked={includePaymentDetails}
+                    onChange={(event) => setIncludePaymentDetails(event.target.checked)}
+                  />
+                  <span>{t("includePayment", "Incluir datos de pago en el PDF")}</span>
+                </label>
+                {includePaymentDetails ? <small>{redsysPaymentUrl ? "El enlace de pago con tarjeta está preparado." : "El enlace de pago con tarjeta se genera automáticamente al guardar."}</small> : null}
               </div>
             ) : null}
             <label>
