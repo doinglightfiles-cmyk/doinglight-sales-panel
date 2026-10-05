@@ -10886,6 +10886,10 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
 
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight", distributor = false, locale = "es" }) {
   const currentUser = readSession()?.user || null;
+  const isFrenchDistributorMailbox = distributor && String(currentUser?.email || "").trim().toLowerCase() === "info@doinglight.fr";
+  const quoteSender = isFrenchDistributorMailbox
+    ? "Claudine <info@doinglight.fr>"
+    : "ADMINISTRACION <administracion@doinglight.es>";
   const canUseNetPricing = NET_PRICING_USERS.has(String(currentUser?.email || "").trim().toLowerCase());
   const distributorCopy = distributorPanelCopy(locale);
   const quoteUiCopy = DISTRIBUTOR_QUOTE_UI_COPY[String(locale).toLowerCase()] || {};
@@ -11912,7 +11916,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     const documentNumber = document?.quoteNumber || document?.documentNumber || document?.number || quoteNumberLabel;
     return {
       to: splitEmailRecipients(leadDraft?.email || selectedLead?.email || ""),
-      from: "ADMINISTRACION <administracion@doinglight.es>",
+      from: quoteSender,
       subject: distributor && isQuote
         ? `Doinglight Skylights - ${quotePdfText.title}${documentNumber !== "borrador" ? ` ${documentNumber}` : ""}`
         : documentNumber !== "borrador" ? `${meta.subject} ${documentNumber}` : meta.subject,
@@ -13201,11 +13205,15 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 />
                 <label>
                   <span>{sendCopy.sender || "Remitente"}</span>
-                  <select value={sendDraft.from} onChange={(event) => updateSendDraft({ from: event.target.value })}>
-                    <option value="ADMINISTRACION <administracion@doinglight.es>">ADMINISTRACION &lt;administracion@doinglight.es&gt;</option>
-                    <option value="MARKETING <marketing@doinglight.es>">MARKETING &lt;marketing@doinglight.es&gt;</option>
-                    <option value="DOINGLIGHT <info@doinglight.es>">DOINGLIGHT &lt;info@doinglight.es&gt;</option>
-                  </select>
+                  {isFrenchDistributorMailbox ? (
+                    <input value="Claudine <info@doinglight.fr>" readOnly aria-label="Remitente" />
+                  ) : (
+                    <select value={sendDraft.from} onChange={(event) => updateSendDraft({ from: event.target.value })}>
+                      <option value="ADMINISTRACION <administracion@doinglight.es>">ADMINISTRACION &lt;administracion@doinglight.es&gt;</option>
+                      <option value="MARKETING <marketing@doinglight.es>">MARKETING &lt;marketing@doinglight.es&gt;</option>
+                      <option value="DOINGLIGHT <info@doinglight.es>">DOINGLIGHT &lt;info@doinglight.es&gt;</option>
+                    </select>
+                  )}
                 </label>
                 <label>
                   <span>{sendCopy.subject || "Asunto"}</span>
