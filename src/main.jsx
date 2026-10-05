@@ -97,21 +97,21 @@ function emailBodyWithLegalFooter(message) {
 function quoteEmailBody({ clientName, quoteNumber, includePaymentDetails, paymentUrl }) {
   const greeting = `Estimado ${clientName || "cliente"}, a continuación le adjuntamos nuestro presupuesto ${quoteNumber || ""}.`.replace(/\s+\.$/, ".");
   if (includePaymentDetails) {
-    return emailBodyWithLegalFooter(`${greeting}\n\nSi desea realizar el pago de este presupuesto puede hacerlo mediante transferencia bancaria en:\nIBAN ${DOINGLIGHT_PAYMENT_IBAN}\n\nO bien con tarjeta de crédito o débito utilizando nuestra pasarela de pago segura haciendo click en el siguiente enlace de pago:\n${paymentUrl || ""}`.trim());
+    return emailBodyWithLegalFooter(`${greeting}\n\nSi desea realizar el pago de este presupuesto puede hacerlo mediante transferencia bancaria en:\nIBAN ${DOINGLIGHT_PAYMENT_IBAN}\n\nTambién puede pagar con tarjeta de crédito o débito mediante nuestra pasarela de pago segura usando el botón «Pagar con tarjeta».`.trim());
   }
   return emailBodyWithLegalFooter(`${greeting}\n\nPara realizar el pago del mismo, será necesario aceptar previamente este presupuesto y recibirá automáticamente nuestra factura proforma en su email.`);
 }
 
 function quoteEmailBodyForLanguage(language, { clientName, quoteNumber, includePaymentDetails, paymentUrl }) {
   const copy = {
-    fr: { greeting: `Bonjour ${clientName || "client"}, veuillez trouver ci-joint notre devis ${quoteNumber || ""}.`, payment: "Pour régler ce devis, veuillez d'abord l'accepter. Vous recevrez ensuite automatiquement votre facture proforma par e-mail.", closing: "Cordialement,\nAdministration Doinglight\nadministracion@doinglight.es", legal: "PROTECTION DES DONNÉES : Responsable : DOINGLIGHT TECHNOLOGIES, S.L.U. Vos données sont utilisées pour gérer votre demande." },
-    it: { greeting: `Gentile ${clientName || "cliente"}, in allegato trova il nostro preventivo ${quoteNumber || ""}.`, payment: "Per effettuare il pagamento, dovrà prima accettare il preventivo; riceverà quindi automaticamente la fattura proforma via email.", closing: "Cordiali saluti,\nAmministrazione Doinglight\nadministracion@doinglight.es", legal: "PROTEZIONE DEI DATI: Titolare: DOINGLIGHT TECHNOLOGIES, S.L.U. I dati sono utilizzati per gestire la richiesta." },
-    pt: { greeting: `Caro(a) ${clientName || "cliente"}, enviamos em anexo o nosso orçamento ${quoteNumber || ""}.`, payment: "Para efetuar o pagamento, deverá primeiro aceitar este orçamento; receberá automaticamente a fatura proforma por e-mail.", closing: "Com os melhores cumprimentos,\nAdministração Doinglight\nadministracion@doinglight.es", legal: "PROTEÇÃO DE DADOS: Responsável: DOINGLIGHT TECHNOLOGIES, S.L.U. Os dados são usados para gerir o pedido." },
-    de: { greeting: `Guten Tag ${clientName || "Kunde"}, anbei erhalten Sie unser Angebot ${quoteNumber || ""}.`, payment: "Zur Zahlung akzeptieren Sie bitte zunächst dieses Angebot. Anschließend erhalten Sie die Proforma-Rechnung automatisch per E-Mail.", closing: "Mit freundlichen Grüßen\nDoinglight Verwaltung\nadministracion@doinglight.es", legal: "DATENSCHUTZ: Verantwortlicher: DOINGLIGHT TECHNOLOGIES, S.L.U. Die Daten werden zur Bearbeitung Ihrer Anfrage verwendet." }
+    fr: { greeting: `Bonjour ${clientName || "client"}, veuillez trouver ci-joint notre devis ${quoteNumber || ""}.`, payment: "Pour régler ce devis, veuillez d'abord l'accepter. Vous recevrez ensuite automatiquement votre facture proforma par e-mail.", card: "Vous pouvez également régler par carte bancaire en utilisant le bouton « Payer par carte ».", closing: "Cordialement,\nAdministration Doinglight\nadministracion@doinglight.es", legal: "PROTECTION DES DONNÉES : Responsable : DOINGLIGHT TECHNOLOGIES, S.L.U. Vos données sont utilisées pour gérer votre demande." },
+    it: { greeting: `Gentile ${clientName || "cliente"}, in allegato trova il nostro preventivo ${quoteNumber || ""}.`, payment: "Per effettuare il pagamento, dovrà prima accettare il preventivo; riceverà quindi automaticamente la fattura proforma via email.", card: "Può anche pagare con carta utilizzando il pulsante « Paga con carta ».", closing: "Cordiali saluti,\nAmministrazione Doinglight\nadministracion@doinglight.es", legal: "PROTEZIONE DEI DATI: Titolare: DOINGLIGHT TECHNOLOGIES, S.L.U. I dati sono utilizzati per gestire la richiesta." },
+    pt: { greeting: `Caro(a) ${clientName || "cliente"}, enviamos em anexo o nosso orçamento ${quoteNumber || ""}.`, payment: "Para efetuar o pagamento, deverá primeiro aceitar este orçamento; receberá automaticamente a fatura proforma por e-mail.", card: "Também pode pagar com cartão através do botão « Pagar com cartão ».", closing: "Com os melhores cumprimentos,\nAdministração Doinglight\nadministracion@doinglight.es", legal: "PROTEÇÃO DE DADOS: Responsável: DOINGLIGHT TECHNOLOGIES, S.L.U. Os dados são usados para gerir o pedido." },
+    de: { greeting: `Guten Tag ${clientName || "Kunde"}, anbei erhalten Sie unser Angebot ${quoteNumber || ""}.`, payment: "Zur Zahlung akzeptieren Sie bitte zunächst dieses Angebot. Anschließend erhalten Sie die Proforma-Rechnung automatisch per E-Mail.", card: "Sie können auch per Karte über die Schaltfläche « Mit Karte bezahlen » zahlen.", closing: "Mit freundlichen Grüßen\nDoinglight Verwaltung\nadministracion@doinglight.es", legal: "DATENSCHUTZ: Verantwortlicher: DOINGLIGHT TECHNOLOGIES, S.L.U. Die Daten werden zur Bearbeitung Ihrer Anfrage verwendet." }
   }[String(language).toLowerCase()];
   if (!copy) return quoteEmailBody({ clientName, quoteNumber, includePaymentDetails, paymentUrl });
   const payment = includePaymentDetails
-    ? `${copy.payment}\n\n${paymentUrl || ""}`
+    ? copy.card
     : copy.payment;
   return `${copy.greeting}\n\n${payment}\n\n${copy.closing}\n\n${copy.legal}`;
 }
@@ -10999,7 +10999,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return taxModeFromDocument(initialQuote || { taxMode: "21" });
   });
   const [notes, setNotes] = useState(initialQuote?.notes || "");
-  const [includePaymentDetails, setIncludePaymentDetails] = useState(Boolean(initialQuote?.includePaymentDetails));
+  const [includePaymentDetails, setIncludePaymentDetails] = useState(isQuote || Boolean(initialQuote?.includePaymentDetails));
   const [redsysPaymentUrl, setRedsysPaymentUrl] = useState(initialQuote?.redsysPaymentUrl || "");
   const [quoteStatus, setQuoteStatus] = useState(() => (
     isInvoice
@@ -12036,7 +12036,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       dueDate: validUntil,
       paymentMethod,
       notes,
-      ...(isQuote ? { includePaymentDetails, redsysPaymentUrl: includePaymentDetails ? redsysPaymentUrl.trim() : "" } : {}),
+      ...(isQuote ? { includePaymentDetails: true, redsysPaymentUrl: redsysPaymentUrl.trim() } : {}),
       ...(isQuote ? { netPricing } : {}),
       internalNotes,
       subtotal,
@@ -12588,26 +12588,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             )}
             {isQuote ? (
               <div className="quote-payment-details-field">
-                <label className="quote-payment-details-toggle">
-                  <input
-                    type="checkbox"
-                    checked={includePaymentDetails}
-                    onChange={(event) => setIncludePaymentDetails(event.target.checked)}
-                  />
-                  <span>{t("includePayment", "Incluir datos de pago en el PDF")}</span>
-                </label>
-                {includePaymentDetails ? (
-                  <label>
-                    <span>Enlace de pago Redsys</span>
-                    <input
-                      type="url"
-                      value={redsysPaymentUrl}
-                      onChange={(event) => setRedsysPaymentUrl(event.target.value)}
-                      placeholder="https://sis.redsys.es/…"
-                    />
-                    <small>{redsysPaymentUrl ? `Se mostrará junto al IBAN ${DOINGLIGHT_PAYMENT_IBAN}` : "Si lo dejas vacío, Redsys generará el enlace al guardar."}</small>
-                  </label>
-                ) : null}
+                <strong>{t("includePayment", "Datos de pago incluidos en el PDF")}</strong>
+                <small>{redsysPaymentUrl ? "El enlace de pago con tarjeta está preparado." : "El enlace de pago con tarjeta se genera automáticamente al guardar."}</small>
               </div>
             ) : null}
             <label>
