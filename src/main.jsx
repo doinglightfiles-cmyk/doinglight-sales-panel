@@ -10926,6 +10926,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [shippingModalOpen, setShippingModalOpen] = useState(false);
   const [shippingAmount, setShippingAmount] = useState("");
   const [shippingError, setShippingError] = useState("");
+  const [installationModalOpen, setInstallationModalOpen] = useState(false);
+  const [installationAmount, setInstallationAmount] = useState("");
+  const [installationDescription, setInstallationDescription] = useState("");
+  const [installationError, setInstallationError] = useState("");
   const [warehouseSending, setWarehouseSending] = useState(false);
   const [netPricing, setNetPricing] = useState(() => canUseNetPricing && Boolean(initialQuote?.netPricing));
   const [netPricingConfirmOpen, setNetPricingConfirmOpen] = useState(false);
@@ -10943,6 +10947,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       return initialQuote.items.map((line) => ({
         lineType: line.productSnapshot?.type === "shipping"
           ? "shipping"
+          : line.productSnapshot?.type === "installation"
+            ? "installation"
           : line.productSnapshot?.type === "custom" || String(line.sku || "").toUpperCase() === "ALMORCHON"
             ? "custom"
             : "product",
@@ -10954,7 +10960,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         unitPriceOverride: line.unitPrice,
         title: line.title || line.productSnapshot?.title || "",
         productSnapshot: line.productSnapshot || {},
-        manualTotal: line.productSnapshot?.type === "shipping" ? line.lineTotal ?? line.unitPrice ?? 0 : null,
+        manualTotal: ["shipping", "installation"].includes(line.productSnapshot?.type) ? line.lineTotal ?? line.unitPrice ?? 0 : null,
         customNote: line.customNote || line.productSnapshot?.customNote || "",
         customNoteOpen: Boolean(line.customNote || line.productSnapshot?.customNote)
       }));
@@ -11159,7 +11165,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
     setLines((current) =>
       current.map((line) => {
-        if (line.lineType === "shipping" || line.productSnapshot?.type === "shipping") return { ...line, discountPercent: 0 };
+        if (["shipping", "installation"].includes(line.lineType) || ["shipping", "installation"].includes(line.productSnapshot?.type)) return { ...line, discountPercent: 0 };
         if (Number(line.discountPercent || 0) > 0) return line;
         return { ...line, discountPercent: defaultDiscount };
       })
@@ -11365,6 +11371,17 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         shortDescription: paidShipping ? shippingTitle : "Gastos de transporte"
       };
     }
+    if (line.lineType === "installation" || line.productSnapshot?.type === "installation") {
+      const title = String(line.productSnapshot?.title || line.title || "INSTALACIÓN").trim();
+      return {
+        ...(line.productSnapshot || {}),
+        source: "system",
+        type: "installation",
+        sku: "INSTALACION",
+        title,
+        shortDescription: String(line.customNote || line.productSnapshot?.shortDescription || "").trim()
+      };
+    }
     if (line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON") {
       return {
         ...(line.productSnapshot || {}),
@@ -11553,6 +11570,55 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       return current.map((line, index) => (index === existingIndex ? shippingLine : line));
     });
     setShippingModalOpen(false);
+  }
+
+  function openInstallationModal() {
+    const currentInstallationLine = lines.find((line) => line.lineType === "installation" || line.productSnapshot?.type === "installation");
+    setInstallationAmount(currentInstallationLine ? tableMoney(lineTotal(currentInstallationLine)) : "");
+    setInstallationDescription(currentInstallationLine?.customNote || currentInstallationLine?.productSnapshot?.shortDescription || "");
+    setInstallationError("");
+    setInstallationModalOpen(true);
+  }
+
+  function saveInstallationLine(event) {
+    event.preventDefault();
+    const amount = normalizeMoneyValue(installationAmount);
+    const description = String(installationDescription || "").trim();
+    if (amount <= 0) {
+      setInstallationError("Introduce un importe de instalación mayor que cero.");
+      return;
+    }
+    if (!description) {
+      setInstallationError("Añade una breve descripción de la instalación.");
+      return;
+    }
+
+    setLines((current) => {
+      const existingIndex = current.findIndex((line) => line.lineType === "installation" || line.productSnapshot?.type === "installation");
+      const installationLine = {
+        id: existingIndex >= 0 ? current[existingIndex].id : crypto.randomUUID(),
+        lineType: "installation",
+        skuQuery: "INSTALACION",
+        sku: "INSTALACION",
+        quantity: 1,
+        discountPercent: 0,
+        unitPriceOverride: amount,
+        manualTotal: amount,
+        title: "INSTALACIÓN",
+        customNote: description,
+        customNoteOpen: false,
+        productSnapshot: {
+          source: "system",
+          type: "installation",
+          sku: "INSTALACION",
+          title: "INSTALACIÓN",
+          shortDescription: description
+        }
+      };
+      if (existingIndex < 0) return [...current, installationLine];
+      return current.map((line, index) => (index === existingIndex ? installationLine : line));
+    });
+    setInstallationModalOpen(false);
   }
 
   function enableNetPricing() {
@@ -11982,13 +12048,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         url: attachment.url
       })),
       items: lines
-        .map((line) => {
-          const product = productForLine(line);
-          const isShippingLine = line.lineType === "shipping" || line.productSnapshot?.type === "shipping";
-          const isCustomLine = line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON";
-          return {
-            sku: isShippingLine ? "PORTES" : isCustomLine ? "ALMORCHON" : line.sku,
-            title: isShippingLine ? String(product?.title || line.title || "Portes").trim() : isCustomLine ? String(line.title || "").trim() : product?.title || line.title || line.sku,
+      .map((line) => {
+        const product = productForLine(line);
+        const isShippingLine = line.lineType === "shipping" || line.productSnapshot?.type === "shipping";
+        const isInstallationLine = line.lineType === "installation" || line.productSnapshot?.type === "installation";
+        const isCustomLine = line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON";
+        return {
+            sku: isShippingLine ? "PORTES" : isInstallationLine ? "INSTALACION" : isCustomLine ? "ALMORCHON" : line.sku,
+            title: isShippingLine ? String(product?.title || line.title || "Portes").trim() : isInstallationLine ? "INSTALACIÓN" : isCustomLine ? String(line.title || "").trim() : product?.title || line.title || line.sku,
             quantity: Number(line.quantity),
             discountPercent: Number(line.discountPercent),
             unitPrice: unitPriceForSubmit(line),
@@ -12002,6 +12069,14 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   shortDescription: product?.shortDescription || "Gastos de transporte",
                   shippingPaid: Boolean(product?.shippingPaid)
                 }
+              : isInstallationLine
+                ? {
+                    source: "system",
+                    type: "installation",
+                    sku: "INSTALACION",
+                    title: "INSTALACIÓN",
+                    shortDescription: String(line.customNote || product?.shortDescription || "").trim()
+                  }
               : isCustomLine
                 ? { source: "system", type: "custom", sku: "ALMORCHON", title: String(line.title || "").trim(), shortDescription: String(line.title || "").trim() }
               : product || line.productSnapshot || {}
@@ -12600,6 +12675,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 <Truck size={16} />
                 {t("shipping", "PORTES")}
               </button>
+              {!distributor ? (
+                <button className="quote-transfer-lines-button quote-installation-button" type="button" onClick={openInstallationModal}>
+                  INSTALACIÓN
+                </button>
+              ) : null}
               {isQuote && !distributor ? (
                 <>
                   <button
@@ -12634,9 +12714,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         {lines.map((line, index) => {
           const selectedProduct = productForLine(line);
           const isShippingLine = line.lineType === "shipping" || line.productSnapshot?.type === "shipping";
+          const isInstallationLine = line.lineType === "installation" || line.productSnapshot?.type === "installation";
+          const isFixedPriceLine = isShippingLine || isInstallationLine;
           const isCustomLine = line.lineType === "custom" && String(line.sku || line.skuQuery || "").toUpperCase() === "ALMORCHON";
           const hasInvalidReference = isQuote
-            && !isShippingLine
+            && !isFixedPriceLine
             && Boolean(String(line.skuQuery || "").trim())
             && !Boolean(String(line.sku || "").trim());
           const supportsCustomNote = Boolean(String(line.sku || line.skuQuery || "").trim());
@@ -12666,8 +12748,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <ProductThumbnail product={selectedProduct || { sku: line.sku }} />
               <label>
                 <span>{t("reference", "Referencia")}</span>
-                {isShippingLine ? (
-                  <input value="PORTES" readOnly aria-label="Referencia de portes" />
+                {isFixedPriceLine ? (
+                  <input value={isInstallationLine ? "INSTALACIÓN" : "PORTES"} readOnly aria-label={isInstallationLine ? "Referencia de instalación" : "Referencia de portes"} />
                 ) : (
                   <input
                     ref={(element) => {
@@ -12697,7 +12779,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               </label>
               <div className="quote-product-select">
                 <span>{t("description", "Descripción")}</span>
-                {isCustomLine ? (
+                {isInstallationLine ? (
+                  <>
+                    <strong>INSTALACIÓN</strong>
+                    <span className="quote-product-description">{line.customNote || selectedProduct?.shortDescription || "Sin descripción"}</span>
+                  </>
+                ) : isCustomLine ? (
                   <input
                     className="quote-custom-product-description"
                     value={line.title || ""}
@@ -12713,7 +12800,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     </span>
                   </>
                 )}
-                {supportsCustomNote && !isShippingLine && !isCustomLine ? (
+                {supportsCustomNote && !isFixedPriceLine && !isCustomLine ? (
                   <div className="quote-line-custom-note">
                     {line.customNoteOpen || line.customNote ? (
                       <input
@@ -12743,7 +12830,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   type="number"
                   min="1"
                   value={line.quantity}
-                  readOnly={isShippingLine}
+                  readOnly={isFixedPriceLine}
                   onChange={(event) => updateLine(line.id, { quantity: event.target.value })}
                 />
               </label>
@@ -12768,7 +12855,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     min="0"
                     max="100"
                     value={line.discountPercent}
-                    readOnly={isShippingLine}
+                    readOnly={isFixedPriceLine}
                     onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })}
                     onKeyDown={(event) => {
                       if (event.key === "Tab" && !event.shiftKey && index === lines.length - 1) {
@@ -12781,7 +12868,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               ) : null}
               <div className="quote-line-total">
                 <span>{t("amount", "Importe")}</span>
-                {isShippingLine ? (
+                {isFixedPriceLine ? (
                   <strong>{money(lineTotal(line))}</strong>
                 ) : (
                   <input
@@ -12931,6 +13018,51 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
               <button className="secondary-button" type="button" onClick={() => setShippingModalOpen(false)}>Cancelar</button>
               <button className="secondary-button" type="button" onClick={savePaidShippingLine}>{t("paidShipping", "PORTES PAGADOS")}</button>
               <button className="primary-button" type="submit">Añadir portes</button>
+            </div>
+          </form>
+        </ModalShell>
+      ) : null}
+      {installationModalOpen ? (
+        <ModalShell
+          title="Instalación"
+          eyebrow={documentEyebrow}
+          size="shipping-modal installation-modal"
+          onClose={() => setInstallationModalOpen(false)}
+        >
+          <form className="shipping-form" onSubmit={saveInstallationLine}>
+            <label>
+              <span>Importe de la instalación</span>
+              <div className="shipping-amount-field">
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={installationAmount}
+                  onChange={(event) => {
+                    setInstallationAmount(event.target.value);
+                    setInstallationError("");
+                  }}
+                  placeholder="0,00"
+                  aria-label="Importe de la instalación"
+                />
+                <span>€</span>
+              </div>
+            </label>
+            <label>
+              <span>Descripción</span>
+              <textarea
+                value={installationDescription}
+                onChange={(event) => {
+                  setInstallationDescription(event.target.value);
+                  setInstallationError("");
+                }}
+                placeholder="Describe brevemente los trabajos de instalación"
+                rows={3}
+              />
+            </label>
+            {installationError ? <p className="form-error">{installationError}</p> : null}
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setInstallationModalOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="submit">Añadir instalación</button>
             </div>
           </form>
         </ModalShell>
