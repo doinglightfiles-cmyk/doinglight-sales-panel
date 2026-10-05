@@ -3407,6 +3407,22 @@ function documentPdfText(language, type = "quote") {
   };
 }
 
+function paymentDetailsPdfText(language) {
+  const copy = {
+    fr: { title: "Informations de paiement", transfer: "Virement bancaire : IBAN", card: "Paiement par carte :" },
+    it: { title: "Dati di pagamento", transfer: "Bonifico bancario: IBAN", card: "Pagamento con carta:" },
+    pt: { title: "Dados de pagamento", transfer: "Transferência bancária: IBAN", card: "Pagamento por cartão:" },
+    de: { title: "Zahlungsdaten", transfer: "Banküberweisung: IBAN", card: "Kartenzahlung:" },
+    en: { title: "Payment details", transfer: "Bank transfer: IBAN", card: "Card payment:" },
+    nl: { title: "Betalingsgegevens", transfer: "Bankoverschrijving: IBAN", card: "Betaling met kaart:" }
+  };
+  return copy[String(language || "es").toLowerCase()] || {
+    title: "Datos de pago",
+    transfer: "Transferencia bancaria: IBAN",
+    card: "Pago con tarjeta:"
+  };
+}
+
 function DocumentPdfPage({
   id,
   type = "quote",
@@ -3433,6 +3449,7 @@ function DocumentPdfPage({
   forceDoinglightIssuer = false
 }) {
   const text = documentPdfText(language, type);
+  const paymentDetailsText = paymentDetailsPdfText(language);
   const isDeliveryNote = type === "delivery-note";
   const validityLabel = isDeliveryNote ? text.deliveryDate : type === "invoice" ? text.dueDate : text.validUntil;
   const isTuboSolarTemplate = pdfTemplate === "tubo-solar";
@@ -3570,9 +3587,9 @@ function DocumentPdfPage({
           {notesWithTaxLegalText ? <p>{notesWithTaxLegalText}</p> : null}
           {type === "quote" && includePaymentDetails ? (
             <div className="quote-pdf-payment-details">
-              <strong>Datos de pago</strong>
-              <span>Transferencia bancaria: IBAN {paymentIban}</span>
-              {redsysPaymentUrl ? <span>Pago con tarjeta: {redsysPaymentUrl}</span> : null}
+              <strong>{paymentDetailsText.title}</strong>
+              <span>{paymentDetailsText.transfer} {paymentIban}</span>
+              {redsysPaymentUrl ? <span>{paymentDetailsText.card} {redsysPaymentUrl}</span> : null}
             </div>
           ) : null}
           {type !== "invoice" && !isDeliveryNote && commercialConditions ? (
