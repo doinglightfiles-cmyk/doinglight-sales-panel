@@ -10751,6 +10751,17 @@ function driveCopy(locale = "es") {
   return copies[String(locale).toLowerCase()] || copies.es;
 }
 
+function localizedDriveFolderName(name, locale = "es") {
+  const folderNames = {
+    es: { "Catálogos": "Catálogos", "Fichas técnicas": "Fichas técnicas", Normativas: "Normativas", Certificados: "Certificados" },
+    fr: { "Catálogos": "Catalogues", "Fichas técnicas": "Fiches techniques", Normativas: "Normes", Certificados: "Certificats" },
+    it: { "Catálogos": "Cataloghi", "Fichas técnicas": "Schede tecniche", Normativas: "Normative", Certificados: "Certificati" },
+    pt: { "Catálogos": "Catálogos", "Fichas técnicas": "Fichas técnicas", Normativas: "Normas", Certificados: "Certificados" },
+    de: { "Catálogos": "Kataloge", "Fichas técnicas": "Technische Datenblätter", Normativas: "Normen", Certificados: "Zertifikate" }
+  };
+  return folderNames[String(locale).toLowerCase()]?.[name] || name;
+}
+
 function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   const copy = driveCopy(locale);
   const countries = [
@@ -10802,7 +10813,7 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   return (
     <Panel title="Drive">
       {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
-      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{item.name}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{folder.name}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>
+      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{localizedDriveFolderName(item.name, locale)}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{localizedDriveFolderName(folder.name, locale)}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>
       {preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}
     </Panel>
   );
@@ -10877,8 +10888,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const assignableUsers = useResource(() => apiRequest("/api/sales/users", { token }), [token]);
   const paymentSettings = useResource(() => apiRequest("/api/settings", { token }), [token]);
   const mailContacts = useResource(() => apiRequest("/api/mail/contacts", { token }), [token]);
-  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
-  const [documentPicker, setDocumentPicker] = useState(null);
   const [driveAttachmentPickerOpen, setDriveAttachmentPickerOpen] = useState(false);
   const [transferLinesOpen, setTransferLinesOpen] = useState(false);
   const [transferLineIds, setTransferLineIds] = useState([]);
@@ -12169,8 +12178,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         ...attachment
       }
     ]);
-    setAttachmentMenuOpen(false);
-    setDocumentPicker(null);
+    setDriveAttachmentPickerOpen(false);
   }
 
   function removeAttachment(attachmentId) {
@@ -13023,20 +13031,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                       <button
                         className="attachment-trigger icon-only-attachment"
                         type="button"
-                        onClick={() => setAttachmentMenuOpen((value) => !value)}
+                        onClick={() => setDriveAttachmentPickerOpen(true)}
                         aria-label="Adjuntar archivo"
-                        aria-haspopup="menu"
-                        aria-expanded={attachmentMenuOpen}
                         title="Adjuntar archivo"
                       >
                         <Paperclip size={18} />
                       </button>
-                      {attachmentMenuOpen ? (
-                        <div className="attachment-menu" role="menu">
-                          <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">{sendCopy.uploadFile || "Subir un archivo"}</button>
-                          <button type="button" onClick={() => { setAttachmentMenuOpen(false); setDriveAttachmentPickerOpen(true); }} role="menuitem">{sendCopy.chooseDrive || "Elegir desde Drive"}</button>
-                        </div>
-                      ) : null}
                       <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
                     </div>
                   </div>
@@ -13153,13 +13153,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           forceDoinglightIssuer={forceDoinglightIssuer}
         />
       </div>
-      {documentPicker ? (
-        <DocumentAttachmentPicker
-          category={documentPicker}
-          onClose={() => setDocumentPicker(null)}
-          onSelect={(document) => addAttachment({ type: documentPicker, name: document.title, source: "library" })}
-        />
-      ) : null}
       {driveAttachmentPickerOpen ? (
         <DriveAttachmentPicker
           token={token}
@@ -13350,7 +13343,7 @@ function DriveAttachmentPicker({ token, country, locale = "es", onClose, onSelec
         </header>
         <div className="drive-picker-location">
           <span>Drive / {String(country).toUpperCase()}</span>
-          {history.map((item) => <span key={`${item.id || "root"}-${item.name}`}> / {item.name}</span>)}
+          {history.map((item) => <span key={`${item.id || "root"}-${item.name}`}> / {localizedDriveFolderName(item.name, locale)}</span>)}
           {folderId ? <button className="secondary-button" type="button" onClick={goBack}>{copy.back}</button> : null}
         </div>
         {error ? <p className="form-error">{error}</p> : null}
@@ -13359,7 +13352,7 @@ function DriveAttachmentPicker({ token, country, locale = "es", onClose, onSelec
         <div className="document-picker-body drive-picker-body">
           {(drive.data?.folders || []).map((folder) => (
             <button className="document-picker-row" type="button" key={folder.id} onClick={() => openFolder(folder)}>
-              <FileText size={18} /><span>{folder.name}</span><strong>{copy.open}</strong>
+              <FileText size={18} /><span>{localizedDriveFolderName(folder.name, locale)}</span><strong>{copy.open}</strong>
             </button>
           ))}
           {(drive.data?.files || []).map((file) => (
