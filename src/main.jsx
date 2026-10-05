@@ -10200,10 +10200,10 @@ const DISTRIBUTOR_QUOTE_UI_COPY = {
 
 function quoteSendCopy(locale) {
   const copy = {
-    fr: { title: "Envoyer par e-mail", sender: "Expéditeur", subject: "Objet", content: "Contenu", attachments: "Pièces jointes", language: "Langue du document", preview: "Aperçu du PDF", cancel: "Annuler", send: "Envoyer", sending: "Envoi...", to: "Envoyer à", addEmail: "Ajouter une autre adresse", add: "Ajouter", search: "Rechercher", addressBook: "Carnet d’adresses", addressBookEyebrow: "CONTACTS", searchContacts: "Rechercher un nom ou une adresse", noContacts: "Aucun contact disponible.", done: "Terminé", close: "Fermer", suggestions: "Suggestions de contacts" },
-    it: { title: "Invia per email", sender: "Mittente", subject: "Oggetto", content: "Contenuto", attachments: "Allegati", language: "Lingua del documento", preview: "Anteprima PDF", cancel: "Annulla", send: "Invia", sending: "Invio...", to: "Invia a", addEmail: "Aggiungi un'altra email", add: "Aggiungi", search: "Cerca", addressBook: "Rubrica", addressBookEyebrow: "CONTATTI", searchContacts: "Cerca nome o email", noContacts: "Nessun contatto disponibile.", done: "Fine", close: "Chiudi", suggestions: "Suggerimenti contatti" },
-    pt: { title: "Enviar por e-mail", sender: "Remetente", subject: "Assunto", content: "Conteúdo", attachments: "Anexos", language: "Idioma do documento", preview: "Pré-visualização do PDF", cancel: "Cancelar", send: "Enviar", sending: "A enviar...", to: "Enviar para", addEmail: "Adicionar outro e-mail", add: "Adicionar", search: "Pesquisar", addressBook: "Livro de contactos", addressBookEyebrow: "CONTACTOS", searchContacts: "Pesquisar nome ou e-mail", noContacts: "Não há contactos disponíveis.", done: "Concluído", close: "Fechar", suggestions: "Sugestões de contactos" },
-    de: { title: "Per E-Mail senden", sender: "Absender", subject: "Betreff", content: "Inhalt", attachments: "Anhänge", language: "Dokumentsprache", preview: "PDF-Vorschau", cancel: "Abbrechen", send: "Senden", sending: "Wird gesendet...", to: "Senden an", addEmail: "Weitere E-Mail hinzufügen", add: "Hinzufügen", search: "Suchen", addressBook: "Adressbuch", addressBookEyebrow: "KONTAKTE", searchContacts: "Name oder E-Mail suchen", noContacts: "Keine Kontakte verfügbar.", done: "Fertig", close: "Schließen", suggestions: "Kontaktvorschläge" }
+    fr: { title: "Envoyer par e-mail", sender: "Expéditeur", subject: "Objet", content: "Contenu", attachments: "Pièces jointes", language: "Langue du document", preview: "Aperçu du PDF", cancel: "Annuler", send: "Envoyer", sending: "Envoi...", to: "Envoyer à", addEmail: "Ajouter une autre adresse", add: "Ajouter", search: "Rechercher", addressBook: "Carnet d’adresses", addressBookEyebrow: "CONTACTS", searchContacts: "Rechercher un nom ou une adresse", noContacts: "Aucun contact disponible.", done: "Terminé", close: "Fermer", suggestions: "Suggestions de contacts", uploadFile: "Importer un fichier", chooseDrive: "Choisir depuis le Drive" },
+    it: { title: "Invia per email", sender: "Mittente", subject: "Oggetto", content: "Contenuto", attachments: "Allegati", language: "Lingua del documento", preview: "Anteprima PDF", cancel: "Annulla", send: "Invia", sending: "Invio...", to: "Invia a", addEmail: "Aggiungi un'altra email", add: "Aggiungi", search: "Cerca", addressBook: "Rubrica", addressBookEyebrow: "CONTATTI", searchContacts: "Cerca nome o email", noContacts: "Nessun contatto disponibile.", done: "Fine", close: "Chiudi", suggestions: "Suggerimenti contatti", uploadFile: "Carica un file", chooseDrive: "Scegli dal Drive" },
+    pt: { title: "Enviar por e-mail", sender: "Remetente", subject: "Assunto", content: "Conteúdo", attachments: "Anexos", language: "Idioma do documento", preview: "Pré-visualização do PDF", cancel: "Cancelar", send: "Enviar", sending: "A enviar...", to: "Enviar para", addEmail: "Adicionar outro e-mail", add: "Adicionar", search: "Pesquisar", addressBook: "Livro de contactos", addressBookEyebrow: "CONTACTOS", searchContacts: "Pesquisar nome ou e-mail", noContacts: "Não há contactos disponíveis.", done: "Concluído", close: "Fechar", suggestions: "Sugestões de contactos", uploadFile: "Carregar um ficheiro", chooseDrive: "Escolher no Drive" },
+    de: { title: "Per E-Mail senden", sender: "Absender", subject: "Betreff", content: "Inhalt", attachments: "Anhänge", language: "Dokumentsprache", preview: "PDF-Vorschau", cancel: "Abbrechen", send: "Senden", sending: "Wird gesendet...", to: "Senden an", addEmail: "Weitere E-Mail hinzufügen", add: "Hinzufügen", search: "Suchen", addressBook: "Adressbuch", addressBookEyebrow: "KONTAKTE", searchContacts: "Name oder E-Mail suchen", noContacts: "Keine Kontakte verfügbar.", done: "Fertig", close: "Schließen", suggestions: "Kontaktvorschläge", uploadFile: "Datei hochladen", chooseDrive: "Aus Drive auswählen" }
   };
   return copy[String(locale).toLowerCase()] || {};
 }
@@ -10740,7 +10740,19 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
   );
 }
 
+function driveCopy(locale = "es") {
+  const copies = {
+    es: { upload: "Subir PDF", uploading: "Subiendo…", back: "← Atrás", loading: "Cargando Drive…", folder: "Carpeta", empty: "Esta carpeta todavía no contiene archivos.", pdfOnly: "Solo se admiten archivos PDF.", maxSize: "El PDF no puede superar 10 MB.", uploadError: "No se ha podido subir el PDF.", openError: "No se ha podido abrir el PDF.", attachDocument: "Adjuntar documento", closeDrive: "Cerrar Drive", open: "Abrir", attach: "Adjuntar" },
+    fr: { upload: "Importer un PDF", uploading: "Importation…", back: "← Retour", loading: "Chargement du Drive…", folder: "Dossier", empty: "Ce dossier ne contient pas encore de fichiers.", pdfOnly: "Seuls les fichiers PDF sont acceptés.", maxSize: "Le PDF ne peut pas dépasser 10 Mo.", uploadError: "Impossible d’importer le PDF.", openError: "Impossible d’ouvrir le PDF.", attachDocument: "Joindre un document", closeDrive: "Fermer le Drive", open: "Ouvrir", attach: "Joindre" },
+    it: { upload: "Carica PDF", uploading: "Caricamento…", back: "← Indietro", loading: "Caricamento Drive…", folder: "Cartella", empty: "Questa cartella non contiene ancora file.", pdfOnly: "Sono ammessi solo file PDF.", maxSize: "Il PDF non può superare 10 MB.", uploadError: "Non è stato possibile caricare il PDF.", openError: "Non è stato possibile aprire il PDF.", attachDocument: "Allega documento", closeDrive: "Chiudi Drive", open: "Apri", attach: "Allega" },
+    pt: { upload: "Carregar PDF", uploading: "A carregar…", back: "← Voltar", loading: "A carregar Drive…", folder: "Pasta", empty: "Esta pasta ainda não contém ficheiros.", pdfOnly: "Só são permitidos ficheiros PDF.", maxSize: "O PDF não pode ultrapassar 10 MB.", uploadError: "Não foi possível carregar o PDF.", openError: "Não foi possível abrir o PDF.", attachDocument: "Anexar documento", closeDrive: "Fechar Drive", open: "Abrir", attach: "Anexar" },
+    de: { upload: "PDF hochladen", uploading: "Wird hochgeladen…", back: "← Zurück", loading: "Drive wird geladen…", folder: "Ordner", empty: "Dieser Ordner enthält noch keine Dateien.", pdfOnly: "Es sind nur PDF-Dateien zulässig.", maxSize: "Das PDF darf nicht größer als 10 MB sein.", uploadError: "Das PDF konnte nicht hochgeladen werden.", openError: "Das PDF konnte nicht geöffnet werden.", attachDocument: "Dokument anhängen", closeDrive: "Drive schließen", open: "Öffnen", attach: "Anhängen" }
+  };
+  return copies[String(locale).toLowerCase()] || copies.es;
+}
+
 function DownloadsView({ token, user, distributor = false, locale = "es" }) {
+  const copy = driveCopy(locale);
   const countries = [
     { id: "es", flag: "🇪🇸", label: "España", description: "Drive comercial y técnico de España." },
     { id: "it", flag: "🇮🇹", label: "Italia", description: "Drive comercial y técnico de Italia." },
@@ -10765,12 +10777,12 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
     if (!file || !folderId) return;
     setUploadError("");
     if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf")) {
-      setUploadError("Solo se admiten archivos PDF.");
+      setUploadError(copy.pdfOnly);
       event.target.value = "";
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setUploadError("El PDF no puede superar 10 MB.");
+      setUploadError(copy.maxSize);
       event.target.value = "";
       return;
     }
@@ -10779,18 +10791,18 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
       await apiRequest("/api/drive/files", { token, method: "POST", body: { country, folderId, name: file.name, content: await fileToBase64(file) } });
       await drive.reload();
     } catch (error) {
-      setUploadError(error.message || "No se ha podido subir el PDF.");
+      setUploadError(error.message || copy.uploadError);
     } finally {
       setUploading(false);
       event.target.value = "";
     }
   }
-  async function previewFile(file) { const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) return; const blob = await response.blob(); setPreview({ name: file.name, url: URL.createObjectURL(blob) }); }
+  async function previewFile(file) { const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) { setUploadError(copy.openError); return; } const blob = await response.blob(); setPreview({ name: file.name, url: URL.createObjectURL(blob) }); }
 
   return (
     <Panel title="Drive">
       {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
-      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Ruta del Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{item.name}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>← Atrás</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? "Subiendo…" : "Subir PDF"}<input type="file" accept="application/pdf,.pdf" onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">Cargando Drive…</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{folder.name}</strong><small>Carpeta</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">Esta carpeta todavía no contiene archivos.</p> : null}</section>
+      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{item.name}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{folder.name}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>
       {preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}
     </Panel>
   );
@@ -13021,8 +13033,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                       </button>
                       {attachmentMenuOpen ? (
                         <div className="attachment-menu" role="menu">
-                          <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">Subir un archivo</button>
-                          <button type="button" onClick={() => { setAttachmentMenuOpen(false); setDriveAttachmentPickerOpen(true); }} role="menuitem">Elegir desde Drive</button>
+                          <button type="button" onClick={() => fileInputRef.current?.click()} role="menuitem">{sendCopy.uploadFile || "Subir un archivo"}</button>
+                          <button type="button" onClick={() => { setAttachmentMenuOpen(false); setDriveAttachmentPickerOpen(true); }} role="menuitem">{sendCopy.chooseDrive || "Elegir desde Drive"}</button>
                         </div>
                       ) : null}
                       <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
@@ -13152,6 +13164,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         <DriveAttachmentPicker
           token={token}
           country={driveCountry}
+          locale={quoteLanguage}
           onClose={() => setDriveAttachmentPickerOpen(false)}
           onSelect={(file) => addAttachment({ type: "Drive", name: file.name, source: "drive", url: file.url })}
         />
@@ -13288,7 +13301,8 @@ function PartialPaymentsModal({ token, invoice, onClose, onUpdated }) {
   );
 }
 
-function DriveAttachmentPicker({ token, country, onClose, onSelect }) {
+function DriveAttachmentPicker({ token, country, locale = "es", onClose, onSelect }) {
+  const copy = driveCopy(locale);
   const [folderId, setFolderId] = useState(null);
   const [history, setHistory] = useState([]);
   const [preview, setPreview] = useState(null);
@@ -13315,12 +13329,12 @@ function DriveAttachmentPicker({ token, country, onClose, onSelect }) {
     setError("");
     try {
       const response = await fetch(`${API_BASE_URL}${file.url}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error("No se ha podido abrir el PDF.");
+      if (!response.ok) throw new Error(copy.openError);
       const blob = await response.blob();
       if (preview?.url) URL.revokeObjectURL(preview.url);
       setPreview({ name: file.name, url: URL.createObjectURL(blob) });
     } catch (previewError) {
-      setError(previewError.message || "No se ha podido abrir el PDF.");
+      setError(previewError.message || copy.openError);
     }
   }
 
@@ -13329,32 +13343,32 @@ function DriveAttachmentPicker({ token, country, onClose, onSelect }) {
       <article className="document-picker-modal drive-attachment-picker" role="dialog" aria-modal="true" aria-labelledby="drive-attachment-picker-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="product-detail-header">
           <div>
-            <p>Adjuntar documento</p>
+            <p>{copy.attachDocument}</p>
             <h3 id="drive-attachment-picker-title">Drive</h3>
           </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar Drive"><X size={18} /></button>
+          <button className="icon-button" type="button" onClick={onClose} aria-label={copy.closeDrive}><X size={18} /></button>
         </header>
         <div className="drive-picker-location">
           <span>Drive / {String(country).toUpperCase()}</span>
           {history.map((item) => <span key={`${item.id || "root"}-${item.name}`}> / {item.name}</span>)}
-          {folderId ? <button className="secondary-button" type="button" onClick={goBack}>← Atrás</button> : null}
+          {folderId ? <button className="secondary-button" type="button" onClick={goBack}>{copy.back}</button> : null}
         </div>
         {error ? <p className="form-error">{error}</p> : null}
-        {drive.loading ? <p className="mail-state">Cargando Drive…</p> : null}
+        {drive.loading ? <p className="mail-state">{copy.loading}</p> : null}
         {drive.error ? <p className="form-error">{drive.error}</p> : null}
         <div className="document-picker-body drive-picker-body">
           {(drive.data?.folders || []).map((folder) => (
             <button className="document-picker-row" type="button" key={folder.id} onClick={() => openFolder(folder)}>
-              <FileText size={18} /><span>{folder.name}</span><strong>Abrir</strong>
+              <FileText size={18} /><span>{folder.name}</span><strong>{copy.open}</strong>
             </button>
           ))}
           {(drive.data?.files || []).map((file) => (
             <div className="document-picker-row drive-picker-file" key={file.id}>
               <button type="button" onClick={() => previewFile(file)}><FileText size={18} /><span>{file.name}</span><small>PDF · {attachmentSize(file.size)}</small></button>
-              <button className="primary-button" type="button" onClick={() => { onSelect(file); onClose(); }}>Adjuntar</button>
+              <button className="primary-button" type="button" onClick={() => { onSelect(file); onClose(); }}>{copy.attach}</button>
             </div>
           ))}
-          {!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">Esta carpeta todavía no contiene archivos.</p> : null}
+          {!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}
         </div>
         {preview ? <section className="drive-preview drive-picker-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18} /></button></header><iframe title={preview.name} src={preview.url} /></section> : null}
       </article>
