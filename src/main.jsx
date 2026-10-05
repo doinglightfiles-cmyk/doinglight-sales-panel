@@ -3506,8 +3506,14 @@ function DocumentPdfPage({
   const commercialConditions = isTuboSolarTemplate
     ? null
     : language === "fr"
-      ? <>Garantie : 10 ans.<br />Modes de paiement : prépaiement, virement bancaire, carte bancaire ou PayPal.<br />Franco de port pour toute commande supérieure à 1&nbsp;000&nbsp;€, hors livraisons sur les îles et commandes spéciales.</>
-      : <>Garantía: 10 Años. Plazo de entrega de 24 a 48 horas (Península)<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o Paypal.<br />Portes pagados en pedidos superiores a 1000€ excepto envío a islas y pedidos especiales.</>;
+      ? <>Garantie : 10 ans. Sauf pour les composants électriques tels que les régulateurs de lumière, les kits LED ou la ventilation, qui sont garantis 2 ans.<br />Modes de paiement : prépaiement, virement bancaire, carte bancaire ou PayPal.<br />Franco de port pour toute commande supérieure à 1&nbsp;000&nbsp;€, hors livraisons sur les îles et commandes spéciales.</>
+      : language === "it"
+        ? <>Garanzia: 10 anni. Fanno eccezione i componenti elettrici, quali regolatori di luce, kit LED o ventilazione, la cui garanzia è di 2 anni.<br />Modalità di pagamento: pagamento anticipato, bonifico bancario, carta di credito o PayPal.<br />Spese di spedizione incluse per ordini superiori a 1.000 €, esclusi invii alle isole e ordini speciali.</>
+        : language === "pt"
+          ? <>Garantia: 10 anos. Exceto componentes elétricos, tais como reguladores de luz, kits LED ou ventilação, cuja garantia é de 2 anos.<br />Formas de pagamento: pré-pagamento, transferência bancária, cartão de crédito ou PayPal.<br />Portes pagos em encomendas superiores a 1.000 €, exceto envios para ilhas e encomendas especiais.</>
+          : language === "de"
+            ? <>Garantie: 10 Jahre. Ausgenommen sind elektrische Komponenten wie Lichtregler, LED-Kits oder Lüftung, für die eine Garantie von 2 Jahren gilt.<br />Zahlungsarten: Vorauszahlung, Banküberweisung, Kreditkarte oder PayPal.<br />Versandkostenfrei bei Bestellungen über 1.000 €, ausgenommen Lieferungen auf Inseln und Sonderbestellungen.</>
+            : <>Garantía: 10 años. Excepto para componentes eléctricos como reguladores de luz, kits de LED o ventilación, que tienen 2 años de garantía.<br />Formas de pago: pre-pago, transferencia bancaria, tarjeta de crédito o PayPal.<br />Portes pagados en pedidos superiores a 1.000 € excepto envío a islas y pedidos especiales.</>;
   const quantityHeader = language === "es" ? "Cant." : text.quantity;
   const discountHeader = language === "es" ? "Dto." : text.discount;
   const priceHeader = language === "es" ? "Precio" : text.price;
