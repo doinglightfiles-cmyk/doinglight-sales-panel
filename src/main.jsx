@@ -3490,7 +3490,7 @@ function DocumentPdfPage({
   const priceHeader = language === "es" ? "Precio" : text.price;
   const taxSummaryLabel = intraCommunity
     ? `${text.vat} 0% · ${INTRACOMMUNITY_TAX_LABEL}`
-    : reverseCharge ? REVERSE_CHARGE_TAX_LABEL : `${text.vat} ${taxRate}%`;
+    : reverseCharge ? REVERSE_CHARGE_TAX_LABEL : language === "fr" && Number(taxRate) === 21 ? "TVA taux Espagnol 21%" : `${text.vat} ${taxRate}%`;
   const notesWithTaxLegalText = intraCommunity ? notesWithIntracommunityLegalText(notes) : notes;
   // La factura emitida a Italia mantiene la cláusula legal española de la
   // sociedad emisora, aunque el resto del documento esté en italiano.
@@ -10785,7 +10785,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const isProforma = documentType === "proforma";
   const distributorTaxOptions = {
     fr: [
-      { value: "21", rate: 21, label: "21%" },
+      { value: "21", rate: 21, label: "TVA taux Espagnol 21%" },
       { value: INTRACOMMUNITY_TAX_CODE, rate: 0, label: "Intracommunautaire · 0%", reverseCharge: true }
     ],
     it: [
