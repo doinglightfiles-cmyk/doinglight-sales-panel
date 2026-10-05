@@ -3423,6 +3423,23 @@ function paymentDetailsPdfText(language) {
   };
 }
 
+function paidShippingText(language) {
+  const copy = {
+    fr: "FRAIS DE PORT PAYÉS",
+    it: "SPESE DI SPEDIZIONE PAGATE",
+    pt: "PORTES PAGOS",
+    de: "VERSANDKOSTEN BEZAHLT",
+    en: "SHIPPING PAID",
+    nl: "VERZENDKOSTEN BETAALD"
+  };
+  return copy[String(language || "es").toLowerCase()] || "PORTES PAGADOS";
+}
+
+function isPaidShippingLine(line) {
+  if (line?.shippingPaid || line?.productSnapshot?.shippingPaid) return true;
+  return String(line?.title || line?.concept || line?.productSnapshot?.title || "").trim().toUpperCase() === "PORTES PAGADOS";
+}
+
 function DocumentPdfPage({
   id,
   type = "quote",
@@ -3537,7 +3554,7 @@ function DocumentPdfPage({
             </span>
             <span className="quote-pdf-line-code">{line.code || "-"}</span>
             <span className="quote-pdf-line-concept">
-              <span>{line.concept || "-"}</span>
+              <span>{line.lineType === "shipping" && isPaidShippingLine(line) ? paidShippingText(language) : line.concept || "-"}</span>
               {line.customNote ? <em className="quote-pdf-line-custom-note">{line.customNote}</em> : null}
             </span>
             <span className="quote-pdf-line-number">{formatLineQuantity(line.quantity)}</span>
@@ -10175,10 +10192,10 @@ function documentFormMeta(documentType) {
 }
 
 const DISTRIBUTOR_QUOTE_UI_COPY = {
-  fr: { responsible: "Responsable", changeOwner: "Changer le responsable", total: "Total", date: "Date", documentNumber: "Numéro du document", automaticNumber: "Sera généré automatiquement", email: "E-mail d’envoi", noEmail: "Sans adresse e-mail", validUntil: "Valable jusqu’au", paymentMethod: "Mode de paiement", undefined: "Non défini", status: "Statut du devis", billingData: "Informations de facturation", noBillingData: "Sans informations de facturation", notes: "Notes", customerNotes: "Notes visibles par le client", internalNotes: "Notes internes", internalNotesHint: "Notes non visibles par le client", lines: "Lignes du document", shipping: "FRAIS DE PORT", reference: "Référence", writeReference: "Saisissez une référence", description: "Description", productUnselected: "Produit non sélectionné", selectCatalogProduct: "Sélectionnez un produit dans le catalogue", quantity: "Quantité", discount: "Remise %", amount: "Montant", vat: "TVA", taxableBase: "Base imposable", save: "Enregistrer", send: "Envoyer", pending: "En attente", includePayment: "Inclure les informations de paiement dans le PDF" },
-  it: { responsible: "Responsabile", changeOwner: "Cambia responsabile", total: "Totale", date: "Data", documentNumber: "Numero documento", automaticNumber: "Verrà generato automaticamente", email: "Email di invio", noEmail: "Nessuna email", validUntil: "Valido fino al", paymentMethod: "Metodo di pagamento", undefined: "Non definito", status: "Stato del preventivo", billingData: "Dati di fatturazione", noBillingData: "Nessun dato di fatturazione", notes: "Note", customerNotes: "Note visibili al cliente", internalNotes: "Note interne", internalNotesHint: "Note non visibili al cliente", lines: "Righe del documento", shipping: "SPESE DI SPEDIZIONE", reference: "Riferimento", writeReference: "Inserisci un riferimento", description: "Descrizione", productUnselected: "Prodotto non selezionato", selectCatalogProduct: "Seleziona un prodotto dal catalogo", quantity: "Quantità", discount: "Sconto %", amount: "Importo", vat: "IVA", taxableBase: "Imponibile", save: "Salva", send: "Invia", pending: "In attesa", includePayment: "Includi i dati di pagamento nel PDF" },
-  pt: { responsible: "Responsável", changeOwner: "Alterar responsável", total: "Total", date: "Data", documentNumber: "Número do documento", automaticNumber: "Será gerado automaticamente", email: "E-mail de envio", noEmail: "Sem e-mail", validUntil: "Válido até", paymentMethod: "Método de pagamento", undefined: "Não definido", status: "Estado do orçamento", billingData: "Dados de faturação", noBillingData: "Sem dados de faturação", notes: "Notas", customerNotes: "Notas visíveis para o cliente", internalNotes: "Notas internas", internalNotesHint: "Notas não visíveis para o cliente", lines: "Linhas do documento", shipping: "PORTES", reference: "Referência", writeReference: "Escreva uma referência", description: "Descrição", productUnselected: "Produto não selecionado", selectCatalogProduct: "Selecione um produto do catálogo", quantity: "Quantidade", discount: "Desconto %", amount: "Valor", vat: "IVA", taxableBase: "Base tributável", save: "Guardar", send: "Enviar", pending: "Pendente", includePayment: "Incluir dados de pagamento no PDF" },
-  de: { responsible: "Verantwortlich", changeOwner: "Verantwortlichen ändern", total: "Gesamt", date: "Datum", documentNumber: "Dokumentnummer", automaticNumber: "Wird automatisch erstellt", email: "E-Mail für den Versand", noEmail: "Keine E-Mail-Adresse", validUntil: "Gültig bis", paymentMethod: "Zahlungsmethode", undefined: "Nicht festgelegt", status: "Angebotsstatus", billingData: "Rechnungsdaten", noBillingData: "Keine Rechnungsdaten", notes: "Hinweise", customerNotes: "Für den Kunden sichtbare Hinweise", internalNotes: "Interne Hinweise", internalNotesHint: "Für den Kunden nicht sichtbare Hinweise", lines: "Dokumentpositionen", shipping: "VERSANDKOSTEN", reference: "Referenz", writeReference: "Referenz eingeben", description: "Beschreibung", productUnselected: "Produkt nicht ausgewählt", selectCatalogProduct: "Produkt aus dem Katalog auswählen", quantity: "Menge", discount: "Rabatt %", amount: "Betrag", vat: "MwSt.", taxableBase: "Steuergrundlage", save: "Speichern", send: "Senden", pending: "Ausstehend", includePayment: "Zahlungsdaten im PDF einfügen" }
+  fr: { responsible: "Responsable", changeOwner: "Changer le responsable", total: "Total", date: "Date", documentNumber: "Numéro du document", automaticNumber: "Sera généré automatiquement", email: "E-mail d’envoi", noEmail: "Sans adresse e-mail", validUntil: "Valable jusqu’au", paymentMethod: "Mode de paiement", undefined: "Non défini", status: "Statut du devis", billingData: "Informations de facturation", noBillingData: "Sans informations de facturation", notes: "Notes", customerNotes: "Notes visibles par le client", internalNotes: "Notes internes", internalNotesHint: "Notes non visibles par le client", lines: "Lignes du document", shipping: "FRAIS DE PORT", paidShipping: "FRAIS DE PORT PAYÉS", reference: "Référence", writeReference: "Saisissez une référence", description: "Description", productUnselected: "Produit non sélectionné", selectCatalogProduct: "Sélectionnez un produit dans le catalogue", quantity: "Quantité", discount: "Remise %", amount: "Montant", vat: "TVA", taxableBase: "Base imposable", save: "Enregistrer", send: "Envoyer", pending: "En attente", includePayment: "Inclure les informations de paiement dans le PDF" },
+  it: { responsible: "Responsabile", changeOwner: "Cambia responsabile", total: "Totale", date: "Data", documentNumber: "Numero documento", automaticNumber: "Verrà generato automaticamente", email: "Email di invio", noEmail: "Nessuna email", validUntil: "Valido fino al", paymentMethod: "Metodo di pagamento", undefined: "Non definito", status: "Stato del preventivo", billingData: "Dati di fatturazione", noBillingData: "Nessun dato di fatturazione", notes: "Note", customerNotes: "Note visibili al cliente", internalNotes: "Note interne", internalNotesHint: "Note non visibili al cliente", lines: "Righe del documento", shipping: "SPESE DI SPEDIZIONE", paidShipping: "SPESE DI SPEDIZIONE PAGATE", reference: "Riferimento", writeReference: "Inserisci un riferimento", description: "Descrizione", productUnselected: "Prodotto non selezionato", selectCatalogProduct: "Seleziona un prodotto dal catalogo", quantity: "Quantità", discount: "Sconto %", amount: "Importo", vat: "IVA", taxableBase: "Imponibile", save: "Salva", send: "Invia", pending: "In attesa", includePayment: "Includi i dati di pagamento nel PDF" },
+  pt: { responsible: "Responsável", changeOwner: "Alterar responsável", total: "Total", date: "Data", documentNumber: "Número do documento", automaticNumber: "Será gerado automaticamente", email: "E-mail de envio", noEmail: "Sem e-mail", validUntil: "Válido até", paymentMethod: "Método de pagamento", undefined: "Não definido", status: "Estado do orçamento", billingData: "Dados de faturação", noBillingData: "Sem dados de faturação", notes: "Notas", customerNotes: "Notas visíveis para o cliente", internalNotes: "Notas internas", internalNotesHint: "Notas não visíveis para o cliente", lines: "Linhas do documento", shipping: "PORTES", paidShipping: "PORTES PAGOS", reference: "Referência", writeReference: "Escreva uma referência", description: "Descrição", productUnselected: "Produto não selecionado", selectCatalogProduct: "Selecione um produto do catálogo", quantity: "Quantidade", discount: "Desconto %", amount: "Valor", vat: "IVA", taxableBase: "Base tributável", save: "Guardar", send: "Enviar", pending: "Pendente", includePayment: "Incluir dados de pagamento no PDF" },
+  de: { responsible: "Verantwortlich", changeOwner: "Verantwortlichen ändern", total: "Gesamt", date: "Datum", documentNumber: "Dokumentnummer", automaticNumber: "Wird automatisch erstellt", email: "E-Mail für den Versand", noEmail: "Keine E-Mail-Adresse", validUntil: "Gültig bis", paymentMethod: "Zahlungsmethode", undefined: "Nicht festgelegt", status: "Angebotsstatus", billingData: "Rechnungsdaten", noBillingData: "Keine Rechnungsdaten", notes: "Hinweise", customerNotes: "Für den Kunden sichtbare Hinweise", internalNotes: "Interne Hinweise", internalNotesHint: "Für den Kunden nicht sichtbare Hinweise", lines: "Dokumentpositionen", shipping: "VERSANDKOSTEN", paidShipping: "VERSANDKOSTEN BEZAHLT", reference: "Referenz", writeReference: "Referenz eingeben", description: "Beschreibung", productUnselected: "Produkt nicht ausgewählt", selectCatalogProduct: "Produkt aus dem Katalog auswählen", quantity: "Menge", discount: "Rabatt %", amount: "Betrag", vat: "MwSt.", taxableBase: "Steuergrundlage", save: "Speichern", send: "Senden", pending: "Ausstehend", includePayment: "Zahlungsdaten im PDF einfügen" }
 };
 
 function quoteSendCopy(locale) {
@@ -11252,14 +11269,18 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
 
   function productForLine(line) {
     if (line.lineType === "shipping" || line.productSnapshot?.type === "shipping") {
-      const shippingTitle = String(line.productSnapshot?.title || line.title || "Portes").trim();
+      const paidShipping = isPaidShippingLine(line);
+      const shippingTitle = paidShipping
+        ? paidShippingText(quoteLanguage)
+        : String(line.productSnapshot?.title || line.title || "Portes").trim();
       return {
         ...(line.productSnapshot || {}),
         source: "system",
         type: "shipping",
         sku: "PORTES",
         title: shippingTitle,
-        shortDescription: shippingTitle === "PORTES PAGADOS" ? "Portes incluidos" : "Gastos de transporte"
+        shippingPaid: paidShipping,
+        shortDescription: paidShipping ? shippingTitle : "Gastos de transporte"
       };
     }
     if (line.lineType === "custom" && String(line.sku || line.skuQuery || "").trim().toUpperCase() === "ALMORCHON") {
@@ -11434,15 +11455,16 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         discountPercent: 0,
         unitPriceOverride: 0,
         manualTotal: 0,
-        title: "PORTES PAGADOS",
+        title: paidShippingText(quoteLanguage),
         customNote: "",
         customNoteOpen: false,
         productSnapshot: {
           source: "system",
           type: "shipping",
           sku: "PORTES",
-          title: "PORTES PAGADOS",
-          shortDescription: "Portes incluidos"
+          title: paidShippingText(quoteLanguage),
+          shortDescription: paidShippingText(quoteLanguage),
+          shippingPaid: true
         }
       };
       if (existingIndex < 0) return [...current, shippingLine];
@@ -11697,7 +11719,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       quantity,
       price: unitPrice,
       discount,
-      total: lineAmount
+      total: lineAmount,
+      shippingPaid: isPaidShippingLine(line)
     };
   });
 
@@ -11870,7 +11893,8 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   type: "shipping",
                   sku: "PORTES",
                   title: String(product?.title || line.title || "Portes").trim(),
-                  shortDescription: product?.shortDescription || "Gastos de transporte"
+                  shortDescription: product?.shortDescription || "Gastos de transporte",
+                  shippingPaid: Boolean(product?.shippingPaid)
                 }
               : isCustomLine
                 ? { source: "system", type: "custom", sku: "ALMORCHON", title: String(line.title || "").trim(), shortDescription: String(line.title || "").trim() }
@@ -12800,7 +12824,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             {shippingError ? <p className="form-error">{shippingError}</p> : null}
             <div className="form-actions">
               <button className="secondary-button" type="button" onClick={() => setShippingModalOpen(false)}>Cancelar</button>
-              <button className="secondary-button" type="button" onClick={savePaidShippingLine}>PORTES PAGADOS</button>
+              <button className="secondary-button" type="button" onClick={savePaidShippingLine}>{t("paidShipping", "PORTES PAGADOS")}</button>
               <button className="primary-button" type="submit">Añadir portes</button>
             </div>
           </form>
