@@ -9519,7 +9519,9 @@ function LeadMainFields({
   viesMessage = "",
   onViesInputChange,
   onCheckWhatsapp,
-  whatsappMessage = ""
+  whatsappMessage = "",
+  onPostalLookup,
+  postalLookupPending = false
 }) {
   const isSupplier = contactKind === "supplier";
   const copy = distributorPanelCopy(locale);
@@ -9531,6 +9533,7 @@ function LeadMainFields({
     nl: "NL"
   }[String(locale || "").toLowerCase()] || form.country;
   const viesInvalid = Boolean(viesMessage && !form.viesValid && !viesChecking);
+  const postalLookupLabel = { es: "Buscando…", fr: "Recherche…", it: "Ricerca…", pt: "A pesquisar…", de: "Suche…" }[String(locale).toLowerCase()] || "Buscando…";
   const viesButtonClass = [
     "secondary-button",
     form.viesValid ? "vies-validated-button" : "",
@@ -9637,7 +9640,10 @@ function LeadMainFields({
           <input placeholder={distributor ? copy.company : "Empresa"} value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : <span className="hidden-grid-cell" aria-hidden="true" />}
         <input placeholder={distributor ? copy.address : "Dirección"} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
-        <input placeholder={distributor ? copy.postalCode : "C.P."} value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} />
+        <label className="postal-code-field">
+          <input placeholder={distributor ? copy.postalCode : "C.P."} value={form.postalCode} onChange={(event) => onPostalLookup ? onPostalLookup(event.target.value, form.country) : setForm({ ...form, postalCode: event.target.value })} />
+          {postalLookupPending ? <small>{postalLookupLabel}</small> : null}
+        </label>
         <input placeholder={distributor ? copy.locality : "Población"} value={form.population} onChange={(event) => setForm({ ...form, population: event.target.value })} />
         <input placeholder={distributor ? copy.city : "Ciudad"} value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
         <input placeholder={distributor ? copy.phone : "Teléfono"} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
@@ -9656,7 +9662,11 @@ function LeadMainFields({
             value={form.country}
             onChange={(event) => {
               onViesInputChange?.();
-              setForm({ ...form, country: event.target.value, viesValid: false });
+              if (onPostalLookup) {
+                onPostalLookup(form.postalCode, event.target.value, { countryChanged: true });
+              } else {
+                setForm({ ...form, country: event.target.value, viesValid: false });
+              }
             }}
           >
             {EUROPEAN_COUNTRIES.map((country) => (
@@ -9880,7 +9890,35 @@ function LeadFormFields({
   const [viesMessage, setViesMessage] = useState("");
   const [viesChecking, setViesChecking] = useState(false);
   const [whatsappMessage, setWhatsappMessage] = useState("");
+  const [postalLookupPending, setPostalLookupPending] = useState(false);
+  const postalLookupTimerRef = useRef(null);
   const paymentNotificationsAllowed = !["level_1", "level_2"].includes(form.customerLevel);
+
+  useEffect(() => () => window.clearTimeout(postalLookupTimerRef.current), []);
+
+  function lookupPostalCode(postalCode, country, { countryChanged = false } = {}) {
+    const nextPostalCode = String(postalCode || "");
+    const nextCountry = String(country || "").toUpperCase();
+    setForm((current) => ({ ...current, postalCode: nextPostalCode, country: nextCountry || current.country, viesValid: countryChanged ? false : current.viesValid }));
+    window.clearTimeout(postalLookupTimerRef.current);
+    const compactPostalCode = nextPostalCode.replace(/[\s-]/g, "");
+    const validPostalCode = nextCountry === "PT" ? /^\d{7}$/.test(compactPostalCode) : /^\d{5}$/.test(compactPostalCode);
+    if (!validPostalCode || !["ES", "FR", "IT", "PT"].includes(nextCountry)) {
+      setPostalLookupPending(false);
+      return;
+    }
+    postalLookupTimerRef.current = window.setTimeout(async () => {
+      setPostalLookupPending(true);
+      try {
+        const result = await apiRequest(`/api/sales/postal-lookup?country=${encodeURIComponent(nextCountry)}&postalCode=${encodeURIComponent(nextPostalCode)}`, { token });
+        setForm((current) => current.postalCode === nextPostalCode && current.country === nextCountry
+          ? { ...current, population: result.result.population || current.population, city: result.result.city || current.city, province: result.result.province || current.province }
+          : current);
+      } catch {
+        // Si no hay coincidencia, los tres campos siguen disponibles para edición manual.
+      } finally { setPostalLookupPending(false); }
+    }, 450);
+  }
 
   async function submit(event) {
     event?.preventDefault();
@@ -9948,6 +9986,8 @@ function LeadFormFields({
         onViesInputChange={() => setViesMessage("")}
         onCheckWhatsapp={checkWhatsapp}
         whatsappMessage={whatsappMessage}
+        onPostalLookup={lookupPostalCode}
+        postalLookupPending={postalLookupPending}
       />
       {!distributor ? <p className="form-help">Este descuento se aplicará por defecto al crear presupuestos para este cliente.</p> : null}
       {!distributor ? <LeadCrmFields
