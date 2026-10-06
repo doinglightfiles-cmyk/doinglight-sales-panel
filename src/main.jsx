@@ -1711,14 +1711,14 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     ...(isAngelSpainDistributor ? [{ id: "angel-billing", label: "Facturación" }] : []),
     { id: "contacts", label: distributorLabels.clients },
     { id: "catalog", label: distributorLabels.products },
-    ...(!isAngelSpainDistributor ? [{ id: "downloads", label: "Drive" }] : []),
+    { id: "downloads", label: "Drive" },
     ...(isFrenchDistributor ? [{ id: "mail", label: "Mail" }] : [])
   ] : [
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
     { id: "purchases", label: "Compras" },
     { id: "contacts", label: "Contactos" },
-    ...(canManageWebsites ? [{ id: "websites", label: "Webs" }] : [])
+    ...(canManageWebsites ? [{ id: "websites", label: "Webs" }] : [{ id: "downloads", label: "Drive" }])
   ];
   const moreGroups = [
     {
