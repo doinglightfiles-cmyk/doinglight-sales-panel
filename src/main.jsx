@@ -1162,6 +1162,7 @@ function WarehouseApp({ session, onLogout }) {
   const [chatCount, setChatCount] = useState(0);
   const [manufacturingCount, setManufacturingCount] = useState(0);
   const [themeAlert, refreshThemeAlert] = useChatThemeAlert(session.token, true);
+  useChatNotificationChime(chatCount, true);
 
   async function load() {
     setError("");
@@ -1196,7 +1197,7 @@ function WarehouseApp({ session, onLogout }) {
 
   useEffect(() => {
     loadOperationCounts();
-    const timer = window.setInterval(loadOperationCounts, 15000);
+    const timer = window.setInterval(loadOperationCounts, 8000);
     return () => window.clearInterval(timer);
   }, [session.token]);
 
@@ -1349,6 +1350,69 @@ function useChatThemeAlert(token, enabled) {
     return () => window.clearInterval(timer);
   }, [token, enabled]);
   return [alert, refresh];
+}
+
+function useChatNotificationChime(unreadCount, enabled = true) {
+  const previousCountRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const audioUnlockedRef = useRef(false);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+
+    // Los navegadores solo permiten reproducir sonido después de una acción
+    // del usuario. El primer clic o pulsación en el panel habilita el aviso.
+    const unlockAudio = () => {
+      const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextConstructor) return;
+      const context = audioContextRef.current || new AudioContextConstructor();
+      audioContextRef.current = context;
+      context.resume()
+        .then(() => { audioUnlockedRef.current = context.state === "running"; })
+        .catch(() => {});
+    };
+
+    window.addEventListener("pointerdown", unlockAudio, { passive: true });
+    window.addEventListener("keydown", unlockAudio);
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, [enabled]);
+
+  useEffect(() => {
+    const nextCount = Math.max(0, Number(unreadCount || 0));
+    if (!enabled) {
+      previousCountRef.current = nextCount;
+      return;
+    }
+    if (previousCountRef.current === null) {
+      previousCountRef.current = nextCount;
+      return;
+    }
+
+    const receivedNewMessage = nextCount > previousCountRef.current;
+    previousCountRef.current = nextCount;
+    const context = audioContextRef.current;
+    if (!receivedNewMessage || !audioUnlockedRef.current || !context || context.state !== "running") return;
+
+    try {
+      const now = context.currentTime;
+      [0, 0.13].forEach((delay, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(index === 0 ? 784 : 1047, now + delay);
+        gain.gain.setValueAtTime(0.0001, now + delay);
+        gain.gain.exponentialRampToValueAtTime(0.08, now + delay + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.21);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now + delay);
+        oscillator.stop(now + delay + 0.22);
+      });
+    } catch {}
+  }, [enabled, unreadCount]);
 }
 
 function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
@@ -1702,10 +1766,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     de: { quotes: "Angebote", clients: "Kunden", products: "Produkte" }
   }[panelLocale] || { quotes: "Presupuestos", clients: "Clientes", products: "Productos" };
   const [themeAlert,refreshThemeAlert]=useChatThemeAlert(session.token,canUseChat);
+  useChatNotificationChime(chatCount,canUseChat);
   async function loadNotificationCount(){try{const result=await apiRequest("/api/notifications/unread-count",{token:session.token});setNotificationCount(result.count||0);}catch{}}
   useEffect(()=>{loadNotificationCount();const timer=window.setInterval(loadNotificationCount,30000);return()=>window.clearInterval(timer);},[session.token]);
   async function loadChatCount(){if(!canUseChat)return;try{const result=await apiRequest("/api/operations/chat/unread-count",{token:session.token});setChatCount(result.count||0);}catch{}}
-  useEffect(()=>{loadChatCount();if(!canUseChat)return undefined;const timer=window.setInterval(loadChatCount,15000);return()=>window.clearInterval(timer);},[session.token,canUseChat]);
+  useEffect(()=>{loadChatCount();if(!canUseChat)return undefined;const timer=window.setInterval(loadChatCount,8000);return()=>window.clearInterval(timer);},[session.token,canUseChat]);
   const primaryNav = isDistributor ? [
     { id: "quotes", label: distributorLabels.quotes },
     ...(isAngelSpainDistributor ? [{ id: "angel-billing", label: "Facturación" }] : []),
