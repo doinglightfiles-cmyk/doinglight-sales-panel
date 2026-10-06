@@ -2369,6 +2369,10 @@ select:focus {
 }
 
 .invoice-table .invoice-row-pending td {
+  background: #fff4df;
+}
+
+.invoice-table .invoice-row-overdue td {
   background: #fff0ef;
 }
 
@@ -2381,6 +2385,10 @@ select:focus {
 }
 
 .invoice-table .invoice-row-pending:hover td {
+  background: #ffebc9;
+}
+
+.invoice-table .invoice-row-overdue:hover td {
   background: #ffe2df;
 }
 
@@ -2441,7 +2449,7 @@ select:focus {
 }
 
 .invoice-payment-status.pending {
-  color: #c7332d;
+  color: #c56b00;
 }
 
 .invoice-payment-status.partial {

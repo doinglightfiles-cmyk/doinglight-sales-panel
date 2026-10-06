@@ -3159,6 +3159,9 @@ function invoicePaymentState(main, total, fdState = "") {
       partialPaymentAmount
     };
   }
+  if (explicitStatus.includes("overdue") || explicitStatus.includes("atrasad") || explicitStatus.includes("vencid")) {
+    return { key: "overdue", label: "Atrasado", pendingBalance: pendingBalance || total };
+  }
   if (pendingBalance > 0 || explicitStatus.includes("pending") || explicitStatus.includes("pendiente")) {
     return { key: "pending", label: "Pendiente", pendingBalance: pendingBalance || total };
   }
@@ -3385,6 +3388,7 @@ const QUOTE_STATUS_OPTIONS = [
 
 const INVOICE_STATUS_OPTIONS = [
   { value: "pending", label: "Pendiente" },
+  { value: "overdue", label: "Atrasado", disabled: true },
   { value: "paid", label: "Cobrada" },
   { value: "partial", label: "Parcial" },
   { value: "rectified", label: "Rectificada" },
@@ -3987,7 +3991,7 @@ function internalDocumentState(status = "", documentType = "invoice") {
 
 function serializeInternalSalesDocument(item) {
   const payment = item.documentType === "invoice"
-    ? invoicePaymentState({ ...(item.payload || {}), status: item.status }, Number(item.total || 0), item.status)
+    ? invoicePaymentState({ ...(item.payload || {}), status: item.status, dueDate: item.dueDate }, Number(item.total || 0), item.status)
     : null;
   const status = payment || internalDocumentState(item.status, item.documentType);
   const date = item.issueDate || item.createdAt;
@@ -4107,6 +4111,10 @@ function invoiceRowStatusClass(invoice) {
 
   if (statusKey === "partial" || statusLabel === "parcial") {
     return "invoice-row-partial";
+  }
+
+  if (statusKey === "overdue" || statusLabel === "atrasado") {
+    return "invoice-row-overdue";
   }
 
   if (statusKey === "pending" || statusLabel === "pendiente") {
@@ -11487,7 +11495,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const [redsysPaymentUrl, setRedsysPaymentUrl] = useState(initialQuote?.redsysPaymentUrl || "");
   const [quoteStatus, setQuoteStatus] = useState(() => (
     isInvoice
-      ? invoicePaymentState({ status: initialQuote?.status }, Number(initialQuote?.total || 0), initialQuote?.status).key
+      ? invoicePaymentState({ status: initialQuote?.status, dueDate: initialQuote?.dueDate }, Number(initialQuote?.total || 0), initialQuote?.status).key
       : initialQuote?.status || "draft"
   ));
   const [partialPaymentAmount, setPartialPaymentAmount] = useState(() => String(initialQuote?.partialPaymentAmount || initialQuote?.payload?.partialPaymentAmount || ""));
@@ -11638,7 +11646,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     : statusOptions;
   const selectedStatusLabel = visibleStatusOptions.find((status) => status.value === quoteStatus)?.label
     || (isInvoice
-      ? invoicePaymentState({ status: quoteStatus }, Number(currentDocument?.total || 0), quoteStatus).label
+      ? invoicePaymentState({ status: quoteStatus, dueDate: validUntil }, Number(currentDocument?.total || 0), quoteStatus).label
       : quoteStatusState(quoteStatus).label)
     || "Pendiente";
   const selectedQuoteLanguageLabel = QUOTE_LANGUAGE_OPTIONS.find((language) => language.value === quoteLanguage)?.label || "Español";
@@ -12557,7 +12565,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       locale: quoteLanguage || "es",
       leadId: effectiveLeadId || null,
       ownerUserId: selectedOwnerUserId || currentUser?.id || null,
-      status: isInvoice ? invoicePaymentState({ status: quoteStatus }, total, quoteStatus).key : quoteStatus,
+      // "Atrasado" se calcula desde el vencimiento. Se persiste como
+      // pendiente para que, al cambiar la fecha a una futura, vuelva a su
+      // estado correcto sin intervención manual.
+      status: isInvoice ? (quoteStatus === "overdue" ? "pending" : invoicePaymentState({ status: quoteStatus, dueDate: validUntil }, total, quoteStatus).key) : quoteStatus,
       issueDate: quoteDate,
       dueDate: validUntil,
       paymentMethod,
@@ -12794,7 +12805,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           }));
         }
         setQuoteStatus(isInvoice
-          ? invoicePaymentState({ status: saved.status || quoteStatus }, Number(saved.total || total), saved.status || quoteStatus).key
+          ? invoicePaymentState({ status: saved.status || quoteStatus, dueDate: saved.dueDate || validUntil }, Number(saved.total || total), saved.status || quoteStatus).key
           : saved.status || quoteStatus);
       }
 
