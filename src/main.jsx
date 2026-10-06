@@ -64,6 +64,40 @@ const USER_DISPLAY_NAMES = new Map([
   [WAREHOUSE_EMAIL, "Almacén"]
 ]);
 
+// Compartimos un único contexto de audio para todo el panel. Así el aviso
+// funciona tanto con el chat cerrado (contador de no leídos) como con la
+// conversación abierta, que se marca como leída inmediatamente.
+let chatAudioContext = null;
+
+function unlockChatChime() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) return;
+  const context = chatAudioContext || new AudioContextConstructor();
+  chatAudioContext = context;
+  if (context.state !== "running") context.resume().catch(() => {});
+}
+
+function playChatChime() {
+  const context = chatAudioContext;
+  if (!context || context.state !== "running") return;
+  try {
+    const now = context.currentTime;
+    [0, 0.13].forEach((delay, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(index === 0 ? 784 : 1047, now + delay);
+      gain.gain.setValueAtTime(0.0001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + delay + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.21);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now + delay);
+      oscillator.stop(now + delay + 0.22);
+    });
+  } catch {}
+}
+
 const LOGIN_COPY = {
   es: { email: "Email", password: "Contraseña", submit: "Entrar", loading: "Entrando...", forgot: "Si has olvidado tu contraseña pregúntale a Edu", error: "No se ha podido iniciar sesión. Comprueba tus datos." },
   it: { email: "Email", password: "Password", submit: "Accedi", loading: "Accesso in corso...", forgot: "Se hai dimenticato la password, chiedi a Edu", error: "Non è stato possibile accedere. Controlla i tuoi dati." },
@@ -1354,29 +1388,17 @@ function useChatThemeAlert(token, enabled) {
 
 function useChatNotificationChime(unreadCount, enabled = true) {
   const previousCountRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const audioUnlockedRef = useRef(false);
 
   useEffect(() => {
     if (!enabled) return undefined;
 
     // Los navegadores solo permiten reproducir sonido después de una acción
     // del usuario. El primer clic o pulsación en el panel habilita el aviso.
-    const unlockAudio = () => {
-      const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextConstructor) return;
-      const context = audioContextRef.current || new AudioContextConstructor();
-      audioContextRef.current = context;
-      context.resume()
-        .then(() => { audioUnlockedRef.current = context.state === "running"; })
-        .catch(() => {});
-    };
-
-    window.addEventListener("pointerdown", unlockAudio, { passive: true });
-    window.addEventListener("keydown", unlockAudio);
+    window.addEventListener("pointerdown", unlockChatChime, { passive: true });
+    window.addEventListener("keydown", unlockChatChime);
     return () => {
-      window.removeEventListener("pointerdown", unlockAudio);
-      window.removeEventListener("keydown", unlockAudio);
+      window.removeEventListener("pointerdown", unlockChatChime);
+      window.removeEventListener("keydown", unlockChatChime);
     };
   }, [enabled]);
 
@@ -1386,33 +1408,29 @@ function useChatNotificationChime(unreadCount, enabled = true) {
       previousCountRef.current = nextCount;
       return;
     }
-    if (previousCountRef.current === null) {
-      previousCountRef.current = nextCount;
+    const receivedNewMessage = previousCountRef.current === null
+      ? nextCount > 0
+      : nextCount > previousCountRef.current;
+    previousCountRef.current = nextCount;
+    if (receivedNewMessage) playChatChime();
+  }, [enabled, unreadCount]);
+}
+
+function useOpenChatChime(messages, currentUserId, enabled = true) {
+  const knownMessageIdsRef = useRef(null);
+
+  useEffect(() => {
+    const currentIds = new Set(messages.map((message) => message.id));
+    if (!enabled || knownMessageIdsRef.current === null) {
+      knownMessageIdsRef.current = currentIds;
       return;
     }
-
-    const receivedNewMessage = nextCount > previousCountRef.current;
-    previousCountRef.current = nextCount;
-    const context = audioContextRef.current;
-    if (!receivedNewMessage || !audioUnlockedRef.current || !context || context.state !== "running") return;
-
-    try {
-      const now = context.currentTime;
-      [0, 0.13].forEach((delay, index) => {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(index === 0 ? 784 : 1047, now + delay);
-        gain.gain.setValueAtTime(0.0001, now + delay);
-        gain.gain.exponentialRampToValueAtTime(0.08, now + delay + 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.21);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(now + delay);
-        oscillator.stop(now + delay + 0.22);
-      });
-    } catch {}
-  }, [enabled, unreadCount]);
+    const hasNewIncomingMessage = messages.some(
+      (message) => !knownMessageIdsRef.current.has(message.id) && message.senderId !== currentUserId
+    );
+    knownMessageIdsRef.current = currentIds;
+    if (hasNewIncomingMessage) playChatChime();
+  }, [messages, currentUserId, enabled]);
 }
 
 function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
@@ -1613,6 +1631,7 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" })
   const [selectedPeerId, setSelectedPeerId] = useState(initialPeerId || (canUseGeneral ? "general" : ""));
   const messagesRef = useRef(null);
   const attachmentInputRef = useRef(null);
+  useOpenChatChime(messages, user?.id, true);
 
   async function loadParticipants() {
     const result = await apiRequest("/api/operations/chat/participants", { token });
