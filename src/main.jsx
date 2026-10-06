@@ -1864,15 +1864,13 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
       items: [
         { id: "invoices", label: "Facturas" },
         { id: "quotes", label: "Presupuestos" },
-        { id: "delivery-notes", label: "Albaranes" },
-        { id: "all-sales", label: "Todas las ventas" }
+        { id: "delivery-notes", label: "Albaranes" }
       ]
     },
     {
       title: "Compras",
       items: [
         { id: "purchases", label: "Compras/Gastos" },
-        { id: "payroll", label: "Nóminas" },
         { id: "purchase-scan", label: "Escáner Compras" }
       ]
     },
@@ -1882,17 +1880,12 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         { id: "contacts", label: "Contactos" },
         { id: "catalog", label: "Productos" },
         { id: "downloads", label: "Drive" },
-        { id: "recurring-tasks", label: "Tareas recurrentes" },
         { id: "activity", label: "Actividad" }
       ]
     },
     {
       title: "Finanzas y contabilidad",
       items: [
-        { id: "banks", label: "Bancos" },
-        { id: "bank-remittances", label: "Remesas bancarias" },
-        { id: "taxes", label: "Impuestos" },
-        { id: "accounting-entries", label: "Asientos contables" },
         { id: "reports", label: "Informes" }
       ]
     }
