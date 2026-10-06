@@ -1840,7 +1840,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   // sessions may additionally include distributorId from the token.
   const isDistributor = Boolean(session.user?.distributor?.id || session.user?.distributorId) && !isPanelAdministrator(session.user);
   const panelLocale = panelLocaleForUser(session.user);
-  const isFrenchDistributor = isDistributor && panelLocale === "fr";
+  const canUseMailbox = Boolean(userEmail && userEmail.includes("@"));
   const distributorLabels = {
     es: { quotes: "Presupuestos", clients: "Clientes", products: "Productos" },
     fr: { quotes: "Devis", clients: "Clients", products: "Produits" },
@@ -1860,13 +1860,14 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     { id: "contacts", label: distributorLabels.clients },
     { id: "catalog", label: distributorLabels.products },
     { id: "downloads", label: "Drive" },
-    ...(isFrenchDistributor ? [{ id: "mail", label: "Mail" }] : [])
+    ...(canUseMailbox ? [{ id: "mail", label: "Mail" }] : [])
   ] : [
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
     { id: "purchases", label: "Compras" },
     { id: "contacts", label: "Contactos" },
-    ...(canManageWebsites ? [{ id: "websites", label: "Webs" }] : [{ id: "downloads", label: "Drive" }])
+    ...(canManageWebsites ? [{ id: "websites", label: "Webs" }] : [{ id: "downloads", label: "Drive" }]),
+    ...(canUseMailbox ? [{ id: "mail", label: "Mail" }] : [])
   ];
   const moreGroups = [
     {
@@ -2138,11 +2139,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={panelLocale} distributor={isDistributor} /> : null}
-          {activeView === "mail" && isFrenchDistributor ? <FrenchMailWorkspace token={session.token} initialDriveFile={mailDriveFile} onDriveFileConsumed={() => setMailDriveFile(null)} /> : null}
+          {activeView === "mail" && canUseMailbox ? <MailWorkspace token={session.token} user={session.user} locale={panelLocale} initialDriveFile={mailDriveFile} onDriveFileConsumed={() => setMailDriveFile(null)} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} restrictedUser={isAngelSpainDistributor} /> : null}
-          {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} onSendToChat={(file) => { setChatDriveFile(file); setChatInitialPeer(""); setChatOpen(true); }} onSendEmail={isFrenchDistributor ? (file) => { setMailDriveFile(file); navigate("mail"); } : null} /> : null}
+          {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} onSendToChat={(file) => { setChatDriveFile(file); setChatInitialPeer(""); setChatOpen(true); }} onSendEmail={canUseMailbox ? (file) => { setMailDriveFile(file); navigate("mail"); } : null} /> : null}
         </section>
       </div>
 
@@ -2512,7 +2513,7 @@ const MODULES = {
   }
 };
 
-function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsumed }) {
+function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, onDriveFileConsumed }) {
   const [folder, setFolder] = useState("inbox");
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
@@ -2535,26 +2536,28 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
   const [composeLookupMessage, setComposeLookupMessage] = useState(null);
   const [composeLookupLoading, setComposeLookupLoading] = useState(false);
   const [composeLookupError, setComposeLookupError] = useState("");
-  const labels = {
-    inbox: "Boîte de réception",
-    sent: "Messages envoyés",
-    drafts: "Brouillons",
-    trash: "Corbeille",
-    contacts: "Contacts"
-  };
+  const mailCopy = ({
+    es: { inbox: "Bandeja de entrada", sent: "Enviados", drafts: "Borradores", trash: "Papelera", contacts: "Contactos", newMessage: "Nuevo mensaje", loading: "Cargando…", noMessages: "No hay mensajes que mostrar.", drive: "EXPLORADOR DE ARCHIVOS", add: "Añadir", added: "Añadido" },
+    fr: { inbox: "Boîte de réception", sent: "Messages envoyés", drafts: "Brouillons", trash: "Corbeille", contacts: "Contacts", newMessage: "Nouveau message", loading: "Chargement…", noMessages: "Aucun message à afficher.", drive: "EXPLORATEUR DE FICHIERS", add: "Ajouter", added: "Ajouté" },
+    it: { inbox: "Posta in arrivo", sent: "Posta inviata", drafts: "Bozze", trash: "Cestino", contacts: "Contatti", newMessage: "Nuovo messaggio", loading: "Caricamento…", noMessages: "Nessun messaggio da visualizzare.", drive: "ESPLORA FILE", add: "Aggiungi", added: "Aggiunto" },
+    pt: { inbox: "Caixa de entrada", sent: "Enviados", drafts: "Rascunhos", trash: "Lixo", contacts: "Contactos", newMessage: "Nova mensagem", loading: "A carregar…", noMessages: "Não há mensagens para mostrar.", drive: "EXPLORADOR DE FICHEIROS", add: "Adicionar", added: "Adicionado" },
+    de: { inbox: "Posteingang", sent: "Gesendet", drafts: "Entwürfe", trash: "Papierkorb", contacts: "Kontakte", newMessage: "Neue Nachricht", loading: "Laden…", noMessages: "Keine Nachrichten vorhanden.", drive: "DATEI-EXPLORER", add: "Hinzufügen", added: "Hinzugefügt" }
+  }[locale] || {});
+  const labels = { inbox: mailCopy.inbox, sent: mailCopy.sent, drafts: mailCopy.drafts, trash: mailCopy.trash, contacts: mailCopy.contacts };
   const mailbox = useResource(
-    () => apiRequest(`/api/french-mail/messages?folder=${folder === "contacts" ? "inbox" : folder}`, { token }),
+    () => apiRequest(`/api/mailbox/messages?folder=${folder === "contacts" ? "inbox" : folder}`, { token }),
     [token, folder]
   );
   const composeMailbox = useResource(
     () => composeLookupFolder && composeLookupFolder !== "contacts"
-      ? apiRequest(`/api/french-mail/messages?folder=${composeLookupFolder}`, { token })
+      ? apiRequest(`/api/mailbox/messages?folder=${composeLookupFolder}`, { token })
       : Promise.resolve({ messages: [] }),
     [token, composeLookupFolder]
   );
-  const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
+  const configuration = useResource(() => apiRequest("/api/mailbox/status", { token }), [token]);
   const contacts = useResource(() => apiRequest("/api/mail/contacts", { token }), [token]);
-  const library = useResource(() => apiRequest(`/api/drive?country=fr${libraryFolder ? `&folderId=${encodeURIComponent(libraryFolder)}` : ""}`, { token }), [token, libraryFolder]);
+  const driveCountry = String(user?.distributor?.country || (locale === "es" ? "es" : locale) || "es").toLowerCase();
+  const library = useResource(() => apiRequest(`/api/drive?country=${encodeURIComponent(driveCountry)}${libraryFolder ? `&folderId=${encodeURIComponent(libraryFolder)}` : ""}`, { token }), [token, libraryFolder, driveCountry]);
 
   useEffect(() => {
     if (!initialDriveFile?.id) return;
@@ -2593,7 +2596,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
     setMessageLoading(true);
     setMessageError("");
     try {
-      const result = await apiRequest(`/api/french-mail/messages/${id}?folder=${folder}`, { token });
+      const result = await apiRequest(`/api/mailbox/messages/${id}?folder=${folder}`, { token });
       setSelectedMessage(result.item);
     } catch (error) {
       setMessageError(error.message || "Impossible de charger le message.");
@@ -2606,7 +2609,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
     setMessageLoading(true);
     setMessageError("");
     try {
-      const result = await apiRequest(`/api/french-mail/messages/${id}?folder=drafts`, { token });
+      const result = await apiRequest(`/api/mailbox/messages/${id}?folder=drafts`, { token });
       const message = result.item;
       setDraft({
         to: message.to || "",
@@ -2658,7 +2661,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
     setDeletingMessages(true);
     setMessageError("");
     try {
-      await apiRequest("/api/french-mail/messages", {
+      await apiRequest("/api/mailbox/messages", {
         token,
         method: "DELETE",
         body: { folder, ids: selectedMessageIds }
@@ -2683,7 +2686,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
         contentType: file.type || "application/octet-stream",
         content: file.content || await fileToBase64(file)
       })));
-      await apiRequest("/api/french-mail/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments, libraryAttachments: libraryAttachmentIds } });
+      await apiRequest("/api/mailbox/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments, libraryAttachments: libraryAttachmentIds } });
       setComposeOpen(false);
       setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
       setAttachments([]);
@@ -2710,7 +2713,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
     setSavingDraft(true);
     setMessageError("");
     try {
-      await apiRequest("/api/french-mail/drafts", { token, method: "POST", body: { ...draft, attachments: await encodedAttachments(), libraryAttachments: libraryAttachmentIds } });
+      await apiRequest("/api/mailbox/drafts", { token, method: "POST", body: { ...draft, attachments: await encodedAttachments(), libraryAttachments: libraryAttachmentIds } });
       setComposeOpen(false);
       setFolder("drafts");
       window.setTimeout(() => mailbox.reload(), 400);
@@ -2725,7 +2728,8 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
     if (!selectedMessage) return;
     const recipients = [selectedMessage.replyTo || selectedMessage.from];
     if (replyAll) recipients.push(selectedMessage.to, selectedMessage.cc);
-    const uniqueRecipients = [...new Set(recipients.join(",").split(",").map((item) => item.trim()).filter((item) => item && !item.toLowerCase().includes("info@doinglight.fr")))];
+    const ownEmail = String(user?.email || "").toLowerCase();
+    const uniqueRecipients = [...new Set(recipients.join(",").split(",").map((item) => item.trim()).filter((item) => item && !item.toLowerCase().includes(ownEmail)))];
     setDraft({
       to: uniqueRecipients.join(", "),
       bcc: "",
@@ -2764,7 +2768,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
     setComposeLookupLoading(true);
     setComposeLookupError("");
     try {
-      const result = await apiRequest(`/api/french-mail/messages/${id}?folder=${composeLookupFolder}`, { token });
+      const result = await apiRequest(`/api/mailbox/messages/${id}?folder=${composeLookupFolder}`, { token });
       setComposeLookupMessage(result.item);
     } catch (error) {
       setComposeLookupError(error.message || "Impossible de charger le message.");
@@ -2836,11 +2840,11 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
     <div className="module-page mail-workspace">
       <header className="module-page-header">
         <div>
-          <p className="section-eyebrow">info@doinglight.fr</p>
+          <p className="section-eyebrow">{user?.email}</p>
           <h3>Mail</h3>
         </div>
         <button className="primary-button" type="button" onClick={openNewMessage}>
-          <Mail size={16} /> Nouveau message
+          <Mail size={16} /> {mailCopy.newMessage}
         </button>
       </header>
       {!configuration.loading && configuration.data?.configured === false ? <section className="mail-setup-warning">
@@ -2854,7 +2858,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
           ))}
         </nav>
         <div className="mail-content">
-          {mailbox.loading || messageLoading ? <p className="mail-state">Chargement…</p> : null}
+          {mailbox.loading || messageLoading ? <p className="mail-state">{mailCopy.loading}</p> : null}
           {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
           {folder === "contacts" ? <div className="mail-contacts-workspace">
             <header><div><h4>Carnet d’adresses</h4><p>Vos contacts sont privés et réservés à la boîte info@doinglight.fr. Les nouveaux correspondants sont enregistrés automatiquement.</p></div></header>
@@ -2884,7 +2888,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
                 </button>
               </div>;
             })}
-            {!mailboxMessages.length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>Aucun message à afficher.</p></div> : null}
+            {!mailboxMessages.length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>{mailCopy.noMessages}</p></div> : null}
           </div> : null}
           {folder !== "contacts" && selectedMessage ? <article className="mail-message-detail">
             <button className="secondary-button" type="button" onClick={() => setSelectedMessage(null)}>← Retour à la liste</button>
@@ -2906,7 +2910,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
         </nav>
         {composeLookupFolder ? <aside className="mail-compose-lookup" aria-label={`Consultation : ${labels[composeLookupFolder]}`}><header><div><small>CONSULTATION</small><h4>{labels[composeLookupFolder]}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupFolder(null)} aria-label="Fermer la consultation"><X size={18} /></button></header>{composeMailbox.loading ? <p className="mail-state">Chargement…</p> : null}{composeMailbox.error || composeLookupError ? <p className="form-error">{composeMailbox.error || composeLookupError}</p> : null}<div className="mail-compose-lookup-list">{(composeMailbox.data?.messages || []).map((message) => { const sender = mailboxIdentity(composeLookupFolder === "sent" ? message.to : message.from); return <button type="button" key={message.id} onClick={() => openComposeLookupMessage(message.id)}><span><strong>{sender.name}</strong>{sender.email ? <small>{sender.email}</small> : null}</span><b>{message.subject}</b><time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time></button>; })}{!composeMailbox.loading && !(composeMailbox.data?.messages || []).length ? <p className="mail-state">Aucun message à afficher.</p> : null}</div></aside> : null}
         <form className="mail-compose" onSubmit={sendDraft}>
-          <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>FRANCE</span></div><h4>Nouveau message</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>Retour au courrier</button></header>
+          <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>{String(driveCountry || "es").toUpperCase()}</span></div><h4>{mailCopy.newMessage}</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>←</button></header>
           <label>À<input className="mail-recipient-required" required value={draft.to} onChange={() => undefined} aria-hidden="true" tabIndex={-1} /><span className="mail-recipient-input mail-recipient-tags">{draftRecipients.map((email) => <span className="mail-recipient-tag" key={email.toLowerCase()}>{email}<button type="button" onClick={() => removeRecipient(email)} aria-label={`Retirer ${email}`}><X size={13} /></button></span>)}<input type="text" list="french-mail-contacts" value={recipientEntry} onChange={(event) => setRecipientEntry(event.target.value)} onBlur={addTypedRecipients} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addTypedRecipients(); } }} placeholder={draftRecipients.length ? "Ajouter une adresse" : "Adresse e-mail"} /><button className="mail-recipient-add" type="button" onClick={() => setRecipientPickerOpen(true)} aria-label="Ajouter des destinataires depuis le carnet d’adresses" title="Ajouter depuis le carnet d’adresses"><Plus size={18} /></button></span><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist></label>
           <label>CCO<input type="text" list="french-mail-contacts" value={draft.bcc} onChange={(event) => setDraft({ ...draft, bcc: event.target.value })} placeholder="Destinataires en copie cachée" /></label>
           <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
@@ -2919,7 +2923,7 @@ function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsum
             <button className="mail-send-button" type="submit" disabled={sending || savingDraft}>{sending ? "Envoi…" : "Envoyer le message"}</button>
           </div>
         </form>
-        <aside className="mail-library" aria-label="Explorateur de fichiers"><header><small>DRIVE FRANCE</small><h4>Explorateur de fichiers</h4><p>Choisissez les PDF du Drive de Francia para adjuntarlos al mensaje.</p></header>{library.loading ? <p className="mail-state">Chargement…</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderItem) => <button type="button" key={folderItem.id} onClick={() => setLibraryFolder(folderItem.id)}><FileText size={18} /><span>{folderItem.name}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Retour au Drive</button><h5>PDF</h5>{(library.data?.files || []).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><FileText size={16}/><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? "Ajouté" : "Ajouter"}</small></button>)}{!(library.data?.files || []).length ? <p className="mail-state">Aucun PDF dans ce dossier.</p> : null}</section>}</aside>
+        <aside className="mail-library" aria-label={mailCopy.drive}><header><small>DRIVE {String(driveCountry || "es").toUpperCase()}</small><h4>{mailCopy.drive}</h4></header>{library.loading ? <p className="mail-state">{mailCopy.loading}</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderItem) => <button type="button" key={folderItem.id} onClick={() => setLibraryFolder(folderItem.id)}><FileText size={18} /><span>{folderItem.name}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Drive</button><h5>PDF</h5>{(library.data?.files || []).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><FileText size={16}/><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? mailCopy.added : mailCopy.add}</small></button>)}{!(library.data?.files || []).length ? <p className="mail-state">PDF</p> : null}</section>}</aside>
         {composeLookupMessage ? <div className="operation-modal-backdrop mail-consultation-modal-backdrop" onMouseDown={() => setComposeLookupMessage(null)}><article className="operation-modal mail-consultation-modal" role="dialog" aria-modal="true" aria-label="Consulter un message" onMouseDown={(event) => event.stopPropagation()}><header><div><small>CONSULTATION</small><h4>{composeLookupMessage.subject}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupMessage(null)} aria-label="Fermer"><X size={20} /></button></header><div className="mail-consultation-meta"><p><strong>De :</strong> {composeLookupMessage.from}</p><p><strong>À :</strong> {composeLookupMessage.to}</p></div><div className="mail-message-body">{composeLookupMessage.text || "Ce message ne contient pas de texte lisible."}</div><footer><button className="mail-send-button" type="button" onClick={() => setComposeLookupMessage(null)}>Fermer</button></footer></article></div> : null}
         {recipientPickerOpen ? <div className="operation-modal-backdrop mail-recipient-modal-backdrop" onMouseDown={() => setRecipientPickerOpen(false)}><section className="operation-modal mail-recipient-modal" role="dialog" aria-modal="true" aria-label="Carnet d’adresses" onMouseDown={(event) => event.stopPropagation()}><header><div><small>CARNET D’ADRESSES</small><h4>Ajouter des destinataires</h4></div><button className="icon-button" type="button" onClick={() => setRecipientPickerOpen(false)} aria-label="Fermer"><X size={20} /></button></header><label className="mail-recipient-search"><Search size={17} /><input autoFocus value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} placeholder="Rechercher un nom ou une adresse e-mail" /></label><div className="mail-recipient-contact-list">{recipientContacts.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><span><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</span><Plus size={17} /></button>)}{!recipientContacts.length ? <p>Aucun contact trouvé.</p> : null}</div><footer><button className="mail-send-button" type="button" onClick={() => setRecipientPickerOpen(false)}>Terminé</button></footer></section></div> : null}
       </section>}
