@@ -6806,6 +6806,10 @@ th {
   border-bottom-color: #d8ebf8;
 }
 
+.quote-pdf-page-tubo-solar .quote-pdf-line-row:not(.quote-pdf-lines-head) > span {
+  background: #fff;
+}
+
 .quote-pdf-logo-dot {
   width: 24px;
   height: 24px;
@@ -6889,17 +6893,17 @@ th {
 
 .quote-pdf-line-row {
   display: grid;
-  grid-template-columns: 30px minmax(60px, 0.55fr) minmax(0, 1.55fr) 42px 58px 48px 62px;
+  grid-template-columns: 48px minmax(60px, 0.55fr) minmax(0, 1.55fr) 42px 58px 48px 62px;
   width: 100%;
   align-items: stretch;
 }
 
 .quote-pdf-no-discount .quote-pdf-line-row {
-  grid-template-columns: 30px minmax(60px, 0.55fr) minmax(0, 1.55fr) 42px 58px 62px;
+  grid-template-columns: 48px minmax(60px, 0.55fr) minmax(0, 1.55fr) 42px 58px 62px;
 }
 
 .delivery-pdf-lines-grid .quote-pdf-line-row {
-  grid-template-columns: 30px minmax(54px, 0.5fr) minmax(0, 1fr) 34px;
+  grid-template-columns: 48px minmax(54px, 0.5fr) minmax(0, 1fr) 34px;
 }
 
 .quote-pdf-lines-head > span {
@@ -6919,7 +6923,7 @@ th {
 .quote-pdf-line-row > span {
   min-width: 0;
   padding: 5px 4px;
-  background: #f3f3f3;
+  background: #fff;
   border-bottom: 2px solid #fff;
   color: #111;
   font-size: 12.6px;
@@ -6932,6 +6936,16 @@ th {
 .quote-pdf-line-row .quote-pdf-line-image-cell {
   padding: 3px;
   text-align: center;
+}
+
+.quote-pdf-line-row:not(.quote-pdf-lines-head) {
+  min-height: 54px;
+}
+
+.quote-pdf-line-row .quote-pdf-line-image-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .quote-pdf-line-row .quote-pdf-line-number {
@@ -6951,17 +6965,17 @@ th {
 }
 
 .quote-pdf-line-image {
-  width: 26px;
-  height: 26px;
+  width: 42px;
+  height: 42px;
   display: block;
   object-fit: contain;
   margin: 0 auto;
 }
 
 .quote-pdf-line-shipping-icon {
-  width: 22px;
-  height: 22px;
-  margin: 2px auto;
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
   color: #52740b;
 }
 
