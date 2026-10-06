@@ -1623,6 +1623,7 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [driveLinks, setDriveLinks] = useState([]);
   const [driveAttachmentPickerOpen, setDriveAttachmentPickerOpen] = useState(false);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
@@ -1639,7 +1640,7 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
   useEffect(() => {
     if (!initialDriveFile?.id || initialDriveFileId.current === initialDriveFile.id) return;
     initialDriveFileId.current = initialDriveFile.id;
-    addDriveAttachment(initialDriveFile);
+    addDriveLink(initialDriveFile);
   }, [initialDriveFile?.id]);
 
   async function loadParticipants() {
@@ -1691,21 +1692,15 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
     if (attachments.length + files.length > 5) setError("Solo se pueden adjuntar 5 archivos por mensaje.");
   }
 
-  async function addDriveAttachment(file) {
-    if (attachments.length >= 5) {
-      setError("Solo se pueden adjuntar 5 archivos por mensaje.");
+  function addDriveLink(file) {
+    if (!file?.id) return;
+    if (driveLinks.length >= 5) {
+      setError("Solo se pueden compartir 5 archivos del Drive por mensaje.");
       return;
     }
     setError("");
-    try {
-      const blob = await fetchDrivePdf(token, file.url);
-      if (blob.size > 10 * 1024 * 1024) throw new Error("El PDF no puede superar 10 MB.");
-      const driveFile = new File([blob], file.name, { type: blob.type || "application/pdf" });
-      setAttachments((current) => [...current, driveFile].slice(0, 5));
-      setDriveAttachmentPickerOpen(false);
-    } catch (attachmentError) {
-      setError(attachmentError.message || "No se ha podido adjuntar el PDF del Drive.");
-    }
+    setDriveLinks((current) => current.some((item) => item.id === file.id) ? current : [...current, { id: file.id, name: file.name, size: file.size || 0 }]);
+    setDriveAttachmentPickerOpen(false);
   }
 
   async function downloadAttachment(attachment) {
@@ -1726,9 +1721,23 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
     }
   }
 
+  async function openDriveLink(file) {
+    try {
+      const response = await fetch(`${API_BASE_URL}${file.url}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!response.ok) throw new Error("No se ha podido abrir el archivo del Drive.");
+      const url = URL.createObjectURL(await response.blob());
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      setError(err.message || "No se ha podido abrir el archivo del Drive.");
+    }
+  }
+
   async function sendMessage(event) {
     event.preventDefault();
-    if ((!body.trim() && !attachments.length) || sending) return;
+    if ((!body.trim() && !attachments.length && !driveLinks.length) || sending) return;
     setSending(true);
     setError("");
     try {
@@ -1737,9 +1746,10 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
         mimeType: file.type || ({ pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv", txt: "text/plain" })[file.name.split(".").pop()?.toLowerCase()] || "",
         dataBase64: await fileToBase64(file)
       })));
-      await apiRequest("/api/operations/chat", { token, method: "POST", body: { body, attachments: serializedAttachments, targetUserId: selectedPeerId === "general" ? null : selectedPeerId } });
+      await apiRequest("/api/operations/chat", { token, method: "POST", body: { body, attachments: serializedAttachments, driveFileIds: driveLinks.map((file) => file.id), targetUserId: selectedPeerId === "general" ? null : selectedPeerId } });
       setBody("");
       setAttachments([]);
+      setDriveLinks([]);
       await load(selectedPeerId);
     } catch (err) { setError(err.message); }
     finally { setSending(false); }
@@ -1778,11 +1788,11 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
         {powersOpen ? <div className="superpowers-panel"><label>Usuario de destino<select value={targetEmail} onChange={(event) => setTargetEmail(event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.email}>{participant.fullName} · {participant.email}</option>)}</select></label><button type="button" disabled={!targetEmail || sending} onClick={sendSuperpower}><Zap size={18} /><span><strong>Enviar rayo de luz ultravioleta</strong><small>Convierte temporalmente en rojo el panel del destinatario.</small></span></button></div> : null}
         {error ? <p className="operation-error">{error}</p> : null}{powerStatus ? <p className="superpower-status">{powerStatus}</p> : null}
         <div className="chat-workspace"><aside className="chat-users"><strong>Conversaciones</strong>{canUseGeneral ? <button type="button" className={selectedPeerId === "general" ? "active" : ""} onClick={() => setSelectedPeerId("general")}><span className="chat-avatar group">DL</span><span><b>Chat general</b><small>Almacén y oficinas</small></span></button> : null}{participants.map((participant) => <button type="button" key={participant.id} className={selectedPeerId === participant.id ? "active" : ""} onClick={() => { setSelectedPeerId(participant.id); setTargetEmail(participant.email); }}><span className="chat-avatar">{participant.fullName.slice(0, 2).toUpperCase()}</span><span><b>{participant.fullName}</b><small>{participant.email}</small></span>{participant.unreadCount ? <em>{participant.unreadCount > 99 ? "99+" : participant.unreadCount}</em> : null}</button>)}</aside>
-          <section className="chat-conversation"><div className="chat-conversation-title"><strong>{selectedPeerId === "general" ? "Chat general" : activePeer?.fullName || "Selecciona un usuario"}</strong>{activePeer ? <small>Conversación privada · {activePeer.email}</small> : null}</div><div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : userDisplayName(message)}</strong>{message.body ? <p>{message.body}</p> : null}{message.attachments?.length ? <div className="chat-message-attachments">{message.attachments.map((attachment) => <button type="button" key={attachment.id} onClick={() => downloadAttachment(attachment)} title={`Descargar ${attachment.fileName}`}><Paperclip size={14} /><span>{attachment.fileName}</span><small>{attachmentSize(attachment.fileSize)}</small></button>)}</div> : null}<time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}{!messages.length ? <p className="chat-empty">Todavía no hay mensajes en esta conversación.</p> : null}</div>
-            <form className="chat-composer" onSubmit={sendMessage}><input ref={attachmentInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv,.txt,application/pdf,image/jpeg,image/png,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={addAttachments} /><textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={handleComposerKeyDown} placeholder={selectedPeerId === "general" ? "Escribe en el chat general…" : `Mensaje privado para ${activePeer?.fullName || "este usuario"}…`} disabled={!selectedPeerId} /><button type="button" className="chat-attachment-button" onClick={() => attachmentInputRef.current?.click()} disabled={sending || !selectedPeerId} title="Adjuntar archivos"><Paperclip size={18} /></button><button type="button" className="chat-attachment-button" onClick={() => setDriveAttachmentPickerOpen(true)} disabled={sending || !selectedPeerId} title="Elegir PDF del Drive"><FileText size={18} /></button><button type="submit" disabled={sending || (!body.trim() && !attachments.length) || !selectedPeerId}><Send size={18} /></button>{attachments.length ? <div className="chat-composer-attachments">{attachments.map((file, index) => <span key={`${file.name}-${index}`}><Paperclip size={13} />{file.name}<button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}</div> : null}</form>
+          <section className="chat-conversation"><div className="chat-conversation-title"><strong>{selectedPeerId === "general" ? "Chat general" : activePeer?.fullName || "Selecciona un usuario"}</strong>{activePeer ? <small>Conversación privada · {activePeer.email}</small> : null}</div><div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : userDisplayName(message)}</strong>{message.body ? <p>{message.body}</p> : null}{message.attachments?.length ? <div className="chat-message-attachments">{message.attachments.map((attachment) => <button type="button" key={attachment.id} onClick={() => downloadAttachment(attachment)} title={`Descargar ${attachment.fileName}`}><Paperclip size={14} /><span>{attachment.fileName}</span><small>{attachmentSize(attachment.fileSize)}</small></button>)}</div> : null}{message.driveLinks?.length ? <div className="chat-message-attachments chat-drive-links">{message.driveLinks.map((file) => <button type="button" key={file.id} onClick={() => openDriveLink(file)} title={`Abrir ${file.fileName} en el Drive`}><FileText size={14} /><span>{file.fileName}</span><small>Drive</small></button>)}</div> : null}<time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}{!messages.length ? <p className="chat-empty">Todavía no hay mensajes en esta conversación.</p> : null}</div>
+            <form className="chat-composer" onSubmit={sendMessage}><input ref={attachmentInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv,.txt,application/pdf,image/jpeg,image/png,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={addAttachments} /><textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={handleComposerKeyDown} placeholder={selectedPeerId === "general" ? "Escribe en el chat general…" : `Mensaje privado para ${activePeer?.fullName || "este usuario"}…`} disabled={!selectedPeerId} /><button type="button" className="chat-attachment-button" onClick={() => attachmentInputRef.current?.click()} disabled={sending || !selectedPeerId} title="Adjuntar archivos"><Paperclip size={18} /></button><button type="button" className="chat-attachment-button" onClick={() => setDriveAttachmentPickerOpen(true)} disabled={sending || !selectedPeerId} title="Compartir enlace del Drive"><FileText size={18} /></button><button type="submit" disabled={sending || (!body.trim() && !attachments.length && !driveLinks.length) || !selectedPeerId}><Send size={18} /></button>{attachments.length || driveLinks.length ? <div className="chat-composer-attachments">{attachments.map((file, index) => <span key={`${file.name}-${index}`}><Paperclip size={13} />{file.name}<button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}{driveLinks.map((file) => <span key={file.id}><FileText size={13} />{file.name}<button type="button" onClick={() => setDriveLinks((current) => current.filter((item) => item.id !== file.id))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}</div> : null}</form>
           </section>
         </div>
-        {driveAttachmentPickerOpen ? <DriveAttachmentPicker token={token} country={driveCountry} locale={panelLocaleForUser(user)} onClose={() => setDriveAttachmentPickerOpen(false)} onSelect={addDriveAttachment} /> : null}
+        {driveAttachmentPickerOpen ? <DriveAttachmentPicker token={token} country={driveCountry} locale={panelLocaleForUser(user)} onClose={() => setDriveAttachmentPickerOpen(false)} onSelect={addDriveLink} /> : null}
       </section>
     </div>
   );
