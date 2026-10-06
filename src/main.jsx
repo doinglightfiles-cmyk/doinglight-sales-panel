@@ -4083,7 +4083,7 @@ function serializeInternalSalesDocument(item) {
     warehouseStatus: item.warehouseStatus || null,
     warehouseSentAt: item.warehouseSentAt || null,
     warehouseIncident: item.warehouseIncident || "",
-    hasAttachment: Boolean(item.attachments?.length),
+    hasAttachment: Boolean(item.attachments?.length || item.hasInvoiceAttachment),
     responsible: "",
     lines: rawLines,
     attachments: item.attachments || [],
