@@ -28,6 +28,7 @@ import {
   Sparkles,
   Printer,
   Truck,
+  Trash2,
   Factory,
   Globe2,
   GraduationCap,
@@ -1617,7 +1618,7 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
   );
 }
 
-function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" }) {
+function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", initialDriveFile = null }) {
   const canUseGeneral = CHAT_USERS.has(String(user?.email || "").trim().toLowerCase());
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState("");
@@ -1632,7 +1633,14 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" })
   const [selectedPeerId, setSelectedPeerId] = useState(initialPeerId || (canUseGeneral ? "general" : ""));
   const messagesRef = useRef(null);
   const attachmentInputRef = useRef(null);
+  const initialDriveFileId = useRef("");
   useOpenChatChime(messages, user?.id, true);
+
+  useEffect(() => {
+    if (!initialDriveFile?.id || initialDriveFileId.current === initialDriveFile.id) return;
+    initialDriveFileId.current = initialDriveFile.id;
+    addDriveAttachment(initialDriveFile);
+  }, [initialDriveFile?.id]);
 
   async function loadParticipants() {
     const result = await apiRequest("/api/operations/chat/participants", { token });
@@ -1818,6 +1826,8 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [shoppingInitialId,setShoppingInitialId]=useState("");
   const [chatOpen,setChatOpen]=useState(false);
   const [chatInitialPeer,setChatInitialPeer]=useState("");
+  const [chatDriveFile,setChatDriveFile]=useState(null);
+  const [mailDriveFile,setMailDriveFile]=useState(null);
   const [chatCount,setChatCount]=useState(0);
   const [manufacturingOpen,setManufacturingOpen]=useState(false);
   const userEmail=String(session.user?.email||"").trim().toLowerCase();
@@ -2092,7 +2102,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
       {themeAlert.active ? <button type="button" className="ultraviolet-alert-banner" onClick={()=>{setChatInitialPeer(themeAlert.senderId||"");setChatOpen(true);}}><Zap size={19}/> {themeAlert.senderName} te ha enviado un rayo de luz ultravioleta. Abre el chat.</button> : null}
       {notificationsOpen ? <NotificationsInbox token={session.token} onClose={()=>{setNotificationsOpen(false);loadNotificationCount();}} onChanged={loadNotificationCount} onOpenShoppingList={(listId)=>{setShoppingInitialId(listId||"");setShoppingOpen(true);}}/> : null}
       {shoppingOpen ? <ShoppingListsModal token={session.token} user={session.user} initialListId={shoppingInitialId} onClose={()=>setShoppingOpen(false)}/> : null}
-      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} onRead={refreshThemeAlert} onClose={()=>{setChatOpen(false);loadChatCount();refreshThemeAlert();}}/> : null}
+      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} initialDriveFile={chatDriveFile} onRead={refreshThemeAlert} onClose={()=>{setChatOpen(false);setChatDriveFile(null);loadChatCount();refreshThemeAlert();}}/> : null}
       {manufacturingOpen ? <ManufacturingModal token={session.token} user={session.user} onClose={()=>setManufacturingOpen(false)}/> : null}
 
       <div className="main-area">
@@ -2128,11 +2138,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={panelLocale} distributor={isDistributor} /> : null}
-          {activeView === "mail" && isFrenchDistributor ? <FrenchMailWorkspace token={session.token} /> : null}
+          {activeView === "mail" && isFrenchDistributor ? <FrenchMailWorkspace token={session.token} initialDriveFile={mailDriveFile} onDriveFileConsumed={() => setMailDriveFile(null)} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
           {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} restrictedUser={isAngelSpainDistributor} /> : null}
-          {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} /> : null}
+          {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} onSendToChat={(file) => { setChatDriveFile(file); setChatInitialPeer(""); setChatOpen(true); }} onSendEmail={isFrenchDistributor ? (file) => { setMailDriveFile(file); navigate("mail"); } : null} /> : null}
         </section>
       </div>
 
@@ -2502,7 +2512,7 @@ const MODULES = {
   }
 };
 
-function FrenchMailWorkspace({ token }) {
+function FrenchMailWorkspace({ token, initialDriveFile = null, onDriveFileConsumed }) {
   const [folder, setFolder] = useState("inbox");
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
@@ -2545,6 +2555,22 @@ function FrenchMailWorkspace({ token }) {
   const configuration = useResource(() => apiRequest("/api/french-mail/status", { token }), [token]);
   const contacts = useResource(() => apiRequest("/api/mail/contacts", { token }), [token]);
   const library = useResource(() => apiRequest(`/api/drive?country=fr${libraryFolder ? `&folderId=${encodeURIComponent(libraryFolder)}` : ""}`, { token }), [token, libraryFolder]);
+
+  useEffect(() => {
+    if (!initialDriveFile?.id) return;
+    let cancelled = false;
+    fetchDrivePdf(token, initialDriveFile.url)
+      .then((blob) => {
+        if (cancelled) return;
+        setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
+        setAttachments([{ name: initialDriveFile.name, type: blob.type || "application/pdf", size: blob.size, file: new File([blob], initialDriveFile.name, { type: blob.type || "application/pdf" }) }]);
+        setLibraryAttachmentIds([]);
+        setComposeOpen(true);
+        onDriveFileConsumed?.();
+      })
+      .catch((error) => !cancelled && setMessageError(error.message || "Impossible de joindre le PDF du Drive."));
+    return () => { cancelled = true; };
+  }, [initialDriveFile?.id, token]);
 
   useEffect(() => {
     setSelectedMessage(null);
@@ -11265,7 +11291,7 @@ function localizedDriveFolderName(name, locale = "es") {
   return folderNames[String(locale).toLowerCase()]?.[name] || name;
 }
 
-function DownloadsView({ token, user, distributor = false, locale = "es" }) {
+function DownloadsView({ token, user, distributor = false, locale = "es", onSendToChat, onSendEmail }) {
   const copy = driveCopy(locale);
   const countries = [
     { id: "es", flag: "🇪🇸", label: "España", description: "Drive comercial y técnico de España." },
@@ -11279,14 +11305,15 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   const [folderId, setFolderId] = useState(null);
   const [history, setHistory] = useState([]);
   const [preview, setPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const drive = useResource(() => apiRequest(`/api/drive?country=${country}${folderId ? `&folderId=${encodeURIComponent(folderId)}` : ""}`, { token }), [token, country, folderId]);
   const selectedCountry = countries.find((item) => item.id === country) || countries[0];
-  function openFolder(folder) { setHistory((items) => [...items, { id: folderId, name: folder.name }]); setFolderId(folder.id); setPreview(null); }
-  function goBack() { const previous = history[history.length - 1]; setHistory((items) => items.slice(0, -1)); setFolderId(previous?.id || null); setPreview(null); }
-  function goToBreadcrumb(index) { if (index < 0) { setFolderId(null); setHistory([]); setPreview(null); return; } const targetId = index === history.length - 1 ? folderId : history[index + 1]?.id; setFolderId(targetId || null); setHistory((items) => items.slice(0, index + 1)); setPreview(null); }
+  function openFolder(folder) { setHistory((items) => [...items, { id: folderId, name: folder.name }]); setFolderId(folder.id); setPreview(null); setSelectedFile(null); }
+  function goBack() { const previous = history[history.length - 1]; setHistory((items) => items.slice(0, -1)); setFolderId(previous?.id || null); setPreview(null); setSelectedFile(null); }
+  function goToBreadcrumb(index) { if (index < 0) { setFolderId(null); setHistory([]); setPreview(null); setSelectedFile(null); return; } const targetId = index === history.length - 1 ? folderId : history[index + 1]?.id; setFolderId(targetId || null); setHistory((items) => items.slice(0, index + 1)); setPreview(null); setSelectedFile(null); }
   async function upload(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length || !folderId) return;
@@ -11331,11 +11358,44 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
       setUploadError(error.message || copy.openError);
     }
   }
+  async function selectFile(file) { setSelectedFile(file); await previewFile(file); }
+  async function renameSelectedFile() {
+    if (!selectedFile) return;
+    const name = window.prompt("Nuevo nombre del archivo PDF:", selectedFile.name);
+    if (name === null || !name.trim() || name.trim() === selectedFile.name) return;
+    try {
+      await apiRequest(`/api/drive/files/${selectedFile.id}`, { token, method: "PATCH", body: { name: name.trim() } });
+      setSelectedFile((current) => current ? { ...current, name: name.trim() } : current);
+      await drive.reload();
+    } catch (error) { setUploadError(error.message || "No se ha podido renombrar el archivo."); }
+  }
+  async function downloadSelectedFile() {
+    if (!selectedFile) return;
+    try {
+      const blob = await fetchDrivePdf(token, selectedFile.url);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = selectedFile.name;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) { setUploadError(error.message || "No se ha podido descargar el PDF."); }
+  }
+  async function deleteSelectedFile() {
+    if (!selectedFile || !window.confirm(`¿Eliminar «${selectedFile.name}»?`)) return;
+    try {
+      await apiRequest(`/api/drive/files/${selectedFile.id}`, { token, method: "DELETE" });
+      if (preview?.url) URL.revokeObjectURL(preview.url);
+      setPreview(null);
+      setSelectedFile(null);
+      await drive.reload();
+    } catch (error) { setUploadError(error.message || "No se ha podido eliminar el archivo."); }
+  }
 
   return (
     <Panel title="Drive">
-      {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); setProjectsOpen(false); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
-      {projectsOpen ? <ProjectsDriveView token={token} locale={locale} onBack={() => setProjectsOpen(false)} /> : <><section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{localizedDriveFolderName(item.name, locale)}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" multiple onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{!folderId ? <button type="button" className="drive-folder drive-projects-folder" onClick={() => { setPreview(null); setProjectsOpen(true); }}><FileText size={28}/><strong>{copy.projects}</strong><small>{copy.sharedProjects}</small></button> : null}{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{localizedDriveFolderName(folder.name, locale)}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>{preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}</>}
+      {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); setSelectedFile(null); setProjectsOpen(false); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
+      {projectsOpen ? <ProjectsDriveView token={token} locale={locale} onBack={() => setProjectsOpen(false)} /> : <><section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{localizedDriveFolderName(item.name, locale)}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" multiple onChange={upload} /></label> : null}</header>{selectedFile ? <div className="drive-file-actions"><strong>{selectedFile.name}</strong><span><button type="button" onClick={renameSelectedFile}><Pencil size={15}/>Renombrar</button><button type="button" onClick={downloadSelectedFile}><Download size={15}/>Descargar</button><button type="button" onClick={() => onSendEmail ? onSendEmail(selectedFile) : setUploadError("El buzón de correo de este usuario todavía no está configurado.")}><Mail size={15}/>Enviar por email</button><button type="button" onClick={() => onSendToChat?.(selectedFile)}><MessageCircle size={15}/>Enviar por chat</button><button type="button" className="danger" onClick={deleteSelectedFile}><Trash2 size={15}/>Eliminar</button></span></div> : null}{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{!folderId ? <button type="button" className="drive-folder drive-projects-folder" onClick={() => { setPreview(null); setSelectedFile(null); setProjectsOpen(true); }}><FileText size={28}/><strong>{copy.projects}</strong><small>{copy.sharedProjects}</small></button> : null}{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{localizedDriveFolderName(folder.name, locale)}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className={`drive-file ${selectedFile?.id === file.id ? "selected" : ""}`} key={file.id} onClick={() => selectFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>{preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}</>}
     </Panel>
   );
 }

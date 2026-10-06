@@ -2942,9 +2942,17 @@ select:focus {
 .drive-back-button { width: max-content; border: 0; padding: 0; color: #617e1b; background: transparent; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .drive-back-button:hover { text-decoration: underline; }
 .drive-upload { position: relative; overflow: hidden; }.drive-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drive-file-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: #f5f9eb; }
+.drive-file-actions > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drive-file-actions > span { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.drive-file-actions button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd9bb; border-radius: 6px; padding: 7px 9px; background: #fff; color: #385221; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.drive-file-actions button:hover { border-color: #8fbc13; background: #eff7df; }
+.drive-file-actions button.danger { color: #b62f2a; border-color: #edbfbc; }
+.drive-file-actions button.danger:hover { background: #fff0ef; border-color: #d6554e; }
 .drive-browser-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 16px; }
 .drive-folder,.drive-file { display: grid; justify-items: start; gap: 6px; min-height: 126px; border: 1px solid #dce5d7; border-radius: 8px; padding: 15px; color: #42523d; background: #fff; text-align: left; font: inherit; }
 .drive-folder:hover,.drive-file:hover { border-color: #9ec241; background: #f2f8e4; }.drive-folder svg { color: #9cc31b; }.drive-file svg { color: #dc4540; }.drive-folder small,.drive-file small { color: #7a8775; font-size: 11px; }
+.drive-file.selected { border-color: #7fae11; box-shadow: 0 0 0 2px rgba(143, 188, 19, .2); background: #f2f8e4; }
 .drive-projects-folder svg { color: #6b9700; }
 .projects-drive-view { border: 1px solid #dce5d7; border-radius: 12px; background: #fff; padding: 20px; }
 .projects-drive-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 18px; border-bottom: 1px solid #e5ebdf; }
