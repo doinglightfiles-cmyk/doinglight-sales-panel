@@ -11040,13 +11040,102 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
 
 function driveCopy(locale = "es") {
   const copies = {
-    es: { upload: "Subir hasta 3 PDF", uploading: "Subiendo…", back: "← Atrás", loading: "Cargando Drive…", folder: "Carpeta", empty: "Esta carpeta todavía no contiene archivos.", pdfOnly: "Solo se admiten archivos PDF.", maxSize: "Cada PDF no puede superar 10 MB.", maxFiles: "Puedes seleccionar un máximo de 3 PDF.", uploadError: "No se han podido subir los PDF.", openError: "No se ha podido abrir el PDF.", attachDocument: "Adjuntar documento", closeDrive: "Cerrar Drive", open: "Abrir", attach: "Adjuntar" },
-    fr: { upload: "Importer jusqu’à 3 PDF", uploading: "Importation…", back: "← Retour", loading: "Chargement du Drive…", folder: "Dossier", empty: "Ce dossier ne contient pas encore de fichiers.", pdfOnly: "Seuls les fichiers PDF sont acceptés.", maxSize: "Chaque PDF ne peut pas dépasser 10 Mo.", maxFiles: "Vous pouvez sélectionner au maximum 3 PDF.", uploadError: "Impossible d’importer les PDF.", openError: "Impossible d’ouvrir le PDF.", attachDocument: "Joindre un document", closeDrive: "Fermer le Drive", open: "Ouvrir", attach: "Joindre" },
-    it: { upload: "Carica fino a 3 PDF", uploading: "Caricamento…", back: "← Indietro", loading: "Caricamento Drive…", folder: "Cartella", empty: "Questa cartella non contiene ancora file.", pdfOnly: "Sono ammessi solo file PDF.", maxSize: "Ogni PDF non può superare 10 MB.", maxFiles: "Puoi selezionare al massimo 3 PDF.", uploadError: "Non è stato possibile caricare i PDF.", openError: "Non è stato possibile aprire il PDF.", attachDocument: "Allega documento", closeDrive: "Chiudi Drive", open: "Apri", attach: "Allega" },
-    pt: { upload: "Carregar até 3 PDF", uploading: "A carregar…", back: "← Voltar", loading: "A carregar Drive…", folder: "Pasta", empty: "Esta pasta ainda não contém ficheiros.", pdfOnly: "Só são permitidos ficheiros PDF.", maxSize: "Cada PDF não pode ultrapassar 10 MB.", maxFiles: "Pode selecionar no máximo 3 PDF.", uploadError: "Não foi possível carregar os PDF.", openError: "Não foi possível abrir o PDF.", attachDocument: "Anexar documento", closeDrive: "Fechar Drive", open: "Abrir", attach: "Anexar" },
-    de: { upload: "Bis zu 3 PDFs hochladen", uploading: "Wird hochgeladen…", back: "← Zurück", loading: "Drive wird geladen…", folder: "Ordner", empty: "Dieser Ordner enthält noch keine Dateien.", pdfOnly: "Es sind nur PDF-Dateien zulässig.", maxSize: "Jedes PDF darf nicht größer als 10 MB sein.", maxFiles: "Sie können maximal 3 PDFs auswählen.", uploadError: "Die PDFs konnten nicht hochgeladen werden.", openError: "Das PDF konnte nicht geöffnet werden.", attachDocument: "Dokument anhängen", closeDrive: "Drive schließen", open: "Öffnen", attach: "Anhängen" }
+    es: { upload: "Subir hasta 3 PDF", uploading: "Subiendo…", back: "← Atrás", loading: "Cargando Drive…", folder: "Carpeta", projects: "Proyectos", sharedProjects: "Proyectos compartidos", addProject: "Añadir proyecto", projectName: "Nombre", projectLocation: "Ubicación del proyecto", gallery: "Galería", chooseImage: "Añadir imagen", saveProject: "Guardar proyecto", savingProject: "Guardando…", emptyProjects: "Todavía no hay proyectos.", imageOnly: "Solo se admiten imágenes JPG o PNG de hasta 10 MB.", projectError: "No se ha podido guardar el proyecto.", empty: "Esta carpeta todavía no contiene archivos.", pdfOnly: "Solo se admiten archivos PDF.", maxSize: "Cada PDF no puede superar 10 MB.", maxFiles: "Puedes seleccionar un máximo de 3 PDF.", uploadError: "No se han podido subir los PDF.", openError: "No se ha podido abrir el PDF.", attachDocument: "Adjuntar documento", closeDrive: "Cerrar Drive", open: "Abrir", attach: "Adjuntar" },
+    fr: { upload: "Importer jusqu’à 3 PDF", uploading: "Importation…", back: "← Retour", loading: "Chargement du Drive…", folder: "Dossier", projects: "Projets", sharedProjects: "Projets partagés", addProject: "Ajouter un projet", projectName: "Nom", projectLocation: "Localisation du projet", gallery: "Galerie", chooseImage: "Ajouter une image", saveProject: "Enregistrer le projet", savingProject: "Enregistrement…", emptyProjects: "Il n’y a pas encore de projets.", imageOnly: "Seules les images JPG ou PNG de 10 Mo maximum sont acceptées.", projectError: "Impossible d’enregistrer le projet.", empty: "Ce dossier ne contient pas encore de fichiers.", pdfOnly: "Seuls les fichiers PDF sont acceptés.", maxSize: "Chaque PDF ne peut pas dépasser 10 Mo.", maxFiles: "Vous pouvez sélectionner au maximum 3 PDF.", uploadError: "Impossible d’importer les PDF.", openError: "Impossible d’ouvrir le PDF.", attachDocument: "Joindre un document", closeDrive: "Fermer le Drive", open: "Ouvrir", attach: "Joindre" },
+    it: { upload: "Carica fino a 3 PDF", uploading: "Caricamento…", back: "← Indietro", loading: "Caricamento Drive…", folder: "Cartella", projects: "Progetti", sharedProjects: "Progetti condivisi", addProject: "Aggiungi progetto", projectName: "Nome", projectLocation: "Ubicazione del progetto", gallery: "Galleria", chooseImage: "Aggiungi immagine", saveProject: "Salva progetto", savingProject: "Salvataggio…", emptyProjects: "Non ci sono ancora progetti.", imageOnly: "Sono ammesse solo immagini JPG o PNG fino a 10 MB.", projectError: "Non è stato possibile salvare il progetto.", empty: "Questa cartella non contiene ancora file.", pdfOnly: "Sono ammessi solo file PDF.", maxSize: "Ogni PDF non può superare 10 MB.", maxFiles: "Puoi selezionare al massimo 3 PDF.", uploadError: "Non è stato possibile caricare i PDF.", openError: "Non è stato possibile aprire il PDF.", attachDocument: "Allega documento", closeDrive: "Chiudi Drive", open: "Apri", attach: "Allega" },
+    pt: { upload: "Carregar até 3 PDF", uploading: "A carregar…", back: "← Voltar", loading: "A carregar Drive…", folder: "Pasta", projects: "Projetos", sharedProjects: "Projetos partilhados", addProject: "Adicionar projeto", projectName: "Nome", projectLocation: "Localização do projeto", gallery: "Galeria", chooseImage: "Adicionar imagem", saveProject: "Guardar projeto", savingProject: "A guardar…", emptyProjects: "Ainda não existem projetos.", imageOnly: "Só são permitidas imagens JPG ou PNG até 10 MB.", projectError: "Não foi possível guardar o projeto.", empty: "Esta pasta ainda não contém ficheiros.", pdfOnly: "Só são permitidos ficheiros PDF.", maxSize: "Cada PDF não pode ultrapassar 10 MB.", maxFiles: "Pode selecionar no máximo 3 PDF.", uploadError: "Não foi possível carregar os PDF.", openError: "Não foi possível abrir o PDF.", attachDocument: "Anexar documento", closeDrive: "Fechar Drive", open: "Abrir", attach: "Anexar" },
+    de: { upload: "Bis zu 3 PDFs hochladen", uploading: "Wird hochgeladen…", back: "← Zurück", loading: "Drive wird geladen…", folder: "Ordner", projects: "Projekte", sharedProjects: "Geteilte Projekte", addProject: "Projekt hinzufügen", projectName: "Name", projectLocation: "Projektstandort", gallery: "Galerie", chooseImage: "Bild hinzufügen", saveProject: "Projekt speichern", savingProject: "Wird gespeichert…", emptyProjects: "Es sind noch keine Projekte vorhanden.", imageOnly: "Nur JPG- oder PNG-Bilder bis 10 MB sind zulässig.", projectError: "Das Projekt konnte nicht gespeichert werden.", empty: "Dieser Ordner enthält noch keine Dateien.", pdfOnly: "Es sind nur PDF-Dateien zulässig.", maxSize: "Jedes PDF darf nicht größer als 10 MB sein.", maxFiles: "Sie können maximal 3 PDFs auswählen.", uploadError: "Die PDFs konnten nicht hochgeladen werden.", openError: "Das PDF konnte nicht geöffnet werden.", attachDocument: "Dokument anhängen", closeDrive: "Drive schließen", open: "Öffnen", attach: "Anhängen" }
   };
   return copies[String(locale).toLowerCase()] || copies.es;
+}
+
+const EUROPEAN_COUNTRY_CODES = ["AL", "AD", "AM", "AT", "AZ", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "GE", "DE", "GR", "HU", "IS", "IE", "IT", "KZ", "XK", "LV", "LI", "LT", "LU", "MT", "MD", "MC", "ME", "NL", "MK", "NO", "PL", "PT", "RO", "RU", "SM", "RS", "SK", "SI", "ES", "SE", "CH", "TR", "UA", "GB", "VA"];
+
+function europeanCountries(locale) {
+  const language = { es: "es-ES", fr: "fr-FR", it: "it-IT", pt: "pt-PT", de: "de-DE" }[locale] || "es-ES";
+  let names;
+  try { names = new Intl.DisplayNames([language], { type: "region" }); } catch { names = null; }
+  return EUROPEAN_COUNTRY_CODES
+    .map((code) => ({ code, name: names?.of(code) || code }))
+    .sort((first, second) => first.name.localeCompare(second.name, language));
+}
+
+function ProjectImage({ token, image, alt }) {
+  const [source, setSource] = useState("");
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    fetchDrivePdf(token, image.url)
+      .then((blob) => { if (active) { objectUrl = URL.createObjectURL(blob); setSource(objectUrl); } })
+      .catch(() => {});
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [token, image.url]);
+  return source ? <img src={source} alt={alt} /> : <ImageIcon size={28} aria-hidden="true" />;
+}
+
+function ProjectsDriveView({ token, locale, onBack }) {
+  const copy = driveCopy(locale);
+  const countries = useMemo(() => europeanCountries(locale), [locale]);
+  const projects = useResource(() => apiRequest("/api/projects", { token }), [token]);
+  const [formOpen, setFormOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [gallery, setGallery] = useState(() => Array(10).fill(null));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function resetForm() {
+    gallery.forEach((item) => item?.preview && URL.revokeObjectURL(item.preview));
+    setName("");
+    setLocation("");
+    setGallery(Array(10).fill(null));
+    setError("");
+  }
+
+  function selectImage(index, event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!new Set(["image/jpeg", "image/png"]).has(file.type) || file.size > 10 * 1024 * 1024) {
+      setError(copy.imageOnly);
+      return;
+    }
+    setGallery((items) => items.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      if (item?.preview) URL.revokeObjectURL(item.preview);
+      return { file, preview: URL.createObjectURL(file) };
+    }));
+  }
+
+  async function saveProject(event) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const created = await apiRequest("/api/projects", { token, method: "POST", body: { name, location } });
+      for (const item of gallery.filter(Boolean)) {
+        await apiRequest(`/api/projects/${created.item.id}/images`, {
+          token,
+          method: "POST",
+          body: { name: item.file.name, mimeType: item.file.type, dataBase64: await fileToBase64(item.file) }
+        });
+      }
+      resetForm();
+      setFormOpen(false);
+      projects.reload();
+    } catch (saveError) { setError(saveError.message || copy.projectError); }
+    finally { setSaving(false); }
+  }
+
+  return <section className="projects-drive-view">
+    <header className="projects-drive-header"><div><button type="button" className="drive-back-button" onClick={onBack}>{copy.back}</button><h3>{copy.projects}</h3><p>{copy.sharedProjects}</p></div><button type="button" className="primary-button" onClick={() => { resetForm(); setFormOpen(true); }}><Plus size={18} />{copy.addProject}</button></header>
+    {projects.loading ? <p className="mail-state">{copy.loading}</p> : null}
+    {projects.error ? <p className="form-error">{projects.error}</p> : null}
+    <div className="projects-grid">{(projects.data?.items || []).map((project) => <article key={project.id} className="project-card"><div className="project-card-cover">{project.images[0] ? <ProjectImage token={token} image={project.images[0]} alt={project.name} /> : <ImageIcon size={36} />}</div><div><h4>{project.name}</h4><p>{project.location}</p><small>{project.images.length}/10</small></div></article>)}</div>
+    {!projects.loading && !(projects.data?.items || []).length ? <p className="mail-empty-state">{copy.emptyProjects}</p> : null}
+    {formOpen ? <ModalShell title={copy.addProject} eyebrow={copy.projects} onClose={() => { resetForm(); setFormOpen(false); }} size="wide"><form className="project-form" onSubmit={saveProject}><label>{copy.projectName}<input value={name} onChange={(event) => setName(event.target.value)} required maxLength="180" autoFocus /></label><label>{copy.projectLocation}<select value={location} onChange={(event) => setLocation(event.target.value)} required><option value="">—</option>{countries.map((country) => <option key={country.code} value={country.name}>{country.name}</option>)}</select></label><section><h4>{copy.gallery}</h4><div className="project-gallery-upload">{gallery.map((item, index) => <label key={index} className={item ? "has-image" : ""} title={copy.chooseImage}>{item ? <><img src={item.preview} alt="" /><button type="button" onClick={(event) => { event.preventDefault(); URL.revokeObjectURL(item.preview); setGallery((items) => items.map((entry, entryIndex) => entryIndex === index ? null : entry)); }}><X size={15} /></button></> : <><Plus size={25} /><span>{index + 1}</span></>}<input type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" onChange={(event) => selectImage(index, event)} /></label>)}</div></section>{error ? <p className="form-error">{error}</p> : null}<footer><button type="button" className="secondary-button" onClick={() => { resetForm(); setFormOpen(false); }}>Cancelar</button><button type="submit" className="primary-button" disabled={saving}>{saving ? copy.savingProject : copy.saveProject}</button></footer></form></ModalShell> : null}
+  </section>;
 }
 
 function localizedDriveFolderName(name, locale = "es") {
@@ -11074,6 +11163,7 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   const [folderId, setFolderId] = useState(null);
   const [history, setHistory] = useState([]);
   const [preview, setPreview] = useState(null);
+  const [projectsOpen, setProjectsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const drive = useResource(() => apiRequest(`/api/drive?country=${country}${folderId ? `&folderId=${encodeURIComponent(folderId)}` : ""}`, { token }), [token, country, folderId]);
@@ -11128,9 +11218,8 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
 
   return (
     <Panel title="Drive">
-      {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
-      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{localizedDriveFolderName(item.name, locale)}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" multiple onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{localizedDriveFolderName(folder.name, locale)}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>
-      {preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}
+      {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); setProjectsOpen(false); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
+      {projectsOpen ? <ProjectsDriveView token={token} locale={locale} onBack={() => setProjectsOpen(false)} /> : <><section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{localizedDriveFolderName(item.name, locale)}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" multiple onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{!folderId ? <button type="button" className="drive-folder drive-projects-folder" onClick={() => { setPreview(null); setProjectsOpen(true); }}><FileText size={28}/><strong>{copy.projects}</strong><small>{copy.sharedProjects}</small></button> : null}{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{localizedDriveFolderName(folder.name, locale)}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>{preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}</>}
     </Panel>
   );
 }
