@@ -1601,9 +1601,9 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
 
 function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" }) {
   const canUseGeneral = CHAT_USERS.has(String(user?.email || "").trim().toLowerCase());
-  const canResetChat = isPanelAdministrator(user);
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState("");
+  const [attachments, setAttachments] = useState([]);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [powersOpen, setPowersOpen] = useState(false);
@@ -1612,6 +1612,7 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" })
   const [powerStatus, setPowerStatus] = useState("");
   const [selectedPeerId, setSelectedPeerId] = useState(initialPeerId || (canUseGeneral ? "general" : ""));
   const messagesRef = useRef(null);
+  const attachmentInputRef = useRef(null);
 
   async function loadParticipants() {
     const result = await apiRequest("/api/operations/chat/participants", { token });
@@ -1649,14 +1650,51 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" })
   }, [token, selectedPeerId]);
   useEffect(() => { messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight }); }, [messages.length]);
 
+  function addAttachments(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    const acceptedExtensions = new Set(["pdf", "jpg", "jpeg", "png", "docx", "xlsx", "csv", "txt"]);
+    const rejected = files.find((file) => !acceptedExtensions.has(file.name.split(".").pop()?.toLowerCase()) || file.size > 10 * 1024 * 1024);
+    if (rejected) {
+      setError("Solo se permiten PDF, JPG, PNG, DOCX, XLSX, CSV o TXT de hasta 10 MB.");
+      return;
+    }
+    setAttachments((current) => [...current, ...files].slice(0, 5));
+    if (attachments.length + files.length > 5) setError("Solo se pueden adjuntar 5 archivos por mensaje.");
+  }
+
+  async function downloadAttachment(attachment) {
+    try {
+      const response = await fetch(`${API_BASE_URL}${attachment.url}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!response.ok) throw new Error("No se ha podido descargar el adjunto.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.fileName;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setError(err.message || "No se ha podido descargar el adjunto.");
+    }
+  }
+
   async function sendMessage(event) {
     event.preventDefault();
-    if (!body.trim() || sending) return;
+    if ((!body.trim() && !attachments.length) || sending) return;
     setSending(true);
     setError("");
     try {
-      await apiRequest("/api/operations/chat", { token, method: "POST", body: { body, targetUserId: selectedPeerId === "general" ? null : selectedPeerId } });
+      const serializedAttachments = await Promise.all(attachments.map(async (file) => ({
+        fileName: file.name,
+        mimeType: file.type || ({ pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv", txt: "text/plain" })[file.name.split(".").pop()?.toLowerCase()] || "",
+        dataBase64: await fileToBase64(file)
+      })));
+      await apiRequest("/api/operations/chat", { token, method: "POST", body: { body, attachments: serializedAttachments, targetUserId: selectedPeerId === "general" ? null : selectedPeerId } });
       setBody("");
+      setAttachments([]);
       await load(selectedPeerId);
     } catch (err) { setError(err.message); }
     finally { setSending(false); }
@@ -1686,25 +1724,8 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "" })
     finally { setSending(false); }
   }
 
-  async function resetAllChats() {
-    if (sending) return;
-    const confirmed = window.confirm("Se eliminarán todos los mensajes de chat, conversaciones privadas, lecturas y avisos de todos los usuarios. Esta acción no se puede deshacer. ¿Continuar?");
-    if (!confirmed) return;
-    setSending(true);
-    setError("");
-    setPowerStatus("");
-    try {
-      const result = await apiRequest("/api/operations/chat/reset", { token, method: "POST", body: {} });
-      setMessages([]);
-      setParticipants((current) => current.map((participant) => ({ ...participant, unreadCount: 0 })));
-      setPowerStatus(`Chat reiniciado: ${result.deletedMessages || 0} mensajes y ${result.deletedAlerts || 0} avisos eliminados.`);
-      onRead?.();
-    } catch (err) { setError(err.message); }
-    finally { setSending(false); }
-  }
-
   const activePeer = participants.find((participant) => participant.id === selectedPeerId);
-  return <div className="operation-modal-backdrop" onMouseDown={onClose}><section className="operation-modal chat-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>Mensajería del equipo</small><h2>Chat interno</h2></div><div className="chat-header-actions">{canResetChat ? <button type="button" className="secondary-button chat-reset-button" disabled={sending} onClick={resetAllChats}>Reiniciar chats</button> : null}<button type="button" className={powersOpen ? "superpowers-button active" : "superpowers-button"} onClick={() => setPowersOpen((open) => !open)}><Sparkles size={17} /> Superpoderes</button><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></div></header>{powersOpen ? <div className="superpowers-panel"><label>Usuario de destino<select value={targetEmail} onChange={(event) => setTargetEmail(event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.email}>{participant.fullName} · {participant.email}</option>)}</select></label><button type="button" disabled={!targetEmail || sending} onClick={sendSuperpower}><Zap size={18} /><span><strong>Enviar rayo de luz ultravioleta</strong><small>Convierte temporalmente en rojo el panel del destinatario.</small></span></button></div> : null}{error ? <p className="operation-error">{error}</p> : null}{powerStatus ? <p className="superpower-status">{powerStatus}</p> : null}<div className="chat-workspace"><aside className="chat-users"><strong>Conversaciones</strong>{canUseGeneral ? <button type="button" className={selectedPeerId === "general" ? "active" : ""} onClick={() => setSelectedPeerId("general")}><span className="chat-avatar group">DL</span><span><b>Chat general</b><small>Almacén y oficinas</small></span></button> : null}{participants.map((participant) => <button type="button" key={participant.id} className={selectedPeerId === participant.id ? "active" : ""} onClick={() => { setSelectedPeerId(participant.id); setTargetEmail(participant.email); }}><span className="chat-avatar">{participant.fullName.slice(0, 2).toUpperCase()}</span><span><b>{participant.fullName}</b><small>{participant.email}</small></span>{participant.unreadCount ? <em>{participant.unreadCount > 99 ? "99+" : participant.unreadCount}</em> : null}</button>)}</aside><section className="chat-conversation"><div className="chat-conversation-title"><strong>{selectedPeerId === "general" ? "Chat general" : activePeer?.fullName || "Selecciona un usuario"}</strong>{activePeer ? <small>Conversación privada · {activePeer.email}</small> : null}</div><div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : userDisplayName(message)}</strong><p>{message.body}</p><time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}{!messages.length ? <p className="chat-empty">Todavía no hay mensajes en esta conversación.</p> : null}</div><form className="chat-composer" onSubmit={sendMessage}><textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={handleComposerKeyDown} placeholder={selectedPeerId === "general" ? "Escribe en el chat general…" : `Mensaje privado para ${activePeer?.fullName || "este usuario"}…`} disabled={!selectedPeerId} /><button type="submit" disabled={sending || !body.trim() || !selectedPeerId}><Send size={18} /></button></form></section></div></section></div>;
+  return <div className="operation-modal-backdrop" onMouseDown={onClose}><section className="operation-modal chat-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>Mensajería del equipo</small><h2>Chat interno</h2></div><div className="chat-header-actions"><button type="button" className={powersOpen ? "superpowers-button active" : "superpowers-button"} onClick={() => setPowersOpen((open) => !open)}><Sparkles size={17} /> Superpoderes</button><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></div></header>{powersOpen ? <div className="superpowers-panel"><label>Usuario de destino<select value={targetEmail} onChange={(event) => setTargetEmail(event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.email}>{participant.fullName} · {participant.email}</option>)}</select></label><button type="button" disabled={!targetEmail || sending} onClick={sendSuperpower}><Zap size={18} /><span><strong>Enviar rayo de luz ultravioleta</strong><small>Convierte temporalmente en rojo el panel del destinatario.</small></span></button></div> : null}{error ? <p className="operation-error">{error}</p> : null}{powerStatus ? <p className="superpower-status">{powerStatus}</p> : null}<div className="chat-workspace"><aside className="chat-users"><strong>Conversaciones</strong>{canUseGeneral ? <button type="button" className={selectedPeerId === "general" ? "active" : ""} onClick={() => setSelectedPeerId("general")}><span className="chat-avatar group">DL</span><span><b>Chat general</b><small>Almacén y oficinas</small></span></button> : null}{participants.map((participant) => <button type="button" key={participant.id} className={selectedPeerId === participant.id ? "active" : ""} onClick={() => { setSelectedPeerId(participant.id); setTargetEmail(participant.email); }}><span className="chat-avatar">{participant.fullName.slice(0, 2).toUpperCase()}</span><span><b>{participant.fullName}</b><small>{participant.email}</small></span>{participant.unreadCount ? <em>{participant.unreadCount > 99 ? "99+" : participant.unreadCount}</em> : null}</button>)}</aside><section className="chat-conversation"><div className="chat-conversation-title"><strong>{selectedPeerId === "general" ? "Chat general" : activePeer?.fullName || "Selecciona un usuario"}</strong>{activePeer ? <small>Conversación privada · {activePeer.email}</small> : null}</div><div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : userDisplayName(message)}</strong>{message.body ? <p>{message.body}</p> : null}{message.attachments?.length ? <div className="chat-message-attachments">{message.attachments.map((attachment) => <button type="button" key={attachment.id} onClick={() => downloadAttachment(attachment)} title={`Descargar ${attachment.fileName}`}><Paperclip size={14} /><span>{attachment.fileName}</span><small>{attachmentSize(attachment.fileSize)}</small></button>)}</div> : null}<time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}{!messages.length ? <p className="chat-empty">Todavía no hay mensajes en esta conversación.</p> : null}</div><form className="chat-composer" onSubmit={sendMessage}><input ref={attachmentInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv,.txt,application/pdf,image/jpeg,image/png,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={addAttachments} /><textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={handleComposerKeyDown} placeholder={selectedPeerId === "general" ? "Escribe en el chat general…" : `Mensaje privado para ${activePeer?.fullName || "este usuario"}…`} disabled={!selectedPeerId} /><button type="button" className="chat-attachment-button" onClick={() => attachmentInputRef.current?.click()} disabled={sending || !selectedPeerId} title="Adjuntar archivos"><Paperclip size={18} /></button><button type="submit" disabled={sending || (!body.trim() && !attachments.length) || !selectedPeerId}><Send size={18} /></button>{attachments.length ? <div className="chat-composer-attachments">{attachments.map((file, index) => <span key={`${file.name}-${index}`}><Paperclip size={13} />{file.name}<button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}</div> : null}</form></section></div></section></div>;
 }
 
 function ManufacturingModal({ token, user, onClose }) {

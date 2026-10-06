@@ -8153,9 +8153,19 @@ th {
 .chat-messages p { margin: 4px 0; white-space: pre-wrap; }
 .chat-messages time { color: #7a8377; font-size: 10px; }
 .chat-empty { margin: auto; color: #7a8477; text-align: center; }
-.chat-composer { display: grid; grid-template-columns: 1fr 48px; gap: 10px; padding: 14px; }
+.chat-composer { display: grid; grid-template-columns: 1fr 42px 48px; gap: 10px; padding: 14px; }
 .chat-composer textarea { min-height: 48px; max-height: 120px; resize: vertical; border: 1px solid #d9dfd4; border-radius: 10px; padding: 11px; }
 .chat-composer button { border: 0; border-radius: 10px; color: #fff; background: #679800; }
+.chat-composer .chat-attachment-button { background: #536c3d; }
+.chat-composer-attachments { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-composer-attachments > span,
+.chat-message-attachments button { display: inline-flex; align-items: center; gap: 5px; }
+.chat-composer-attachments > span { max-width: 100%; padding: 5px 7px; border-radius: 7px; background: #edf2e7; color: #435437; font-size: 12px; overflow: hidden; }
+.chat-composer-attachments > span > button { display: inline-flex; padding: 1px; margin-left: 2px; background: transparent; color: #52604b; }
+.chat-message-attachments { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin: 7px 0; }
+.chat-message-attachments button { max-width: 100%; border: 1px solid #d5dfc9; border-radius: 8px; padding: 6px 8px; background: #f4f8ef; color: #38551c; font-size: 12px; text-align: left; cursor: pointer; }
+.chat-message-attachments button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-message-attachments button small { color: #6f786a; }
 
 .manufacturing-modal { width: min(760px,96vw); }
 .manufacturing-form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 12px; border-bottom: 1px solid #e3e7df; padding: 18px 20px; }
