@@ -11097,6 +11097,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       url: attachment.url || ""
     }))
   );
+  const [invoiceAttachments, setInvoiceAttachments] = useState(() => initialQuote?.invoiceAttachments || []);
+  const [invoiceAttachmentBusy, setInvoiceAttachmentBusy] = useState(false);
+  const [invoiceAttachmentPreview, setInvoiceAttachmentPreview] = useState(null);
+  const invoiceAttachmentInputRef = useRef(null);
   const [lines, setLines] = useState(() => {
     if (initialQuote?.items?.length) {
       return initialQuote.items.map((line) => ({
@@ -12490,6 +12494,70 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     event.target.value = "";
   }
 
+  async function previewInvoiceAttachment(attachment) {
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE_URL}${attachment.url}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!response.ok) throw new Error("No se ha podido cargar la vista previa del archivo.");
+      const blob = await response.blob();
+      if (invoiceAttachmentPreview?.url) URL.revokeObjectURL(invoiceAttachmentPreview.url);
+      setInvoiceAttachmentPreview({
+        id: attachment.id,
+        fileName: attachment.fileName,
+        mimeType: blob.type || attachment.mimeType,
+        url: URL.createObjectURL(blob)
+      });
+    } catch (err) {
+      setError(err.message || "No se ha podido abrir el adjunto.");
+    }
+  }
+
+  async function addInvoiceAttachments(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length || !currentDocument?.id) return;
+    setError("");
+    setInvoiceAttachmentBusy(true);
+    try {
+      for (const file of files) {
+        const extension = file.name.split(".").pop()?.toLowerCase();
+        const mimeType = file.type || (extension === "pdf" ? "application/pdf" : "image/jpeg");
+        if (!["pdf", "jpg", "jpeg"].includes(extension) || !["application/pdf", "image/jpeg"].includes(mimeType)) {
+          throw new Error("Solo se pueden adjuntar archivos PDF, JPG o JPEG.");
+        }
+        if (file.size > 10 * 1024 * 1024) throw new Error("Cada archivo puede ocupar como máximo 10 MB.");
+        const result = await apiRequest(`/api/sales/documents/invoice/${currentDocument.id}/attachments`, {
+          token,
+          method: "POST",
+          body: { fileName: file.name, mimeType, fileSize: file.size, dataBase64: await fileToBase64(file) }
+        });
+        const attachment = result.item;
+        setInvoiceAttachments((current) => [...current, attachment]);
+        await previewInvoiceAttachment(attachment);
+      }
+    } catch (err) {
+      setError(err.message || "No se ha podido adjuntar el archivo.");
+    } finally {
+      setInvoiceAttachmentBusy(false);
+    }
+  }
+
+  async function removeInvoiceAttachment(attachment) {
+    if (!currentDocument?.id) return;
+    try {
+      await apiRequest(`/api/sales/documents/invoice/${currentDocument.id}/attachments/${attachment.id}`, { token, method: "DELETE" });
+      setInvoiceAttachments((current) => current.filter((item) => item.id !== attachment.id));
+      if (invoiceAttachmentPreview?.id === attachment.id) {
+        URL.revokeObjectURL(invoiceAttachmentPreview.url);
+        setInvoiceAttachmentPreview(null);
+      }
+    } catch (err) {
+      setError(err.message || "No se ha podido eliminar el adjunto.");
+    }
+  }
+
   return (
     <div className="modal-form quote-modal-form">
       <DocumentTrace
@@ -12564,6 +12632,28 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
             </div>
             {!isQuote ? (
               <>
+                {isInvoice ? (
+                  <>
+                    <input
+                      ref={invoiceAttachmentInputRef}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                      multiple
+                      hidden
+                      onChange={addInvoiceAttachments}
+                    />
+                    <button
+                      className="quote-document-icon-button"
+                      type="button"
+                      onClick={() => invoiceAttachmentInputRef.current?.click()}
+                      disabled={!currentDocument?.id || invoiceAttachmentBusy}
+                      aria-label="Subir documentos de la factura"
+                      title={currentDocument?.id ? "Subir PDF, JPG o JPEG (máx. 10 MB)" : "Guarda primero la factura para adjuntar documentos"}
+                    >
+                      <Paperclip size={20} />
+                    </button>
+                  </>
+                ) : null}
                 <button className="quote-document-icon-button" type="button" onClick={downloadQuotePdf} aria-label="Descargar PDF" title="Descargar PDF">
                   <Download size={20} />
                 </button>
@@ -13122,6 +13212,44 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <strong>{money(total)}</strong>
         </div>
       </section>
+      {isInvoice ? (
+        <section className="purchase-attachments invoice-sales-attachments">
+          <header>
+            <div>
+              <h4>Documentos adjuntos</h4>
+              <p>PDF, JPG o JPEG · máximo 10 MB por archivo.</p>
+            </div>
+            <span>{invoiceAttachmentBusy ? "Adjuntando..." : `${invoiceAttachments.length} archivo(s)`}</span>
+          </header>
+          {invoiceAttachments.length ? (
+            <div className="purchase-attachments-workspace">
+              <div className="purchase-attachment-list">
+                {invoiceAttachments.map((attachment) => (
+                  <div className={`purchase-attachment-row ${invoiceAttachmentPreview?.id === attachment.id ? "is-previewed" : ""}`} key={attachment.id}>
+                    <FileText size={18} />
+                    <div className="purchase-attachment-info">
+                      <strong>{attachment.fileName}</strong>
+                      <span>{attachmentSize(attachment.fileSize)}</span>
+                    </div>
+                    <div className="purchase-attachment-actions">
+                      <button className="icon-button" type="button" title="Vista previa" aria-label={`Vista previa de ${attachment.fileName}`} onClick={() => previewInvoiceAttachment(attachment)}><ImageIcon size={16} /></button>
+                      <button className="icon-button" type="button" title="Eliminar adjunto" aria-label={`Eliminar ${attachment.fileName}`} onClick={() => removeInvoiceAttachment(attachment)}><X size={16} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <aside className="purchase-attachment-preview" aria-live="polite">
+                <div className="purchase-attachment-preview-title"><ImageIcon size={16} /><span>Vista previa</span></div>
+                {invoiceAttachmentPreview ? (
+                  invoiceAttachmentPreview.mimeType.startsWith("image/")
+                    ? <img src={invoiceAttachmentPreview.url} alt={`Vista previa de ${invoiceAttachmentPreview.fileName}`} />
+                    : <iframe title={`Vista previa de ${invoiceAttachmentPreview.fileName}`} src={invoiceAttachmentPreview.url} />
+                ) : <p>Selecciona un documento para previsualizarlo.</p>}
+              </aside>
+            </div>
+          ) : <p className="purchase-attachment-empty">No hay documentos adjuntos a esta factura.</p>}
+        </section>
+      ) : null}
       </fieldset>
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">
