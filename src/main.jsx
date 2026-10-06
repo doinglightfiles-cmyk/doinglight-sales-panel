@@ -4074,6 +4074,18 @@ function InvoiceCreateForm({ token, onCancel, onNavigateSettings }) {
     setLines((current) => current.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
   }
 
+  function saveCustomNoteOnEnter(event) {
+    if (event.key !== "Enter" || event.nativeEvent?.isComposing) return;
+    event.preventDefault();
+    // Una vez creado el documento, Enter guarda la descripción en su propia
+    // línea sin cerrar el modal. Así la nota no se pierde al volver a abrirlo.
+    if (!currentDocument?.id) {
+      setError("Guarda primero el documento para conservar la descripción personalizada.");
+      return;
+    }
+    submit(event, { closeAfterSave: false });
+  }
+
   function lineSubtotal(line) {
     return Number(line.quantity || 0) * Number(line.unitPrice || 0) * (1 - Number(line.discountPercent || 0) / 100);
   }
@@ -12389,7 +12401,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     };
   });
 
-  async function submit(event, { openSendAfterSave = false } = {}) {
+  async function submit(event, { openSendAfterSave = false, closeAfterSave = true } = {}) {
     event?.preventDefault();
     if (readOnly) {
       setError(lockMessage || "Este documento está bloqueado y no se puede modificar.");
@@ -12471,7 +12483,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           document: saved,
           paymentUrl: saved?.redsysPaymentUrl || redsysPaymentUrl
         });
-      } else {
+      } else if (closeAfterSave) {
         await new Promise((resolve) => window.setTimeout(resolve, 650));
         onDone();
       }
@@ -13087,6 +13099,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                         placeholder="Ej.: Medida, acabado o indicación especial"
                         value={line.customNote || ""}
                         onChange={(event) => updateLine(line.id, { customNote: event.target.value })}
+                        onKeyDown={saveCustomNoteOnEnter}
                       />
                     ) : (
                       <button
