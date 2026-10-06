@@ -3878,6 +3878,8 @@ function serializeInternalSalesDocument(item) {
     title: line.title,
     text: line.description || line.title,
     description: line.description || line.title,
+    shortDescription: line.productSnapshot?.shortDescription || line.productSnapshot?.description || line.description || "",
+    customNote: line.customNote || line.productSnapshot?.customNote || "",
     quantity: line.quantity,
     unitPrice: line.unitPrice,
     discountPercent: line.discountPercent,
@@ -4815,14 +4817,30 @@ function documentCounterpartBlock(documentRecord) {
 
 function documentLinesForPdf(lines = []) {
   return lines.map((line) => {
+    const productSnapshot = line.productSnapshot || line.product_snapshot || {};
     const quantity = normalizeMoneyValue(firstValue(line, ["quantity", "units", "amount"], 0));
     const total = normalizeMoneyValue(firstValue(line, ["total", "totalAmount", "amountTotal", "amount"], 0));
     const price = normalizeMoneyValue(firstValue(line, ["unitPrice", "price", "salePrice"], quantity ? total / quantity : total));
     return {
       code: firstValue(line, ["code", "productCode", "sku", "reference", "product.code"], ""),
-      concept: firstValue(line, ["text", "description", "title", "concept"], ""),
+      // El título es la cabecera de la línea; la descripción corta se muestra
+      // debajo, igual que en el PDF de presupuestos.
+      concept: firstValue(line, ["title", "text", "description", "concept"], ""),
+      shortDescription: firstValue(line, [
+        "shortDescription",
+        "productSnapshot.shortDescription",
+        "productSnapshot.description",
+        "product.shortDescription"
+      ], productSnapshot.shortDescription || productSnapshot.description || ""),
       customNote: firstValue(line, ["customNote", "custom_note", "productSnapshot.customNote"], ""),
       lineType: firstValue(line, ["lineType", "type", "productSnapshot.type"], ""),
+      imageUrl: firstValue(line, [
+        "imageUrl",
+        "mainImageUrl",
+        "productSnapshot.mainImageUrl",
+        "productSnapshot.media.0.url",
+        "product.mainImageUrl"
+      ], productSnapshot.mainImageUrl || productSnapshot.media?.[0]?.url || ""),
       quantity,
       price,
       discount: normalizeMoneyValue(firstValue(line, ["discount", "discountPercent", "discountPercentage"], 0)),
