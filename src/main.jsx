@@ -986,6 +986,10 @@ function isPanelAdministrator(user) {
   return ["admin", "doinglight_admin", "super_admin"].includes(String(user?.role || "").toLowerCase());
 }
 
+function canAccessWebsites(user) {
+  return String(user?.email || "").trim().toLowerCase() === "marketing@doinglight.es";
+}
+
 function panelLocaleForUser(user) {
   const email = String(user?.email || "").trim().toLowerCase();
   const localeByDistributorEmail = {
@@ -1684,10 +1688,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const canUseShopping=SHOPPING_LIST_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
   const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
-  const canManageWebsites = isPanelAdministrator(session.user);
+  const canManageWebsites = canAccessWebsites(session.user);
   // The login endpoint exposes the distributor as a nested object; authenticated
   // sessions may additionally include distributorId from the token.
-  const isDistributor = Boolean(session.user?.distributor?.id || session.user?.distributorId) && !canManageWebsites;
+  const isDistributor = Boolean(session.user?.distributor?.id || session.user?.distributorId) && !isPanelAdministrator(session.user);
   const panelLocale = panelLocaleForUser(session.user);
   const isFrenchDistributor = isDistributor && panelLocale === "fr";
   const distributorLabels = {
