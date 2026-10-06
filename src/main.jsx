@@ -9169,6 +9169,8 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("documents");
+  const [postalLookupPending, setPostalLookupPending] = useState(false);
+  const postalLookupTimerRef = useRef(null);
   const isSupplier = (draft.contactKind || lead.contactKind || "client") === "supplier";
   const paymentNotificationsAllowed = !isSupplier && !["level_1", "level_2"].includes(draft.customerLevel);
   const quotes = useResource(() => apiRequest("/api/sales/quotes?limit=200", { token }), [token]);
@@ -9179,6 +9181,44 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
     setEditing(false);
     setActiveTab("documents");
   }, [lead]);
+
+  useEffect(() => () => window.clearTimeout(postalLookupTimerRef.current), []);
+
+  function lookupDetailPostalCode(postalCode, country, { countryChanged = false } = {}) {
+    const nextPostalCode = String(postalCode || "");
+    const nextCountry = String(country || "").toUpperCase();
+    setDraft((current) => ({
+      ...current,
+      postalCode: nextPostalCode,
+      country: nextCountry || current.country,
+      viesValid: countryChanged ? false : current.viesValid
+    }));
+    window.clearTimeout(postalLookupTimerRef.current);
+    const compactPostalCode = nextPostalCode.replace(/[\s-]/g, "");
+    const validPostalCode = nextCountry === "PT" ? /^\d{7}$/.test(compactPostalCode) : /^\d{5}$/.test(compactPostalCode);
+    if (!validPostalCode || !["ES", "FR", "IT", "PT"].includes(nextCountry)) {
+      setPostalLookupPending(false);
+      return;
+    }
+    postalLookupTimerRef.current = window.setTimeout(async () => {
+      setPostalLookupPending(true);
+      try {
+        const result = await apiRequest(`/api/sales/postal-lookup?country=${encodeURIComponent(nextCountry)}&postalCode=${encodeURIComponent(nextPostalCode)}`, { token });
+        setDraft((current) => current.postalCode === nextPostalCode && current.country === nextCountry
+          ? {
+              ...current,
+              population: result.result.population || current.population,
+              city: result.result.city || current.city,
+              province: result.result.province || current.province
+            }
+          : current);
+      } catch {
+        // Los campos se mantienen editables cuando no exista coincidencia.
+      } finally {
+        setPostalLookupPending(false);
+      }
+    }, 450);
+  }
 
   async function saveProfile() {
     if (!token) return;
@@ -9325,6 +9365,8 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
                 onViesInputChange={() => setViesMessage("")}
                 onCheckWhatsapp={checkDetailWhatsapp}
                 whatsappMessage={whatsappMessage}
+                onPostalLookup={lookupDetailPostalCode}
+                postalLookupPending={postalLookupPending}
               />
 
               <LeadCrmFields
