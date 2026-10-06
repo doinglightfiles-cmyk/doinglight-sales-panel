@@ -11233,6 +11233,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         sku: line.sku || "",
         quantity: line.quantity || 1,
         discountPercent: zeroDiscountByDefault ? 0 : line.discountPercent || 0,
+        discountManuallySet: Boolean(line.productSnapshot?.manualDiscountOverride),
         unitPriceOverride: line.unitPrice,
         title: line.title || line.productSnapshot?.title || "",
         productSnapshot: line.productSnapshot || {},
@@ -11464,7 +11465,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     setLines((current) =>
       current.map((line) => {
         if (["shipping", "installation"].includes(line.lineType) || ["shipping", "installation"].includes(line.productSnapshot?.type)) return { ...line, discountPercent: 0 };
-        if (Number(line.discountPercent || 0) > 0) return line;
+        // Un descuento introducido por el usuario, incluido un 0 %, siempre
+        // prevalece sobre el descuento por defecto del nivel del cliente.
+        if (line.discountManuallySet || Number(line.discountPercent || 0) > 0) return line;
         return { ...line, discountPercent: defaultDiscount };
       })
     );
@@ -12397,7 +12400,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   }
               : isCustomLine
                 ? { source: "system", type: "custom", sku: "ALMORCHON", title: String(line.title || "").trim(), shortDescription: String(line.title || "").trim() }
-              : product || line.productSnapshot || {}
+              : {
+                  ...(product || line.productSnapshot || {}),
+                  ...(line.discountManuallySet ? { manualDiscountOverride: true } : {})
+                }
           };
         })
         .filter((line) => line.sku),
@@ -13251,7 +13257,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                     max="100"
                     value={line.discountPercent}
                     readOnly={isFixedPriceLine}
-                    onChange={(event) => updateLine(line.id, { discountPercent: event.target.value })}
+                    onChange={(event) => updateLine(line.id, { discountPercent: event.target.value, discountManuallySet: true })}
                     onKeyDown={(event) => {
                       if (event.key === "Tab" && !event.shiftKey && index === lines.length - 1) {
                         event.preventDefault();
