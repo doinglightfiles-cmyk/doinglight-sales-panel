@@ -11040,11 +11040,11 @@ function QuoteDetailModal({ token, quote, lead, onClose }) {
 
 function driveCopy(locale = "es") {
   const copies = {
-    es: { upload: "Subir PDF", uploading: "Subiendo…", back: "← Atrás", loading: "Cargando Drive…", folder: "Carpeta", empty: "Esta carpeta todavía no contiene archivos.", pdfOnly: "Solo se admiten archivos PDF.", maxSize: "El PDF no puede superar 10 MB.", uploadError: "No se ha podido subir el PDF.", openError: "No se ha podido abrir el PDF.", attachDocument: "Adjuntar documento", closeDrive: "Cerrar Drive", open: "Abrir", attach: "Adjuntar" },
-    fr: { upload: "Importer un PDF", uploading: "Importation…", back: "← Retour", loading: "Chargement du Drive…", folder: "Dossier", empty: "Ce dossier ne contient pas encore de fichiers.", pdfOnly: "Seuls les fichiers PDF sont acceptés.", maxSize: "Le PDF ne peut pas dépasser 10 Mo.", uploadError: "Impossible d’importer le PDF.", openError: "Impossible d’ouvrir le PDF.", attachDocument: "Joindre un document", closeDrive: "Fermer le Drive", open: "Ouvrir", attach: "Joindre" },
-    it: { upload: "Carica PDF", uploading: "Caricamento…", back: "← Indietro", loading: "Caricamento Drive…", folder: "Cartella", empty: "Questa cartella non contiene ancora file.", pdfOnly: "Sono ammessi solo file PDF.", maxSize: "Il PDF non può superare 10 MB.", uploadError: "Non è stato possibile caricare il PDF.", openError: "Non è stato possibile aprire il PDF.", attachDocument: "Allega documento", closeDrive: "Chiudi Drive", open: "Apri", attach: "Allega" },
-    pt: { upload: "Carregar PDF", uploading: "A carregar…", back: "← Voltar", loading: "A carregar Drive…", folder: "Pasta", empty: "Esta pasta ainda não contém ficheiros.", pdfOnly: "Só são permitidos ficheiros PDF.", maxSize: "O PDF não pode ultrapassar 10 MB.", uploadError: "Não foi possível carregar o PDF.", openError: "Não foi possível abrir o PDF.", attachDocument: "Anexar documento", closeDrive: "Fechar Drive", open: "Abrir", attach: "Anexar" },
-    de: { upload: "PDF hochladen", uploading: "Wird hochgeladen…", back: "← Zurück", loading: "Drive wird geladen…", folder: "Ordner", empty: "Dieser Ordner enthält noch keine Dateien.", pdfOnly: "Es sind nur PDF-Dateien zulässig.", maxSize: "Das PDF darf nicht größer als 10 MB sein.", uploadError: "Das PDF konnte nicht hochgeladen werden.", openError: "Das PDF konnte nicht geöffnet werden.", attachDocument: "Dokument anhängen", closeDrive: "Drive schließen", open: "Öffnen", attach: "Anhängen" }
+    es: { upload: "Subir hasta 3 PDF", uploading: "Subiendo…", back: "← Atrás", loading: "Cargando Drive…", folder: "Carpeta", empty: "Esta carpeta todavía no contiene archivos.", pdfOnly: "Solo se admiten archivos PDF.", maxSize: "Cada PDF no puede superar 10 MB.", maxFiles: "Puedes seleccionar un máximo de 3 PDF.", uploadError: "No se han podido subir los PDF.", openError: "No se ha podido abrir el PDF.", attachDocument: "Adjuntar documento", closeDrive: "Cerrar Drive", open: "Abrir", attach: "Adjuntar" },
+    fr: { upload: "Importer jusqu’à 3 PDF", uploading: "Importation…", back: "← Retour", loading: "Chargement du Drive…", folder: "Dossier", empty: "Ce dossier ne contient pas encore de fichiers.", pdfOnly: "Seuls les fichiers PDF sont acceptés.", maxSize: "Chaque PDF ne peut pas dépasser 10 Mo.", maxFiles: "Vous pouvez sélectionner au maximum 3 PDF.", uploadError: "Impossible d’importer les PDF.", openError: "Impossible d’ouvrir le PDF.", attachDocument: "Joindre un document", closeDrive: "Fermer le Drive", open: "Ouvrir", attach: "Joindre" },
+    it: { upload: "Carica fino a 3 PDF", uploading: "Caricamento…", back: "← Indietro", loading: "Caricamento Drive…", folder: "Cartella", empty: "Questa cartella non contiene ancora file.", pdfOnly: "Sono ammessi solo file PDF.", maxSize: "Ogni PDF non può superare 10 MB.", maxFiles: "Puoi selezionare al massimo 3 PDF.", uploadError: "Non è stato possibile caricare i PDF.", openError: "Non è stato possibile aprire il PDF.", attachDocument: "Allega documento", closeDrive: "Chiudi Drive", open: "Apri", attach: "Allega" },
+    pt: { upload: "Carregar até 3 PDF", uploading: "A carregar…", back: "← Voltar", loading: "A carregar Drive…", folder: "Pasta", empty: "Esta pasta ainda não contém ficheiros.", pdfOnly: "Só são permitidos ficheiros PDF.", maxSize: "Cada PDF não pode ultrapassar 10 MB.", maxFiles: "Pode selecionar no máximo 3 PDF.", uploadError: "Não foi possível carregar os PDF.", openError: "Não foi possível abrir o PDF.", attachDocument: "Anexar documento", closeDrive: "Fechar Drive", open: "Abrir", attach: "Anexar" },
+    de: { upload: "Bis zu 3 PDFs hochladen", uploading: "Wird hochgeladen…", back: "← Zurück", loading: "Drive wird geladen…", folder: "Ordner", empty: "Dieser Ordner enthält noch keine Dateien.", pdfOnly: "Es sind nur PDF-Dateien zulässig.", maxSize: "Jedes PDF darf nicht größer als 10 MB sein.", maxFiles: "Sie können maximal 3 PDFs auswählen.", uploadError: "Die PDFs konnten nicht hochgeladen werden.", openError: "Das PDF konnte nicht geöffnet werden.", attachDocument: "Dokument anhängen", closeDrive: "Drive schließen", open: "Öffnen", attach: "Anhängen" }
   };
   return copies[String(locale).toLowerCase()] || copies.es;
 }
@@ -11082,22 +11082,31 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   function goBack() { const previous = history[history.length - 1]; setHistory((items) => items.slice(0, -1)); setFolderId(previous?.id || null); setPreview(null); }
   function goToBreadcrumb(index) { if (index < 0) { setFolderId(null); setHistory([]); setPreview(null); return; } const targetId = index === history.length - 1 ? folderId : history[index + 1]?.id; setFolderId(targetId || null); setHistory((items) => items.slice(0, index + 1)); setPreview(null); }
   async function upload(event) {
-    const file = event.target.files?.[0];
-    if (!file || !folderId) return;
+    const files = Array.from(event.target.files || []);
+    if (!files.length || !folderId) return;
     setUploadError("");
-    if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf")) {
+    if (files.length > 3) {
+      setUploadError(copy.maxFiles);
+      event.target.value = "";
+      return;
+    }
+    if (files.some((file) => !/\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf"))) {
       setUploadError(copy.pdfOnly);
       event.target.value = "";
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
+    if (files.some((file) => file.size > 10 * 1024 * 1024)) {
       setUploadError(copy.maxSize);
       event.target.value = "";
       return;
     }
     setUploading(true);
     try {
-      await apiRequest("/api/drive/files", { token, method: "POST", body: { country, folderId, name: file.name, content: await fileToBase64(file) } });
+      await Promise.all(files.map(async (file) => apiRequest("/api/drive/files", {
+        token,
+        method: "POST",
+        body: { country, folderId, name: file.name, content: await fileToBase64(file) }
+      })));
       await drive.reload();
     } catch (error) {
       setUploadError(error.message || copy.uploadError);
@@ -11120,7 +11129,7 @@ function DownloadsView({ token, user, distributor = false, locale = "es" }) {
   return (
     <Panel title="Drive">
       {administrator ? <div className="drive-country-grid">{countries.map((item) => <button key={item.id} type="button" className={country === item.id ? "active" : ""} onClick={() => { setCountry(item.id); setFolderId(null); setHistory([]); setPreview(null); }}><span>{item.flag}</span><strong>{item.label}</strong><small>{item.description}</small></button>)}</div> : <div className="drive-country-current"><span>{selectedCountry.flag}</span><div><strong>Drive {selectedCountry.label}</strong><small>{selectedCountry.description}</small></div></div>}
-      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{localizedDriveFolderName(item.name, locale)}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{localizedDriveFolderName(folder.name, locale)}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>
+      <section className="drive-browser"><header><div className="drive-browser-location"><nav className="drive-breadcrumbs" aria-label="Drive"><button type="button" onClick={() => goToBreadcrumb(-1)}>Drive</button><span>/</span><button type="button" onClick={() => goToBreadcrumb(-1)}>{selectedCountry.flag} {selectedCountry.label}</button>{history.map((item, index) => <Fragment key={`${item.id || "root"}-${item.name}-${index}`}><span>/</span><button type="button" className={index === history.length - 1 ? "current" : ""} onClick={() => goToBreadcrumb(index)}>{localizedDriveFolderName(item.name, locale)}</button></Fragment>)}</nav>{folderId ? <button className="drive-back-button" type="button" onClick={goBack}>{copy.back}</button> : null}</div>{folderId ? <label className="primary-button drive-upload">{uploading ? copy.uploading : copy.upload}<input type="file" accept="application/pdf,.pdf" multiple onChange={upload} /></label> : null}</header>{uploadError ? <p className="form-error">{uploadError}</p> : null}{drive.loading ? <p className="mail-state">{copy.loading}</p> : null}{drive.error ? <p className="form-error">{drive.error}</p> : null}<div className="drive-browser-grid">{(drive.data?.folders || []).map((folder) => <button type="button" className="drive-folder" key={folder.id} onClick={() => openFolder(folder)}><FileText size={28}/><strong>{localizedDriveFolderName(folder.name, locale)}</strong><small>{copy.folder}</small></button>)}{(drive.data?.files || []).map((file) => <button type="button" className="drive-file" key={file.id} onClick={() => previewFile(file)}><FileText size={32}/><strong>{file.name}</strong><small>PDF · {attachmentSize(file.size)}</small></button>)}</div>{!drive.loading && !(drive.data?.folders || []).length && !(drive.data?.files || []).length ? <p className="mail-empty-state">{copy.empty}</p> : null}</section>
       {preview ? <section className="drive-preview"><header><strong>{preview.name}</strong><button className="icon-button" type="button" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}><X size={18}/></button></header><iframe title={preview.name} src={preview.url}/></section> : null}
     </Panel>
   );
