@@ -3709,6 +3709,7 @@ function DocumentPdfPage({
             <span className="quote-pdf-line-code">{line.code || "-"}</span>
             <span className="quote-pdf-line-concept">
               <span>{line.lineType === "shipping" ? (isPaidShippingLine(line) ? paidShippingText(language) : shippingText(language)) : line.concept || "-"}</span>
+              {line.shortDescription && line.shortDescription !== line.concept ? <small className="quote-pdf-line-short-description">{line.shortDescription}</small> : null}
               {line.customNote ? <em className="quote-pdf-line-custom-note">{line.customNote}</em> : null}
             </span>
             <span className="quote-pdf-line-number">{formatLineQuantity(line.quantity)}</span>
@@ -12042,6 +12043,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return {
       code: line.skuQuery || line.sku || "-",
       concept: selectedProduct?.title || selectedProduct?.shortDescription || "Producto pendiente",
+      shortDescription: String(
+        selectedProduct?.shortDescription
+        || selectedProduct?.description
+        || line.productSnapshot?.shortDescription
+        || line.productSnapshot?.description
+        || ""
+      ).trim(),
       customNote: String(line.customNote || "").trim(),
       imageUrl: imageUrlForDisplay(lineImageUrl, 220),
       lineType: line.lineType || line.productSnapshot?.type || "product",

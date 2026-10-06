@@ -7063,6 +7063,13 @@ th {
   line-height: 1.2;
 }
 
+.quote-pdf-line-short-description {
+  color: #5f675d;
+  font-size: 9.4px;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
 .quote-pdf-summary {
   width: 44%;
   margin-top: 0;
