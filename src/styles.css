@@ -8229,6 +8229,15 @@ th {
 .chat-message-attachments button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-message-attachments button small { color: #6f786a; }
 
+.brands-intro { margin: 0; padding: 14px 18px; color: #64705e; border-bottom: 1px solid var(--line); background: #fafcf8; }
+.brands-workspace { min-height: 430px; display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 2fr); }
+.brands-list { overflow: auto; border-right: 1px solid var(--line); padding: 12px; background: #f7f9f4; }
+.brands-list > button { width: 100%; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 10px; border: 0; border-radius: 9px; padding: 11px; color: #31402d; background: transparent; text-align: left; }
+.brands-list > button:hover,.brands-list > button.active { color: var(--green-dark); background: #eaf3d8; }
+.brands-list span { min-width: 0; display: grid; gap: 3px; }.brands-list small { color: #72806b; }
+.brand-products-panel { min-width: 0; padding: 20px; }.brand-products-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }.brand-products-panel h3 { margin: 3px 0 0; }.brand-products-panel header small { color: #70806a; font-weight: 700; }.brand-form { display: grid; gap: 16px; padding: 6px 2px; }.brand-form label { display: grid; gap: 7px; color: #44523f; font-weight: 750; }.brand-form label small { font-weight: 500; }.brand-form textarea { min-height: 92px; resize: vertical; }.brand-form footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
+@media (max-width: 760px) { .brands-workspace { grid-template-columns: 1fr; }.brands-list { max-height: 190px; border-right: 0; border-bottom: 1px solid var(--line); }.brand-products-panel { padding: 15px; } }
+
 .manufacturing-modal { width: min(760px,96vw); }
 .manufacturing-form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 12px; border-bottom: 1px solid #e3e7df; padding: 18px 20px; }
 .manufacturing-form label { display: grid; gap: 7px; font-weight: 800; }

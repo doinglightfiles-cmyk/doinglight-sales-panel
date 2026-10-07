@@ -1956,6 +1956,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
       items: [
         { id: "contacts", label: "Contactos" },
         { id: "catalog", label: "Productos" },
+        ...(isPanelAdministrator(session.user) ? [{ id: "brands", label: "Marcas" }] : []),
         { id: "downloads", label: "Drive" },
         { id: "activity", label: "Actividad" }
       ]
@@ -2205,6 +2206,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "accounting-entries" ? <ModuleWorkspace moduleId="accounting-entries" /> : null}
           {activeView === "reports" ? <ModuleWorkspace moduleId="reports" /> : null}
           {activeView === "catalog" ? <CatalogView token={session.token} locale={panelLocale} distributor={isDistributor} /> : null}
+          {activeView === "brands" && isPanelAdministrator(session.user) ? <BrandsView token={session.token} /> : null}
           {activeView === "mail" && canUseMailbox ? <MailWorkspace token={session.token} user={session.user} locale={panelLocale} initialDriveFile={mailDriveFile} onDriveFileConsumed={() => setMailDriveFile(null)} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
@@ -7633,6 +7635,41 @@ function CatalogView({ token, locale = "es", distributor = false }) {
   );
 }
 
+function BrandsView({ token }) {
+  const brands = useResource(() => apiRequest("/api/brands", { token }), [token]);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [brandName, setBrandName] = useState("");
+  const [brandModalOpen, setBrandModalOpen] = useState(false);
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [product, setProduct] = useState({ sku: "", title: "", description: "", price: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const products = useResource(
+    () => selectedBrand ? apiRequest(`/api/brands/products?brandId=${encodeURIComponent(selectedBrand.id)}`, { token }) : Promise.resolve({ items: [] }),
+    [token, selectedBrand?.id]
+  );
+  async function createBrand(event) {
+    event.preventDefault(); if (!brandName.trim() || saving) return;
+    setSaving(true); setError("");
+    try { const result = await apiRequest("/api/brands", { token, method: "POST", body: { name: brandName } }); setBrandModalOpen(false); setBrandName(""); setSelectedBrand(result.item); brands.reload(); }
+    catch (err) { setError(err.message || "No se ha podido crear la marca."); } finally { setSaving(false); }
+  }
+  async function createProduct(event) {
+    event.preventDefault(); if (!selectedBrand || saving) return;
+    setSaving(true); setError("");
+    try { await apiRequest(`/api/brands/${selectedBrand.id}/products`, { token, method: "POST", body: { ...product, price: Number(String(product.price).replace(",", ".")) } }); setProductModalOpen(false); setProduct({ sku: "", title: "", description: "", price: "" }); products.reload(); brands.reload(); }
+    catch (err) { setError(err.message || "No se ha podido añadir el producto."); } finally { setSaving(false); }
+  }
+  return <Panel title="Marcas" action={<button type="button" className="primary-button" onClick={() => { setError(""); setBrandModalOpen(true); }}><Plus size={18}/>Añadir marca</button>}>
+    <p className="brands-intro">Productos de colaboradores externos. Este catálogo está separado del catálogo y del Excel de Doinglight.</p>
+    {error ? <p className="form-error">{error}</p> : null}
+    <div className="brands-workspace"><nav className="brands-list">{brands.loading ? <p>Cargando marcas…</p> : null}{(brands.data?.items || []).map((brand) => <button type="button" key={brand.id} className={selectedBrand?.id === brand.id ? "active" : ""} onClick={() => { setSelectedBrand(brand); setError(""); }}><Package size={19}/><span><strong>{brand.name}</strong><small>{brand.productCount} producto{brand.productCount === 1 ? "" : "s"}</small></span><ChevronRight size={16}/></button>)}{!brands.loading && !(brands.data?.items || []).length ? <p className="mail-empty-state">Todavía no hay marcas.</p> : null}</nav>
+      <section className="brand-products-panel">{selectedBrand ? <><header><div><small>Marca colaboradora</small><h3>{selectedBrand.name}</h3></div><button type="button" className="primary-button" onClick={() => { setError(""); setProductModalOpen(true); }}><Plus size={17}/>Añadir producto</button></header>{products.error ? <p className="form-error">{products.error}</p> : null}<div className="table-wrap"><table><thead><tr><th>Referencia</th><th>Descripción</th><th>Precio</th></tr></thead><tbody>{(products.data?.items || []).map((item) => <tr key={item.id}><td><strong>{item.sku}</strong></td><td><strong>{item.title}</strong>{item.shortDescription ? <span>{item.shortDescription}</span> : null}</td><td>{money(item.pricePvpEur)}</td></tr>)}</tbody></table></div>{!products.loading && !(products.data?.items || []).length ? <p className="mail-empty-state">Esta marca todavía no tiene productos.</p> : null}</> : <p className="mail-empty-state">Selecciona una marca para ver sus productos.</p>}</section></div>
+    {brandModalOpen ? <ModalShell title="Añadir marca" onClose={() => setBrandModalOpen(false)}><form className="brand-form" onSubmit={createBrand}><label>Nombre de la marca<input value={brandName} onChange={(event) => setBrandName(event.target.value)} autoFocus required maxLength="120" /></label><footer><button type="button" className="secondary-button" onClick={() => setBrandModalOpen(false)}>Cancelar</button><button type="submit" className="primary-button" disabled={saving}>{saving ? "Guardando…" : "Crear marca"}</button></footer></form></ModalShell> : null}
+    {productModalOpen ? <ModalShell title={`Añadir producto · ${selectedBrand?.name || ""}`} onClose={() => setProductModalOpen(false)}><form className="brand-form" onSubmit={createProduct}><label>Referencia<input value={product.sku} onChange={(event) => setProduct((current) => ({ ...current, sku: event.target.value.toUpperCase() }))} autoFocus required maxLength="120" /></label><label>Descripción<input value={product.title} onChange={(event) => setProduct((current) => ({ ...current, title: event.target.value }))} required maxLength="240" /></label><label>Descripción adicional <small>Opcional</small><textarea value={product.description} onChange={(event) => setProduct((current) => ({ ...current, description: event.target.value }))} maxLength="2000" /></label><label>Precio (€)<input type="number" min="0" step="0.01" value={product.price} onChange={(event) => setProduct((current) => ({ ...current, price: event.target.value }))} required /></label><footer><button type="button" className="secondary-button" onClick={() => setProductModalOpen(false)}>Cancelar</button><button type="submit" className="primary-button" disabled={saving}>{saving ? "Guardando…" : "Añadir producto"}</button></footer></form></ModalShell> : null}
+  </Panel>;
+}
+
 function ProductDetailModal({ product, onClose }) {
   const gallery = getProductGallery(product);
 
@@ -11704,6 +11741,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     () => apiRequest(`/api/catalog/products?locale=${encodeURIComponent(quoteLanguage || "es")}&channel=sales_app`, { token }),
     [token, quoteLanguage]
   );
+  const brandCatalog = useResource(
+    () => apiRequest("/api/brands/products", { token }),
+    [token]
+  );
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendDraft, setSendDraft] = useState(null);
   const [sendStatus, setSendStatus] = useState("");
@@ -11716,7 +11757,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     ? String(quoteLanguage).toLowerCase()
     : "es";
 
-  const products = catalog.data?.products || [];
+  const doinglightProducts = catalog.data?.products || [];
+  const brandProducts = brandCatalog.data?.items || [];
+  const products = [...doinglightProducts, ...brandProducts];
   const ownerUsers = assignableUsers.data?.items || [];
   const selectedOwner = ownerUsers.find((user) => user.id === selectedOwnerUserId);
   const selectedOwnerName = selectedOwner?.fullName
@@ -12096,7 +12139,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         shortDescription: String(line.title || line.productSnapshot?.shortDescription || "").trim()
       };
     }
-    const catalogProduct = products.find((product) => product.sku === line.skuQuery.trim()) || products.find((product) => product.sku === line.sku);
+    const externalProductId = line.productSnapshot?.externalBrandProductId;
+    const catalogProduct = (externalProductId ? brandProducts.find((product) => product.id === externalProductId) : null)
+      || products.find((product) => product.sku === line.skuQuery.trim())
+      || products.find((product) => product.sku === line.sku);
     if (catalogProduct) return catalogProduct;
 
     const sku = String(line.sku || "").trim();
@@ -13576,7 +13622,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                         sku: matchedProduct?.sku || (isMagicReference ? "ALMORCHON" : ""),
                         lineType: isMagicReference ? "custom" : "product",
                         title: isMagicReference ? line.title || "" : "",
-                        productSnapshot: isMagicReference ? line.productSnapshot || {} : {},
+                        productSnapshot: isMagicReference ? line.productSnapshot || {} : (matchedProduct?.source === "collaborating_brand" ? { ...matchedProduct } : {}),
                         unitPriceOverride: undefined,
                         manualTotal: null
                       });
@@ -13712,8 +13758,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           );
         })}
         <datalist id="quote-product-suggestions">
-          {products.map((product) => (
+          {doinglightProducts.map((product) => (
             <option key={product.sku} value={product.sku}>{product.title || product.slug}</option>
+          ))}
+          {brandProducts.map((product) => (
+            <option key={product.id} value={product.sku}>{product.brandName} · {product.title}</option>
           ))}
           {isQuote ? <option value="ALMORCHON">Producto especial con descripción y precio manuales</option> : null}
         </datalist>
