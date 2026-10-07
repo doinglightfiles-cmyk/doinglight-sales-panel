@@ -1881,7 +1881,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [globalInvoiceOpen, setGlobalInvoiceOpen] = useState(false);
   const [globalQuoteOpen, setGlobalQuoteOpen] = useState(false);
-  const [globalProformaOpen, setGlobalProformaOpen] = useState(false);
   const [globalDeliveryNoteOpen, setGlobalDeliveryNoteOpen] = useState(false);
   const [globalPurchaseOpen, setGlobalPurchaseOpen] = useState(null);
   const [globalContactPickerOpen, setGlobalContactPickerOpen] = useState(false);
@@ -1969,7 +1968,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     }
   ];
   const moreNav = moreGroups.flatMap((group) => group.items);
-  const documentViewIds = ["quotes", "delivery-notes", "proformas", "invoices"];
+  const documentViewIds = ["quotes", "delivery-notes", "invoices"];
   const activeMoreItem = moreNav.find(
     (item) => item.id === activeView && !primaryNav.some((navItem) => navItem.id === item.id) && !documentViewIds.includes(item.id)
   );
@@ -1995,10 +1994,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
     setGlobalQuoteOpen(true);
   }
 
-  function openGlobalProforma() {
-    setCreateDrawerOpen(false);
-    setGlobalProformaOpen(true);
-  }
 
   function openGlobalDeliveryNote() {
     setCreateDrawerOpen(false);
@@ -2060,9 +2055,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
                     </button>
                     <button type="button" onClick={() => navigate("delivery-notes")} role="menuitem">
                       Albarán
-                    </button>
-                    <button type="button" onClick={() => navigate("proformas")} role="menuitem">
-                      Proforma
                     </button>
                     <button type="button" onClick={() => navigate("invoices")} role="menuitem">
                       Factura
@@ -2195,7 +2187,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "contacts" ? <ContactsView token={session.token} initialFilter={contactsInitialFilter} distributor={isDistributor} locale={session.user.locale} /> : null}
           {activeView === "banks" ? <ModuleWorkspace moduleId="banks" /> : null}
           {activeView === "delivery-notes" ? <DeliveryNotesView token={session.token} onCreateDeliveryNote={openGlobalDeliveryNote} /> : null}
-          {activeView === "proformas" ? <ProformasView token={session.token} onCreateProforma={openGlobalProforma} /> : null}
           {activeView === "all-sales" ? <ModuleWorkspace moduleId="all-sales" /> : null}
           {activeView === "payroll" ? <ModuleWorkspace moduleId="payroll" /> : null}
           {activeView === "purchase-scan" ? <ModuleWorkspace moduleId="purchase-scan" /> : null}
@@ -2218,7 +2209,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
       {!isDistributor && !isAngelSpainDistributor && !createDrawerOpen
         && !globalInvoiceOpen
         && !globalQuoteOpen
-        && !globalProformaOpen
         && !globalDeliveryNoteOpen
         && !globalPurchaseOpen
         && !globalContactPickerOpen
@@ -2234,7 +2224,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           onNavigate={navigate}
           onCreateInvoice={openGlobalInvoice}
           onCreateQuote={openGlobalQuote}
-          onCreateProforma={openGlobalProforma}
           onCreateDeliveryNote={openGlobalDeliveryNote}
           onCreateContact={openGlobalContactPicker}
           onCreatePurchase={openGlobalPurchase}
@@ -2325,24 +2314,6 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           />
         </ModalShell>
       ) : null}
-      {globalProformaOpen ? (
-        <ModalShell
-          title="Nueva factura proforma"
-          eyebrow="Factura Proforma"
-          size="wide-modal quote-work-modal"
-          onClose={() => setGlobalProformaOpen(false)}
-        >
-          <QuoteForm
-            token={session.token}
-            documentType="proforma"
-            onCancel={() => setGlobalProformaOpen(false)}
-            onDone={() => {
-              setGlobalProformaOpen(false);
-              navigate("proformas");
-            }}
-          />
-        </ModalShell>
-      ) : null}
       {globalContactPickerOpen ? (
         <ContactTypePicker onClose={() => setGlobalContactPickerOpen(false)} onSelect={openGlobalContactForm} />
       ) : null}
@@ -2378,12 +2349,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   );
 }
 
-function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateProforma, onCreateDeliveryNote, onCreateContact, onCreatePurchase }) {
+function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateDeliveryNote, onCreateContact, onCreatePurchase }) {
   const [isClosing, setIsClosing] = useState(false);
   const actions = [
     { label: "Factura de venta", action: onCreateInvoice },
     { label: "Presupuesto", action: onCreateQuote },
-    { label: "Proforma", action: onCreateProforma },
     { label: "Albarán", action: onCreateDeliveryNote },
     { label: "Factura de compra", action: () => onCreatePurchase("supplier_invoice") },
     { label: "Gasto/Tiquet", action: () => onCreatePurchase("expense") },
@@ -11708,9 +11678,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     return taxModeFromDocument(initialQuote || { taxMode: "21" });
   });
   const [notes, setNotes] = useState(initialQuote?.notes || "");
-  const [includePaymentDetails, setIncludePaymentDetails] = useState(
-    initialQuote ? Boolean(initialQuote.includePaymentDetails) : isQuote
-  );
+  // Los presupuestos incluyen siempre transferencia española y pago por
+  // tarjeta. Ya no es una preferencia configurable por documento.
+  const includePaymentDetails = isQuote;
   const [redsysPaymentUrl, setRedsysPaymentUrl] = useState(initialQuote?.redsysPaymentUrl || "");
   const [quoteStatus, setQuoteStatus] = useState(() => (
     isInvoice
@@ -12803,7 +12773,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       dueDate: validUntil,
       paymentMethod,
       notes,
-      ...(isQuote ? { includePaymentDetails, redsysPaymentUrl: includePaymentDetails ? redsysPaymentUrl.trim() : "" } : {}),
+      ...(isQuote ? { includePaymentDetails: true, redsysPaymentUrl: redsysPaymentUrl.trim() } : {}),
       ...(isQuote ? { netPricing } : {}),
       internalNotes,
       subtotal,
@@ -13443,19 +13413,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 </select>
               </label>
             )}
-            {isQuote ? (
-              <div className="quote-payment-details-field">
-                <label className="quote-payment-details-toggle">
-                  <input
-                    type="checkbox"
-                    checked={includePaymentDetails}
-                    onChange={(event) => setIncludePaymentDetails(event.target.checked)}
-                  />
-                  <span>{t("includePayment", "Incluir datos de pago en el PDF")}</span>
-                </label>
-                {includePaymentDetails ? <small>{redsysPaymentUrl ? "El enlace de pago con tarjeta está preparado." : "El enlace de pago con tarjeta se genera automáticamente al guardar."}</small> : null}
-              </div>
-            ) : null}
+            {isQuote ? <div className="quote-payment-details-field"><strong>Datos de pago incluidos</strong><small>{redsysPaymentUrl ? "El enlace de pago con tarjeta está preparado." : "El enlace de pago con tarjeta se genera automáticamente al guardar o enviar."}</small></div> : null}
             <label>
               <span>{t("status", `Estado del ${documentTitle.toLowerCase()}`)}</span>
               <select value={quoteStatus} onChange={(event) => handleInvoiceStatusChange(event.target.value)}>
