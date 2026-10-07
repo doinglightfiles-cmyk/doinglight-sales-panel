@@ -2568,6 +2568,13 @@ const MODULES = {
   }
 };
 
+const MAIL_UI_COPY = {
+  es: { inbox: "Bandeja de entrada", sent: "Enviados", drafts: "Borradores", trash: "Papelera", contacts: "Contactos", newMessage: "Nuevo mensaje", loading: "Cargando…", noMessages: "No hay mensajes que mostrar.", drive: "EXPLORADOR DE ARCHIVOS", add: "Añadir", added: "Añadido", requiredConfiguration: "Configuración necesaria en Railway", addressBook: "Libreta de direcciones", contactsDescription: "Tus contactos son privados para este buzón. Los nuevos corresponsales se guardan automáticamente.", nameOrCompany: "Nombre o empresa", emailAddress: "Dirección de correo", saving: "Guardando…", addContact: "Añadir contacto", loadingContacts: "Cargando contactos…", noContacts: "No hay contactos", select: "Seleccionar", selectAll: "Seleccionar todos los mensajes", deleting: "Eliminando…", delete: "Eliminar", deleteForever: "Eliminar definitivamente", backToList: "← Volver al listado", from: "De:", to: "Para:", noReadableText: "Este mensaje no contiene texto legible.", reply: "Responder", replyAll: "Responder a todos", consultation: "CONSULTA", closeConsultation: "Cerrar consulta", close: "Cerrar", addAddress: "Añadir una dirección", addFromContacts: "Añadir destinatarios desde la libreta de direcciones", hiddenCopy: "Destinatarios en copia oculta", subject: "Asunto", message: "Mensaje", attachFiles: "Adjuntar archivos", chooseFiles: "Elegir archivos", saveDraft: "Guardar borrador", sending: "Enviando…", sendMessage: "Enviar mensaje", searchContact: "Buscar un nombre o correo electrónico", noContactFound: "No se ha encontrado ningún contacto.", done: "Terminado", attachmentError: "No se ha podido adjuntar el PDF del Drive.", loadError: "No se ha podido cargar el mensaje.", draftError: "No se ha podido abrir el borrador.", deleteError: "No se han podido eliminar los mensajes.", sendError: "No se ha podido enviar el mensaje.", saveDraftError: "No se ha podido guardar el borrador.", saveContactError: "No se ha podido guardar el contacto.", deleteQuestion: (count, permanently) => permanently ? `¿Eliminar definitivamente ${count} mensaje${count > 1 ? "s" : ""}? Esta acción no se puede deshacer.` : `¿Mover ${count} mensaje${count > 1 ? "s" : ""} a la papelera?` },
+  fr: { inbox: "Boîte de réception", sent: "Messages envoyés", drafts: "Brouillons", trash: "Corbeille", contacts: "Contacts", newMessage: "Nouveau message", loading: "Chargement…", noMessages: "Aucun message à afficher.", drive: "EXPLORATEUR DE FICHIERS", add: "Ajouter", added: "Ajouté", requiredConfiguration: "Configuration requise dans Railway", addressBook: "Carnet d’adresses", contactsDescription: "Vos contacts sont privés pour cette boîte. Les nouveaux correspondants sont enregistrés automatiquement.", nameOrCompany: "Nom ou société", emailAddress: "Adresse e-mail", saving: "Enregistrement…", addContact: "Ajouter un contact", loadingContacts: "Chargement des contacts…", noContacts: "Aucun contact", select: "Sélectionner", selectAll: "Sélectionner tous les messages", deleting: "Suppression…", delete: "Supprimer", deleteForever: "Supprimer définitivement", backToList: "← Retour à la liste", from: "De :", to: "À :", noReadableText: "Ce message ne contient pas de texte lisible.", reply: "Répondre", replyAll: "Répondre à tous", consultation: "CONSULTATION", closeConsultation: "Fermer la consultation", close: "Fermer", addAddress: "Ajouter une adresse", addFromContacts: "Ajouter depuis le carnet d’adresses", hiddenCopy: "Destinataires en copie cachée", subject: "Objet", message: "Message", attachFiles: "Joindre des fichiers", chooseFiles: "Choisir des fichiers", saveDraft: "Enregistrer le brouillon", sending: "Envoi…", sendMessage: "Envoyer le message", searchContact: "Rechercher un nom ou une adresse e-mail", noContactFound: "Aucun contact trouvé.", done: "Terminé", attachmentError: "Impossible de joindre le PDF du Drive.", loadError: "Impossible de charger le message.", draftError: "Impossible d’ouvrir le brouillon.", deleteError: "Impossible de supprimer les messages.", sendError: "Impossible d’envoyer le message.", saveDraftError: "Impossible d’enregistrer le brouillon.", saveContactError: "Impossible d’enregistrer le contact.", deleteQuestion: (count, permanently) => permanently ? `Supprimer définitivement ${count} message${count > 1 ? "s" : ""} ? Cette action est irréversible.` : `Placer ${count} message${count > 1 ? "s" : ""} dans la corbeille ?` },
+  it: { inbox: "Posta in arrivo", sent: "Posta inviata", drafts: "Bozze", trash: "Cestino", contacts: "Contatti", newMessage: "Nuovo messaggio", loading: "Caricamento…", noMessages: "Nessun messaggio da visualizzare.", drive: "ESPLORA FILE", add: "Aggiungi", added: "Aggiunto", requiredConfiguration: "Configurazione necessaria in Railway", addressBook: "Rubrica", contactsDescription: "I contatti sono privati per questa casella. I nuovi corrispondenti vengono salvati automaticamente.", nameOrCompany: "Nome o azienda", emailAddress: "Indirizzo e-mail", saving: "Salvataggio…", addContact: "Aggiungi contatto", loadingContacts: "Caricamento contatti…", noContacts: "Nessun contatto", select: "Seleziona", selectAll: "Seleziona tutti i messaggi", deleting: "Eliminazione…", delete: "Elimina", deleteForever: "Elimina definitivamente", backToList: "← Torna all’elenco", from: "Da:", to: "A:", noReadableText: "Questo messaggio non contiene testo leggibile.", reply: "Rispondi", replyAll: "Rispondi a tutti", consultation: "CONSULTAZIONE", closeConsultation: "Chiudi consultazione", close: "Chiudi", addAddress: "Aggiungi un indirizzo", addFromContacts: "Aggiungi dalla rubrica", hiddenCopy: "Destinatari in copia nascosta", subject: "Oggetto", message: "Messaggio", attachFiles: "Allega file", chooseFiles: "Scegli file", saveDraft: "Salva bozza", sending: "Invio…", sendMessage: "Invia messaggio", searchContact: "Cerca un nome o un’e-mail", noContactFound: "Nessun contatto trovato.", done: "Fine", attachmentError: "Impossibile allegare il PDF dal Drive.", loadError: "Impossibile caricare il messaggio.", draftError: "Impossibile aprire la bozza.", deleteError: "Impossibile eliminare i messaggi.", sendError: "Impossibile inviare il messaggio.", saveDraftError: "Impossibile salvare la bozza.", saveContactError: "Impossibile salvare il contatto.", deleteQuestion: (count, permanently) => permanently ? `Eliminare definitivamente ${count} messaggio${count > 1 ? "i" : ""}?` : `Spostare ${count} messaggio${count > 1 ? "i" : ""} nel cestino?` },
+  pt: { inbox: "Caixa de entrada", sent: "Enviados", drafts: "Rascunhos", trash: "Lixo", contacts: "Contactos", newMessage: "Nova mensagem", loading: "A carregar…", noMessages: "Não há mensagens para mostrar.", drive: "EXPLORADOR DE FICHEIROS", add: "Adicionar", added: "Adicionado", requiredConfiguration: "Configuração necessária no Railway", addressBook: "Livro de endereços", contactsDescription: "Os seus contactos são privados para esta caixa. Os novos correspondentes são guardados automaticamente.", nameOrCompany: "Nome ou empresa", emailAddress: "Endereço de e-mail", saving: "A guardar…", addContact: "Adicionar contacto", loadingContacts: "A carregar contactos…", noContacts: "Sem contactos", select: "Selecionar", selectAll: "Selecionar todas as mensagens", deleting: "A eliminar…", delete: "Eliminar", deleteForever: "Eliminar definitivamente", backToList: "← Voltar à lista", from: "De:", to: "Para:", noReadableText: "Esta mensagem não contém texto legível.", reply: "Responder", replyAll: "Responder a todos", consultation: "CONSULTA", closeConsultation: "Fechar consulta", close: "Fechar", addAddress: "Adicionar um endereço", addFromContacts: "Adicionar a partir dos contactos", hiddenCopy: "Destinatários em cópia oculta", subject: "Assunto", message: "Mensagem", attachFiles: "Anexar ficheiros", chooseFiles: "Escolher ficheiros", saveDraft: "Guardar rascunho", sending: "A enviar…", sendMessage: "Enviar mensagem", searchContact: "Pesquisar um nome ou e-mail", noContactFound: "Nenhum contacto encontrado.", done: "Concluído", attachmentError: "Não foi possível anexar o PDF do Drive.", loadError: "Não foi possível carregar a mensagem.", draftError: "Não foi possível abrir o rascunho.", deleteError: "Não foi possível eliminar as mensagens.", sendError: "Não foi possível enviar a mensagem.", saveDraftError: "Não foi possível guardar o rascunho.", saveContactError: "Não foi possível guardar o contacto.", deleteQuestion: (count, permanently) => permanently ? `Eliminar definitivamente ${count} mensagem${count > 1 ? "ns" : ""}?` : `Mover ${count} mensagem${count > 1 ? "ns" : ""} para o lixo?` }
+};
+
 function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, onDriveFileConsumed }) {
   const [folder, setFolder] = useState("inbox");
   const [selectedMessage, setSelectedMessage] = useState(null);
@@ -2591,13 +2598,8 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
   const [composeLookupMessage, setComposeLookupMessage] = useState(null);
   const [composeLookupLoading, setComposeLookupLoading] = useState(false);
   const [composeLookupError, setComposeLookupError] = useState("");
-  const mailCopy = ({
-    es: { inbox: "Bandeja de entrada", sent: "Enviados", drafts: "Borradores", trash: "Papelera", contacts: "Contactos", newMessage: "Nuevo mensaje", loading: "Cargando…", noMessages: "No hay mensajes que mostrar.", drive: "EXPLORADOR DE ARCHIVOS", add: "Añadir", added: "Añadido" },
-    fr: { inbox: "Boîte de réception", sent: "Messages envoyés", drafts: "Brouillons", trash: "Corbeille", contacts: "Contacts", newMessage: "Nouveau message", loading: "Chargement…", noMessages: "Aucun message à afficher.", drive: "EXPLORATEUR DE FICHIERS", add: "Ajouter", added: "Ajouté" },
-    it: { inbox: "Posta in arrivo", sent: "Posta inviata", drafts: "Bozze", trash: "Cestino", contacts: "Contatti", newMessage: "Nuovo messaggio", loading: "Caricamento…", noMessages: "Nessun messaggio da visualizzare.", drive: "ESPLORA FILE", add: "Aggiungi", added: "Aggiunto" },
-    pt: { inbox: "Caixa de entrada", sent: "Enviados", drafts: "Rascunhos", trash: "Lixo", contacts: "Contactos", newMessage: "Nova mensagem", loading: "A carregar…", noMessages: "Não há mensagens para mostrar.", drive: "EXPLORADOR DE FICHEIROS", add: "Adicionar", added: "Adicionado" },
-    de: { inbox: "Posteingang", sent: "Gesendet", drafts: "Entwürfe", trash: "Papierkorb", contacts: "Kontakte", newMessage: "Neue Nachricht", loading: "Laden…", noMessages: "Keine Nachrichten vorhanden.", drive: "DATEI-EXPLORER", add: "Hinzufügen", added: "Hinzugefügt" }
-  }[locale] || {});
+  const mailCopy = MAIL_UI_COPY[locale] || MAIL_UI_COPY.es;
+  const mailDateLocale = ({ es: "es-ES", fr: "fr-FR", it: "it-IT", pt: "pt-PT" }[locale] || "es-ES");
   const labels = { inbox: mailCopy.inbox, sent: mailCopy.sent, drafts: mailCopy.drafts, trash: mailCopy.trash, contacts: mailCopy.contacts };
   const mailbox = useResource(
     () => apiRequest(`/api/mailbox/messages?folder=${folder === "contacts" ? "inbox" : folder}`, { token }),
@@ -2626,7 +2628,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
         setComposeOpen(true);
         onDriveFileConsumed?.();
       })
-      .catch((error) => !cancelled && setMessageError(error.message || "Impossible de joindre le PDF du Drive."));
+      .catch((error) => !cancelled && setMessageError(error.message || mailCopy.attachmentError));
     return () => { cancelled = true; };
   }, [initialDriveFile?.id, token]);
 
@@ -2654,7 +2656,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       const result = await apiRequest(`/api/mailbox/messages/${id}?folder=${folder}`, { token });
       setSelectedMessage(result.item);
     } catch (error) {
-      setMessageError(error.message || "Impossible de charger le message.");
+      setMessageError(error.message || mailCopy.loadError);
     } finally {
       setMessageLoading(false);
     }
@@ -2688,7 +2690,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       setSelectedMessage(null);
       setComposeOpen(true);
     } catch (error) {
-      setMessageError(error.message || "Impossible d’ouvrir le brouillon.");
+      setMessageError(error.message || mailCopy.draftError);
     } finally {
       setMessageLoading(false);
     }
@@ -2708,9 +2710,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
     if (!selectedMessageIds.length) return;
     const permanently = folder === "trash";
     const count = selectedMessageIds.length;
-    const question = permanently
-      ? `Supprimer définitivement ${count} message${count > 1 ? "s" : ""} ? Cette action est irréversible.`
-      : `Placer ${count} message${count > 1 ? "s" : ""} dans la corbeille ?`;
+    const question = mailCopy.deleteQuestion(count, permanently);
     if (!window.confirm(question)) return;
 
     setDeletingMessages(true);
@@ -2725,7 +2725,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       setSelectedMessage(null);
       mailbox.reload();
     } catch (error) {
-      setMessageError(error.message || "Impossible de supprimer les messages.");
+      setMessageError(error.message || mailCopy.deleteError);
     } finally {
       setDeletingMessages(false);
     }
@@ -2750,7 +2750,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       setFolder("sent");
       window.setTimeout(() => mailbox.reload(), 400);
     } catch (error) {
-      setMessageError(error.message || "Impossible d’envoyer le message.");
+      setMessageError(error.message || mailCopy.sendError);
     } finally {
       setSending(false);
     }
@@ -2773,7 +2773,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       setFolder("drafts");
       window.setTimeout(() => mailbox.reload(), 400);
     } catch (error) {
-      setMessageError(error.message || "Impossible d’enregistrer le brouillon.");
+      setMessageError(error.message || mailCopy.saveDraftError);
     } finally {
       setSavingDraft(false);
     }
@@ -2826,7 +2826,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       const result = await apiRequest(`/api/mailbox/messages/${id}?folder=${composeLookupFolder}`, { token });
       setComposeLookupMessage(result.item);
     } catch (error) {
-      setComposeLookupError(error.message || "Impossible de charger le message.");
+      setComposeLookupError(error.message || mailCopy.loadError);
     } finally {
       setComposeLookupLoading(false);
     }
@@ -2872,7 +2872,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       setContactForm({ name: "", email: "" });
       contacts.reload();
     } catch (error) {
-      setMessageError(error.message || "Impossible d’enregistrer le contact.");
+      setMessageError(error.message || mailCopy.saveContactError);
     } finally {
       setSavingContact(false);
     }
@@ -2904,10 +2904,10 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       </header>
       {!configuration.loading && configuration.data?.configured === false ? <section className="mail-setup-warning">
         <Mail size={22} />
-        <div><strong>Configuration requise dans Railway</strong><p>Le service backend ne reçoit pas encore : {configuration.data.missing.join(", ")}.</p></div>
+        <div><strong>{mailCopy.requiredConfiguration}</strong><p>El servicio backend todavía no recibe: {configuration.data.missing.join(", ")}.</p></div>
       </section> : null}
       {!composeOpen ? <section className="mail-layout">
-        <nav className="mail-folders" aria-label="Dossiers de messagerie">
+        <nav className="mail-folders" aria-label={mailCopy.inbox}>
           {Object.entries(labels).map(([id, label]) => (
             <button key={id} type="button" className={folder === id ? "active" : ""} onClick={() => setFolder(id)}>{label}</button>
           ))}
@@ -2916,71 +2916,71 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
           {mailbox.loading || messageLoading ? <p className="mail-state">{mailCopy.loading}</p> : null}
           {mailbox.error || messageError ? <p className="form-error">{mailbox.error || messageError}</p> : null}
           {folder === "contacts" ? <div className="mail-contacts-workspace">
-            <header><div><h4>Carnet d’adresses</h4><p>Vos contacts sont privés et réservés à la boîte info@doinglight.fr. Les nouveaux correspondants sont enregistrés automatiquement.</p></div></header>
+            <header><div><h4>{mailCopy.addressBook}</h4><p>{mailCopy.contactsDescription}</p></div></header>
             <form className="mail-contact-form" onSubmit={saveContact}>
-              <input placeholder="Nom ou société" value={contactForm.name} onChange={(event) => setContactForm({ ...contactForm, name: event.target.value })} />
-              <input type="email" required placeholder="Adresse e-mail" value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} />
-              <button className="primary-button" type="submit" disabled={savingContact}>{savingContact ? "Enregistrement…" : "Ajouter un contact"}</button>
+              <input placeholder={mailCopy.nameOrCompany} value={contactForm.name} onChange={(event) => setContactForm({ ...contactForm, name: event.target.value })} />
+              <input type="email" required placeholder={mailCopy.emailAddress} value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} />
+              <button className="primary-button" type="submit" disabled={savingContact}>{savingContact ? mailCopy.saving : mailCopy.addContact}</button>
             </form>
-            {contacts.loading ? <p className="mail-state">Chargement des contacts…</p> : null}
+            {contacts.loading ? <p className="mail-state">{mailCopy.loadingContacts}</p> : null}
             {contacts.error ? <p className="form-error">{contacts.error}</p> : null}
             <div className="mail-contact-list">{(contacts.data?.items || []).map((contact) => <article key={contact.id}><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</article>)}</div>
-            {!contacts.loading && !(contacts.data?.items || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>Aucun contact</h4><p>Ajoutez ici les clients et contacts utiles à Claudine.</p></div> : null}
+            {!contacts.loading && !(contacts.data?.items || []).length ? <div className="mail-empty-state"><Mail size={34} /><h4>{mailCopy.noContacts}</h4><p>{mailCopy.contactsDescription}</p></div> : null}
           </div> : null}
           {folder !== "contacts" && !mailbox.loading && !mailbox.error && !selectedMessage ? <div className="mail-message-list">
             <div className="mail-selection-toolbar">
-              <label><input type="checkbox" checked={allMailboxMessagesSelected} onChange={toggleAllMessageSelection} aria-label="Sélectionner tous les messages" /> Sélectionner</label>
-              {selectedMessageIds.length ? <button className="bulk-document-action danger" type="button" onClick={deleteSelectedMessages} disabled={deletingMessages}>{deletingMessages ? "Suppression…" : folder === "trash" ? `Supprimer définitivement (${selectedMessageIds.length})` : `Supprimer (${selectedMessageIds.length})`}</button> : null}
+              <label><input type="checkbox" checked={allMailboxMessagesSelected} onChange={toggleAllMessageSelection} aria-label={mailCopy.selectAll} /> {mailCopy.select}</label>
+              {selectedMessageIds.length ? <button className="bulk-document-action danger" type="button" onClick={deleteSelectedMessages} disabled={deletingMessages}>{deletingMessages ? mailCopy.deleting : folder === "trash" ? `${mailCopy.deleteForever} (${selectedMessageIds.length})` : `${mailCopy.delete} (${selectedMessageIds.length})`}</button> : null}
             </div>
             {mailboxMessages.map((message) => {
               const sender = mailboxIdentity(folder === "sent" ? message.to : message.from);
               return <div className="mail-message-row" key={message.id}>
-                <input type="checkbox" checked={selectedMessageIds.includes(message.id)} onChange={() => toggleMessageSelection(message.id)} aria-label={`Sélectionner ${message.subject}`} />
+                <input type="checkbox" checked={selectedMessageIds.includes(message.id)} onChange={() => toggleMessageSelection(message.id)} aria-label={`${mailCopy.select} ${message.subject}`} />
                 <button className={message.seen ? "mail-message" : "mail-message unread"} type="button" onClick={() => folder === "drafts" ? editDraft(message.id) : openMessage(message.id)}>
                   <strong className="mail-message-sender"><span>{sender.name}</span>{sender.email ? <small>{sender.email}</small> : null}</strong>
                   <span className="mail-message-subject">{message.subject}</span>
-                  <time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time>
+                  <time>{message.date ? new Date(message.date).toLocaleDateString(mailDateLocale) : ""}</time>
                 </button>
               </div>;
             })}
             {!mailboxMessages.length ? <div className="mail-empty-state"><Mail size={34} /><h4>{labels[folder]}</h4><p>{mailCopy.noMessages}</p></div> : null}
           </div> : null}
           {folder !== "contacts" && selectedMessage ? <article className="mail-message-detail">
-            <button className="secondary-button" type="button" onClick={() => setSelectedMessage(null)}>← Retour à la liste</button>
+            <button className="secondary-button" type="button" onClick={() => setSelectedMessage(null)}>{mailCopy.backToList}</button>
             <h4>{selectedMessage.subject}</h4>
-            <p><strong>De :</strong> {selectedMessage.from}</p>
-            <p><strong>À :</strong> {selectedMessage.to}</p>
-            <div className="mail-message-body">{selectedMessage.text || "Ce message ne contient pas de texte lisible."}</div>
+            <p><strong>{mailCopy.from}</strong> {selectedMessage.from}</p>
+            <p><strong>{mailCopy.to}</strong> {selectedMessage.to}</p>
+            <div className="mail-message-body">{selectedMessage.text || mailCopy.noReadableText}</div>
             {folder === "inbox" ? <div className="mail-reply-actions">
-              <button className="secondary-button" type="button" onClick={() => openReply(false)}>Répondre</button>
-              <button className="secondary-button" type="button" onClick={() => openReply(true)}>Répondre à tous</button>
+              <button className="secondary-button" type="button" onClick={() => openReply(false)}>{mailCopy.reply}</button>
+              <button className="secondary-button" type="button" onClick={() => openReply(true)}>{mailCopy.replyAll}</button>
             </div> : null}
           </article> : null}
         </div>
       </section> : <section className={composeLookupFolder ? "mail-compose-page browsing" : "mail-compose-page"}>
-        <nav className="mail-folders" aria-label="Dossiers de messagerie">
+        <nav className="mail-folders" aria-label={mailCopy.inbox}>
           {Object.entries(labels).map(([id, label]) => (
             <button key={id} type="button" className={composeLookupFolder === id ? "active" : ""} onClick={() => openComposeFolder(id)}>{label}</button>
           ))}
         </nav>
-        {composeLookupFolder ? <aside className="mail-compose-lookup" aria-label={`Consultation : ${labels[composeLookupFolder]}`}><header><div><small>CONSULTATION</small><h4>{labels[composeLookupFolder]}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupFolder(null)} aria-label="Fermer la consultation"><X size={18} /></button></header>{composeMailbox.loading ? <p className="mail-state">Chargement…</p> : null}{composeMailbox.error || composeLookupError ? <p className="form-error">{composeMailbox.error || composeLookupError}</p> : null}<div className="mail-compose-lookup-list">{(composeMailbox.data?.messages || []).map((message) => { const sender = mailboxIdentity(composeLookupFolder === "sent" ? message.to : message.from); return <button type="button" key={message.id} onClick={() => openComposeLookupMessage(message.id)}><span><strong>{sender.name}</strong>{sender.email ? <small>{sender.email}</small> : null}</span><b>{message.subject}</b><time>{message.date ? new Date(message.date).toLocaleDateString("fr-FR") : ""}</time></button>; })}{!composeMailbox.loading && !(composeMailbox.data?.messages || []).length ? <p className="mail-state">Aucun message à afficher.</p> : null}</div></aside> : null}
+        {composeLookupFolder ? <aside className="mail-compose-lookup" aria-label={`${mailCopy.consultation}: ${labels[composeLookupFolder]}`}><header><div><small>{mailCopy.consultation}</small><h4>{labels[composeLookupFolder]}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupFolder(null)} aria-label={mailCopy.closeConsultation}><X size={18} /></button></header>{composeMailbox.loading ? <p className="mail-state">{mailCopy.loading}</p> : null}{composeMailbox.error || composeLookupError ? <p className="form-error">{composeMailbox.error || composeLookupError}</p> : null}<div className="mail-compose-lookup-list">{(composeMailbox.data?.messages || []).map((message) => { const sender = mailboxIdentity(composeLookupFolder === "sent" ? message.to : message.from); return <button type="button" key={message.id} onClick={() => openComposeLookupMessage(message.id)}><span><strong>{sender.name}</strong>{sender.email ? <small>{sender.email}</small> : null}</span><b>{message.subject}</b><time>{message.date ? new Date(message.date).toLocaleDateString(mailDateLocale) : ""}</time></button>; })}{!composeMailbox.loading && !(composeMailbox.data?.messages || []).length ? <p className="mail-state">{mailCopy.noMessages}</p> : null}</div></aside> : null}
         <form className="mail-compose" onSubmit={sendDraft}>
           <header className="mail-compose-header"><div><div className="mail-compose-brand">DOINGLIGHT <span>{String(driveCountry || "es").toUpperCase()}</span></div><h4>{mailCopy.newMessage}</h4></div><button className="secondary-button" type="button" onClick={() => setComposeOpen(false)}>←</button></header>
-          <label>À<input className="mail-recipient-required" required value={draft.to} onChange={() => undefined} aria-hidden="true" tabIndex={-1} /><span className="mail-recipient-input mail-recipient-tags">{draftRecipients.map((email) => <span className="mail-recipient-tag" key={email.toLowerCase()}>{email}<button type="button" onClick={() => removeRecipient(email)} aria-label={`Retirer ${email}`}><X size={13} /></button></span>)}<input type="text" list="french-mail-contacts" value={recipientEntry} onChange={(event) => setRecipientEntry(event.target.value)} onBlur={addTypedRecipients} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addTypedRecipients(); } }} placeholder={draftRecipients.length ? "Ajouter une adresse" : "Adresse e-mail"} /><button className="mail-recipient-add" type="button" onClick={() => setRecipientPickerOpen(true)} aria-label="Ajouter des destinataires depuis le carnet d’adresses" title="Ajouter depuis le carnet d’adresses"><Plus size={18} /></button></span><datalist id="french-mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist></label>
-          <label>CCO<input type="text" list="french-mail-contacts" value={draft.bcc} onChange={(event) => setDraft({ ...draft, bcc: event.target.value })} placeholder="Destinataires en copie cachée" /></label>
-          <label>Objet<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
-          <label>Message<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
-          <label className="mail-attachment-picker">Joindre des fichiers<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>Choisir des fichiers</span></label>
+          <label>{mailCopy.to}<input className="mail-recipient-required" required value={draft.to} onChange={() => undefined} aria-hidden="true" tabIndex={-1} /><span className="mail-recipient-input mail-recipient-tags">{draftRecipients.map((email) => <span className="mail-recipient-tag" key={email.toLowerCase()}>{email}<button type="button" onClick={() => removeRecipient(email)} aria-label={`${mailCopy.delete} ${email}`}><X size={13} /></button></span>)}<input type="text" list="mail-contacts" value={recipientEntry} onChange={(event) => setRecipientEntry(event.target.value)} onBlur={addTypedRecipients} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addTypedRecipients(); } }} placeholder={draftRecipients.length ? mailCopy.addAddress : mailCopy.emailAddress} /><button className="mail-recipient-add" type="button" onClick={() => setRecipientPickerOpen(true)} aria-label={mailCopy.addFromContacts} title={mailCopy.addFromContacts}><Plus size={18} /></button></span><datalist id="mail-contacts">{(contacts.data?.items || []).map((contact) => <option key={contact.id} value={contact.email}>{contact.name || contact.email}</option>)}</datalist></label>
+          <label>CCO<input type="text" list="mail-contacts" value={draft.bcc} onChange={(event) => setDraft({ ...draft, bcc: event.target.value })} placeholder={mailCopy.hiddenCopy} /></label>
+          <label>{mailCopy.subject}<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
+          <label>{mailCopy.message}<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
+          <label className="mail-attachment-picker">{mailCopy.attachFiles}<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>{mailCopy.chooseFiles}</span></label>
           {attachments.length ? <ul className="mail-attachment-list">{attachments.map((file) => <li key={`${file.name}-${file.size}`}>{file.name} <small>{attachmentSize(file.size)}</small></li>)}</ul> : null}
           {libraryAttachmentIds.length ? <ul className="mail-attachment-list">{libraryAttachmentIds.map((id) => { const item = (library.data?.files || []).find((file) => file.id === id); return <li key={id}>{item?.name || id}<button type="button" onClick={() => setLibraryAttachmentIds((items) => items.filter((itemId) => itemId !== id))}>×</button></li>; })}</ul> : null}
           <div className="mail-compose-actions">
-            <button className="mail-draft-button" type="button" disabled={savingDraft || sending} onClick={saveCurrentDraft}>{savingDraft ? "Enregistrement…" : "Enregistrer le brouillon"}</button>
-            <button className="mail-send-button" type="submit" disabled={sending || savingDraft}>{sending ? "Envoi…" : "Envoyer le message"}</button>
+            <button className="mail-draft-button" type="button" disabled={savingDraft || sending} onClick={saveCurrentDraft}>{savingDraft ? mailCopy.saving : mailCopy.saveDraft}</button>
+            <button className="mail-send-button" type="submit" disabled={sending || savingDraft}>{sending ? mailCopy.sending : mailCopy.sendMessage}</button>
           </div>
         </form>
         <aside className="mail-library" aria-label={mailCopy.drive}><header><small>DRIVE {String(driveCountry || "es").toUpperCase()}</small><h4>{mailCopy.drive}</h4></header>{library.loading ? <p className="mail-state">{mailCopy.loading}</p> : null}{library.error ? <p className="form-error">{library.error}</p> : null}{!libraryFolder ? <section className="mail-library-folders">{libraryFolders.map((folderItem) => <button type="button" key={folderItem.id} onClick={() => setLibraryFolder(folderItem.id)}><FileText size={18} /><span>{folderItem.name}</span><ChevronRight size={16} /></button>)}</section> : <section><button className="mail-library-back" type="button" onClick={() => setLibraryFolder(null)}>← Drive</button><h5>PDF</h5>{(library.data?.files || []).map((item) => <button type="button" className={libraryAttachmentIds.includes(item.id) ? "selected" : ""} key={item.id} onClick={() => setLibraryAttachmentIds((items) => items.includes(item.id) ? items.filter((itemId) => itemId !== item.id) : [...items, item.id])}><FileText size={16}/><span>{item.name}</span><small>{libraryAttachmentIds.includes(item.id) ? mailCopy.added : mailCopy.add}</small></button>)}{!(library.data?.files || []).length ? <p className="mail-state">PDF</p> : null}</section>}</aside>
-        {composeLookupMessage ? <div className="operation-modal-backdrop mail-consultation-modal-backdrop" onMouseDown={() => setComposeLookupMessage(null)}><article className="operation-modal mail-consultation-modal" role="dialog" aria-modal="true" aria-label="Consulter un message" onMouseDown={(event) => event.stopPropagation()}><header><div><small>CONSULTATION</small><h4>{composeLookupMessage.subject}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupMessage(null)} aria-label="Fermer"><X size={20} /></button></header><div className="mail-consultation-meta"><p><strong>De :</strong> {composeLookupMessage.from}</p><p><strong>À :</strong> {composeLookupMessage.to}</p></div><div className="mail-message-body">{composeLookupMessage.text || "Ce message ne contient pas de texte lisible."}</div><footer><button className="mail-send-button" type="button" onClick={() => setComposeLookupMessage(null)}>Fermer</button></footer></article></div> : null}
-        {recipientPickerOpen ? <div className="operation-modal-backdrop mail-recipient-modal-backdrop" onMouseDown={() => setRecipientPickerOpen(false)}><section className="operation-modal mail-recipient-modal" role="dialog" aria-modal="true" aria-label="Carnet d’adresses" onMouseDown={(event) => event.stopPropagation()}><header><div><small>CARNET D’ADRESSES</small><h4>Ajouter des destinataires</h4></div><button className="icon-button" type="button" onClick={() => setRecipientPickerOpen(false)} aria-label="Fermer"><X size={20} /></button></header><label className="mail-recipient-search"><Search size={17} /><input autoFocus value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} placeholder="Rechercher un nom ou une adresse e-mail" /></label><div className="mail-recipient-contact-list">{recipientContacts.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><span><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</span><Plus size={17} /></button>)}{!recipientContacts.length ? <p>Aucun contact trouvé.</p> : null}</div><footer><button className="mail-send-button" type="button" onClick={() => setRecipientPickerOpen(false)}>Terminé</button></footer></section></div> : null}
+        {composeLookupMessage ? <div className="operation-modal-backdrop mail-consultation-modal-backdrop" onMouseDown={() => setComposeLookupMessage(null)}><article className="operation-modal mail-consultation-modal" role="dialog" aria-modal="true" aria-label={mailCopy.consultation} onMouseDown={(event) => event.stopPropagation()}><header><div><small>{mailCopy.consultation}</small><h4>{composeLookupMessage.subject}</h4></div><button className="icon-button" type="button" onClick={() => setComposeLookupMessage(null)} aria-label={mailCopy.close}><X size={20} /></button></header><div className="mail-consultation-meta"><p><strong>{mailCopy.from}</strong> {composeLookupMessage.from}</p><p><strong>{mailCopy.to}</strong> {composeLookupMessage.to}</p></div><div className="mail-message-body">{composeLookupMessage.text || mailCopy.noReadableText}</div><footer><button className="mail-send-button" type="button" onClick={() => setComposeLookupMessage(null)}>{mailCopy.close}</button></footer></article></div> : null}
+        {recipientPickerOpen ? <div className="operation-modal-backdrop mail-recipient-modal-backdrop" onMouseDown={() => setRecipientPickerOpen(false)}><section className="operation-modal mail-recipient-modal" role="dialog" aria-modal="true" aria-label={mailCopy.addressBook} onMouseDown={(event) => event.stopPropagation()}><header><div><small>{mailCopy.addressBook.toUpperCase()}</small><h4>{mailCopy.addFromContacts}</h4></div><button className="icon-button" type="button" onClick={() => setRecipientPickerOpen(false)} aria-label={mailCopy.close}><X size={20} /></button></header><label className="mail-recipient-search"><Search size={17} /><input autoFocus value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} placeholder={mailCopy.searchContact} /></label><div className="mail-recipient-contact-list">{recipientContacts.map((contact) => <button type="button" key={contact.id} onClick={() => addRecipient(contact)}><span><strong>{contact.name || contact.email}</strong>{contact.name ? <small>{contact.email}</small> : null}</span><Plus size={17} /></button>)}{!recipientContacts.length ? <p>{mailCopy.noContactFound}</p> : null}</div><footer><button className="mail-send-button" type="button" onClick={() => setRecipientPickerOpen(false)}>{mailCopy.done}</button></footer></section></div> : null}
       </section>}
     </div>
   );
