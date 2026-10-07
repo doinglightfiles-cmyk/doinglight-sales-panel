@@ -6513,6 +6513,15 @@ th {
   object-position: left center;
 }
 
+.document-email-legal-preview {
+  padding-top: 14px;
+  border-top: 1px solid #e5e8df;
+  color: #6f7768;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
 .quote-send-fields textarea {
   min-height: 260px;
   padding: 15px;

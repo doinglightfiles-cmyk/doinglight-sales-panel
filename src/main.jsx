@@ -142,6 +142,17 @@ function emailBodyWithLegalFooter(message) {
 const LAURA_EMAIL = "administracion@doinglight.es";
 const LAURA_SIGNATURE_IMAGE = "/firma-laura.svg";
 
+function lauraEmailMessage(value) {
+  const body = String(value || "");
+  const marker = "PROTECCIÓN DE DATOS:";
+  const index = body.indexOf(marker);
+  return (index >= 0 ? body.slice(0, index) : body).trimEnd();
+}
+
+function lauraEmailWithLegalFooter(message) {
+  return `${String(message || "").trimEnd()}\n\n${EMAIL_LEGAL_FOOTER}`;
+}
+
 function documentEmailLabel(type) {
   return ({ quote: "presupuesto", proforma: "factura proforma", delivery_note: "albarán", invoice: "factura" })[type] || "documento";
 }
@@ -5167,9 +5178,10 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
             </label>
                 <label className="quote-send-body-field">
                   <span>Contenido</span>
-                  <textarea value={draft.body} onChange={(event) => updateDraft({ body: event.target.value })} />
+                  <textarea value={isLauraSender ? lauraEmailMessage(draft.body) : draft.body} onChange={(event) => updateDraft({ body: isLauraSender ? lauraEmailWithLegalFooter(event.target.value) : event.target.value })} />
                 </label>
                 {isLauraSender ? <img className="document-email-signature" src={LAURA_SIGNATURE_IMAGE} alt="Firma de Laura Atienzar" /> : null}
+                {isLauraSender ? <div className="document-email-legal-preview">{EMAIL_LEGAL_FOOTER}</div> : null}
             <div className="quote-send-attachments">
               <span>Archivos adjuntos</span>
               <label>
@@ -14009,9 +14021,10 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 </label>
                 <label className="quote-send-body-field">
                   <span>{sendCopy.content || "Contenido"}</span>
-                  <textarea value={sendDraft.body} onChange={(event) => updateSendDraft({ body: event.target.value })} />
+                  <textarea value={isLauraSender ? lauraEmailMessage(sendDraft.body) : sendDraft.body} onChange={(event) => updateSendDraft({ body: isLauraSender ? lauraEmailWithLegalFooter(event.target.value) : event.target.value })} />
                 </label>
                 {isLauraSender ? <img className="document-email-signature" src={LAURA_SIGNATURE_IMAGE} alt="Firma de Laura Atienzar" /> : null}
+                {isLauraSender ? <div className="document-email-legal-preview">{EMAIL_LEGAL_FOOTER}</div> : null}
                 <div className="quote-send-attachments">
                   <div className="quote-send-attachments-head">
                     <span>{sendCopy.attachments || "Archivos adjuntos"}</span>
