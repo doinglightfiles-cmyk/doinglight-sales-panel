@@ -3535,7 +3535,14 @@ function taxModeFromDocument(document) {
   if (isReverseChargeDocument(document)) return REVERSE_CHARGE_TAX_CODE;
   const explicitMode = document?.taxMode ?? document?.taxCode ?? document?.taxRate;
   if (explicitMode !== undefined && explicitMode !== null && explicitMode !== "") {
-    return taxOptionFromMode(explicitMode).value;
+    const taxMode = taxOptionFromMode(explicitMode).value;
+    const notesProbe = normalizedTaxProbe([document?.notes, document?.taxLabel, document?.taxTreatment].filter(Boolean).join(" "));
+    // Compatibilidad con documentos ya guardados como 0% antes de conservar
+    // taxMode: la cláusula fiscal confirma que no son meramente exentos.
+    if (taxMode === "0" && (notesProbe.includes("intracomunit") || notesProbe.includes("operacion exenta de iva segun la ley 37/1992"))) {
+      return INTRACOMMUNITY_TAX_CODE;
+    }
+    return taxMode;
   }
   if (!document?.subtotal) return "21";
   return taxOptionFromMode(Math.round((Number(document.taxTotal || 0) / Number(document.subtotal || 1)) * 100)).value;
@@ -3818,7 +3825,7 @@ function DocumentPdfPage({
   const discountHeader = language === "es" ? "Dto." : text.discount;
   const priceHeader = language === "es" ? "Precio" : text.price;
   const taxSummaryLabel = intraCommunity
-    ? `${text.vat} 0% · ${INTRACOMMUNITY_TAX_LABEL}`
+    ? "IVA intracomunitario (servicios) 0%"
     : reverseCharge ? REVERSE_CHARGE_TAX_LABEL : language === "fr" && Number(taxRate) === 21 ? "TVA taux Espagnol 21%" : `${text.vat} ${taxRate}%`;
   const notesWithTaxLegalText = intraCommunity ? notesWithIntracommunityLegalText(notes) : notes;
   // La factura emitida a Italia mantiene la cláusula legal española de la
@@ -13632,7 +13639,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
           <strong>{money(subtotal)}</strong>
         </div>
         <div>
-          <span>{t("vat", "IVA")}</span>
+          <span>{isIntracommunityTaxMode(taxRate) ? "IVA intracomunitario (servicios) 0%" : t("vat", "IVA")}</span>
           <strong>{money(taxTotal)}</strong>
         </div>
         <div>
