@@ -1057,6 +1057,7 @@ function roleLabel(role) {
     distributor_admin: "Distribuidor",
     manager: "Manager",
     sales_manager: "Manager",
+    seller: "Vendedora",
     commercial: "Comercial"
   };
   return labels[role] || role || "Usuario";
