@@ -3833,7 +3833,6 @@ function DocumentPdfPage({
   notes = "",
   includePaymentDetails = false,
   paymentIban = DOINGLIGHT_PAYMENT_IBAN,
-  redsysPaymentUrl = "",
   reverseCharge = false,
   intraCommunity = false,
   netPricing = false,
@@ -3989,7 +3988,14 @@ function DocumentPdfPage({
               <strong>{paymentDetailsText.title}</strong>
               <span>{paymentDetailsText.transfer} {paymentIban}</span>
               <span>{paymentBankDetailsText(language)}</span>
-              {redsysPaymentUrl ? <span>{paymentDetailsText.card} {redsysPaymentUrl}</span> : null}
+              <div className="quote-pdf-card-networks" aria-label="Pago con Visa y Mastercard">
+                <span className="quote-pdf-card-logo visa">VISA</span>
+                <span className="quote-pdf-card-logo mastercard" aria-label="Mastercard">
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                  <b>mastercard</b>
+                </span>
+              </div>
             </div>
           ) : null}
           {type !== "invoice" && !isDeliveryNote && commercialConditions ? (

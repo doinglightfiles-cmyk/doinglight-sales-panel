@@ -6769,6 +6769,50 @@ th {
   overflow-wrap: anywhere;
 }
 
+.quote-pdf-card-networks {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.quote-pdf-card-logo {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  border: 1px solid #d2d7cf;
+  border-radius: 3px;
+  background: #fff;
+  padding: 0 5px;
+  box-sizing: border-box;
+}
+
+.quote-pdf-card-logo.visa {
+  color: #1a2d79;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -.6px;
+}
+
+.quote-pdf-card-logo.mastercard {
+  position: relative;
+  gap: 0;
+  padding: 0 4px;
+}
+
+.quote-pdf-card-logo.mastercard i {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.quote-pdf-card-logo.mastercard i:first-child { background: #eb001b; }
+.quote-pdf-card-logo.mastercard i:nth-child(2) { margin-left: -4px; background: #f79e1b; opacity: .92; }
+.quote-pdf-card-logo.mastercard b { margin-left: 4px; color: #202020; font-family: Arial, sans-serif; font-size: 6px; font-weight: 700; }
+
 .quote-pdf-page footer {
   margin-top: 120px;
   border-top: 1px solid #e0e5d8;
