@@ -3508,7 +3508,6 @@ const REVERSE_CHARGE_PDF_SUBTITLE = "SUJETO PASIVO";
 const REVERSE_CHARGE_LEGAL_TEXT = "Operación con inversión del sujeto pasivo conforme al Artículo 84. Uno. 2º de la Ley 37/1992 del IVA";
 
 const DOCUMENT_TAX_OPTIONS = [
-  { value: "0", rate: 0, label: "Exento · 0%" },
   { value: INTRACOMMUNITY_TAX_CODE, rate: 0, label: `${INTRACOMMUNITY_TAX_LABEL} · 0%`, reverseCharge: true },
   { value: REVERSE_CHARGE_TAX_CODE, rate: 0, label: `${REVERSE_CHARGE_TAX_LABEL} · 0%`, reverseCharge: true },
   { value: "21", rate: 21, label: "España · 21%" },
@@ -6071,7 +6070,7 @@ const SETTINGS_PANELS = {
       ["IVA Italia", "22%"],
       ["IVA Francia", "20%"],
       ["IVA Alemania", "19%"],
-      ["Exento", "0%"]
+      ["IVA intracomunitario", "0%"]
     ]
   },
   verifactu: {
@@ -9483,7 +9482,7 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
             </LeadSummaryCard>
 
             <LeadSummaryCard title={isSupplier ? "Preferencias del proveedor" : "Preferencias del cliente"} onEdit={() => setEditing(true)}>
-              <SummaryLine label={isSupplier ? "Impuestos como proveedor" : "Impuestos como cliente"} value={draft.defaultTaxRate === 0 ? "Exento / sujeto pasivo" : `${draft.defaultTaxRate ?? 21}%`} />
+              <SummaryLine label={isSupplier ? "Impuestos como proveedor" : "Impuestos como cliente"} value={draft.defaultTaxRate === 0 ? "0% / intracomunitario" : `${draft.defaultTaxRate ?? 21}%`} />
               <SummaryLine label="Método de cobro" value={draft.preferredPaymentMethod || "Sin definir"} />
               {!isSupplier ? <SummaryLine label="Plazo de cobro" value={draft.paymentTermDays ? `${draft.paymentTermDays} días` : "Sin definir"} /> : null}
               {!isSupplier ? <SummaryLine label="Notificaciones" value={draft.paymentNotificationsEnabled ? "Activadas" : "Sin activar"} /> : null}
