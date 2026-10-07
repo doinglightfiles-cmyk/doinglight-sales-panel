@@ -140,6 +140,7 @@ function emailBodyWithLegalFooter(message) {
 }
 
 const LAURA_EMAIL = "administracion@doinglight.es";
+const LAURA_SIGNATURE_IMAGE = "/firma-laura.svg";
 
 function documentEmailLabel(type) {
   return ({ quote: "presupuesto", proforma: "factura proforma", delivery_note: "albarán", invoice: "factura" })[type] || "documento";
@@ -5051,6 +5052,7 @@ function documentLinesForPdf(lines = []) {
 
 function DocumentSendModal({ token, documentRecord, type, onClose }) {
   const senderProfile = mailSenderProfile(readSession()?.user, type === "delivery-note" ? "delivery_note" : type);
+  const isLauraSender = String(readSession()?.user?.email || "").trim().toLowerCase() === LAURA_EMAIL;
   const company = documentRecord.lead || documentRecord.raw?.item?.lead || documentRecord.raw?.main?.counterpart || {};
   const companyEmails = companyEmailRecipients(company);
   const [language, setLanguage] = useState(quoteLanguageForCountry(documentRecord.raw?.main?.counterpart?.countryCode || documentRecord.raw?.main?.counterpart?.country || "ES"));
@@ -5153,10 +5155,11 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
               <span>Asunto</span>
               <input value={draft.subject} onChange={(event) => updateDraft({ subject: event.target.value })} />
             </label>
-            <label className="quote-send-body-field">
-              <span>Contenido</span>
-              <textarea value={draft.body} onChange={(event) => updateDraft({ body: event.target.value })} />
-            </label>
+                <label className="quote-send-body-field">
+                  <span>Contenido</span>
+                  <textarea value={draft.body} onChange={(event) => updateDraft({ body: event.target.value })} />
+                </label>
+                {isLauraSender ? <img className="document-email-signature" src={LAURA_SIGNATURE_IMAGE} alt="Firma de Laura Atienzar" /> : null}
             <div className="quote-send-attachments">
               <span>Archivos adjuntos</span>
               <label>
@@ -11444,6 +11447,7 @@ function DownloadsView({ token, user, distributor = false, locale = "es", onSend
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight", distributor = false, locale = "es" }) {
   const currentUser = readSession()?.user || null;
   const senderProfile = mailSenderProfile(currentUser, documentType);
+  const isLauraSender = String(currentUser?.email || "").trim().toLowerCase() === LAURA_EMAIL;
   const quoteSender = senderProfile.from;
   const canUseNetPricing = NET_PRICING_USERS.has(String(currentUser?.email || "").trim().toLowerCase());
   const distributorCopy = distributorPanelCopy(locale);
@@ -13948,6 +13952,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   <span>{sendCopy.content || "Contenido"}</span>
                   <textarea value={sendDraft.body} onChange={(event) => updateSendDraft({ body: event.target.value })} />
                 </label>
+                {isLauraSender ? <img className="document-email-signature" src={LAURA_SIGNATURE_IMAGE} alt="Firma de Laura Atienzar" /> : null}
                 <div className="quote-send-attachments">
                   <div className="quote-send-attachments-head">
                     <span>{sendCopy.attachments || "Archivos adjuntos"}</span>

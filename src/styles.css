@@ -6502,6 +6502,15 @@ th {
   font: inherit;
 }
 
+.document-email-signature {
+  display: block;
+  width: min(368px, 100%);
+  height: auto;
+  margin: -6px 0 16px;
+  object-fit: contain;
+  object-position: left center;
+}
+
 .quote-send-fields textarea {
   min-height: 260px;
   padding: 15px;
