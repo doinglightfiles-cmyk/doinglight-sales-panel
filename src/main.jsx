@@ -10790,6 +10790,11 @@ function quoteSendCopy(locale) {
 
 function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDone, onUpdated, distributor = false, locale = "es" }) {
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderText, setReminderText] = useState("");
+  const [reminderDate, setReminderDate] = useState("");
+  const [reminderSaving, setReminderSaving] = useState(false);
+  const [reminderError, setReminderError] = useState("");
   const [activeDocument, setActiveDocument] = useState(() => ({
     id: quote.id,
     number: quote.number || quote.quoteNumber || quote.documentNumber || "",
@@ -10924,6 +10929,26 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
     });
   }
 
+  async function saveReminder(event) {
+    event.preventDefault();
+    setReminderSaving(true);
+    setReminderError("");
+    try {
+      await apiRequest(`/api/sales/quotes/${activeDocument.id}/reminders`, {
+        token,
+        method: "POST",
+        body: { text: reminderText, date: reminderDate }
+      });
+      setReminderOpen(false);
+      setReminderText("");
+      setReminderDate("");
+    } catch (error) {
+      setReminderError(error.message || "No se ha podido guardar el recordatorio.");
+    } finally {
+      setReminderSaving(false);
+    }
+  }
+
   return (
     <ModalShell
       title={`${meta.title} ${documentNumber}`}
@@ -10937,6 +10962,9 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
               {invoiceKindLabel}
             </span>
           ) : null}
+          {activeDocument.documentType === "quote" ? <button className="secondary-button" type="button" onClick={() => setReminderOpen(true)}>
+            Añadir recordatorio
+          </button> : null}
           {!distributor ? <>
             <button className="document-actions-trigger" type="button" onClick={() => setActionsOpen(true)} aria-label={`Opciones de ${meta.title.toLowerCase()}`}>
               <MoreVertical size={22} />
@@ -10984,6 +11012,15 @@ function QuoteEditorModal({ token, quote, documentType = "quote", onClose, onDon
           locale={locale}
         />
       ) : null}
+      {reminderOpen ? <div className="operation-modal-backdrop" onMouseDown={() => setReminderOpen(false)}>
+        <form className="operation-modal payment-method-modal-form" onSubmit={saveReminder} onMouseDown={(event) => event.stopPropagation()}>
+          <header><div><small>SEGUIMIENTO</small><h3>Añadir recordatorio</h3></div><button className="icon-button" type="button" onClick={() => setReminderOpen(false)}><X size={20} /></button></header>
+          <label><span>Recordatorio</span><textarea required rows="4" value={reminderText} onChange={(event) => setReminderText(event.target.value)} placeholder="Escribe lo que debes recordar" /></label>
+          <label><span>Fecha</span><input required type="date" value={reminderDate} onChange={(event) => setReminderDate(event.target.value)} /></label>
+          {reminderError ? <p className="form-error">{reminderError}</p> : null}
+          <footer><button className="secondary-button" type="button" onClick={() => setReminderOpen(false)}>Cancelar</button><button className="primary-button" type="submit" disabled={reminderSaving}>{reminderSaving ? "Guardando..." : "Guardar recordatorio"}</button></footer>
+        </form>
+      </div> : null}
     </ModalShell>
   );
 }
