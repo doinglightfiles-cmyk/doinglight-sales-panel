@@ -4031,6 +4031,8 @@ function serializeSalesQuote(quote, leadsById, locale = "es") {
     currency: quote.currency || "EUR",
     pdfTemplate: salesDocumentTemplate(quote),
     sent: Boolean(quote.emailedAt),
+    emailDeliveryStatus: String(quote.emailDeliveryStatus || "").toLowerCase(),
+    emailDeliveryDetail: quote.emailDeliveryDetail || "",
     generatedDocuments: Array.isArray(quote.generatedDocuments) ? quote.generatedDocuments : [],
     hasAttachment: false,
     ownerEmail: quote.ownerEmail || ""
@@ -4142,6 +4144,8 @@ function serializeInternalSalesDocument(item) {
     currency: item.currency || "EUR",
     pdfTemplate: salesDocumentTemplate(item),
     sent: Boolean(item.emailedAt),
+    emailDeliveryStatus: String(item.emailDeliveryStatus || "").toLowerCase(),
+    emailDeliveryDetail: item.emailDeliveryDetail || "",
     warehouseStatus: item.warehouseStatus || null,
     warehouseSentAt: item.warehouseSentAt || null,
     warehouseIncident: item.warehouseIncident || "",
@@ -10610,7 +10614,22 @@ function QuotesView({ token, distributor = false, locale = "es", restrictedUser 
                       <span>{quote.detail}</span>
                       <span className="invoice-row-icons">
                         {quote.hasAttachment ? <Paperclip size={17} /> : null}
-                        {quote.sent ? <Mail size={18} aria-label="Presupuesto enviado por correo" /> : null}
+                        {quote.sent ? <Mail
+                          size={18}
+                          className={`document-email-status ${quote.emailDeliveryStatus || "submitted"}`}
+                          aria-label={quote.emailDeliveryStatus === "delivered"
+                            ? "Presupuesto entregado por correo"
+                            : ["bounced", "blocked"].includes(quote.emailDeliveryStatus)
+                              ? "Presupuesto no entregado por correo"
+                              : "Presupuesto enviado por correo"}
+                          title={quote.emailDeliveryStatus === "delivered"
+                            ? "Correo entregado"
+                            : quote.emailDeliveryStatus === "bounced"
+                              ? "Correo rebotado"
+                              : quote.emailDeliveryStatus === "blocked"
+                                ? "Correo bloqueado"
+                                : "Correo enviado: pendiente de confirmación"}
+                        /> : null}
                         <GeneratedDocumentBadges documentRecord={quote} />
                       </span>
                     </div>

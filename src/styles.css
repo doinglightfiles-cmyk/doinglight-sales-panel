@@ -2620,6 +2620,19 @@ select:focus {
   transform: none;
 }
 
+.document-email-status.delivered {
+  color: var(--doinglight-green, #a8cf2a);
+}
+
+.document-email-status.bounced,
+.document-email-status.blocked {
+  color: #d32f2f;
+}
+
+.document-email-status.submitted {
+  color: var(--muted);
+}
+
 .document-owner-pill {
   display: inline-flex;
   align-items: center;
