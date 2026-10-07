@@ -1188,10 +1188,15 @@ function LoginView({ onLogin }) {
 function App() {
   const [session, setSession] = useState(readSession);
   const [activeView, setActiveView] = useState("quotes");
+  const publicProjectToken = window.location.pathname.match(/^\/proyectos\/([A-Za-z0-9_-]+)$/)?.[1] || "";
 
   function logout() {
     localStorage.removeItem(SESSION_KEY);
     setSession(null);
+  }
+
+  if (publicProjectToken) {
+    return <PublicProjectPage token={publicProjectToken} />;
   }
 
   if (!session?.token) {
@@ -1205,6 +1210,11 @@ function App() {
   return (
     <PanelShell session={session} activeView={activeView} onNavigate={setActiveView} onLogout={logout} />
   );
+}
+
+function PublicProjectPage({ token }) {
+  const project = useResource(() => apiRequest(`/api/projects/public/${encodeURIComponent(token)}`), [token]);
+  return <main className="public-project-page"><section>{project.loading ? <p>Cargando proyecto…</p> : null}{project.error ? <p>No se ha podido abrir este proyecto. El enlace puede no estar disponible.</p> : null}{project.data?.item ? <><img className="public-project-logo" src="/doinglight-pdf-logo.png" alt="Doinglight"/><header><h1>{project.data.item.name}</h1><p>{project.data.item.location}</p></header><div className="public-project-gallery">{project.data.item.images.map((image) => <a key={image.id} href={`${API_BASE_URL}${image.url}`} target="_blank" rel="noreferrer"><img src={`${API_BASE_URL}${image.url}`} alt={project.data.item.name}/></a>)}</div>{!project.data.item.images.length ? <p>Este proyecto todavía no dispone de imágenes.</p> : null}</> : null}</section></main>;
 }
 
 function WarehouseApp({ session, onLogout }) {
@@ -11267,6 +11277,9 @@ function ProjectsDriveView({ token, locale, onBack }) {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [gallery, setGallery] = useState(() => Array(10).fill(null));
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [galleryBusy, setGalleryBusy] = useState(false);
+  const [publicLink, setPublicLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -11314,13 +11327,59 @@ function ProjectsDriveView({ token, locale, onBack }) {
     finally { setSaving(false); }
   }
 
+  async function addProjectImages(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!selectedProject || !files.length) return;
+    const available = 10 - (selectedProject.images?.length || 0);
+    if (files.length > available || files.some((file) => !new Set(["image/jpeg", "image/png"]).has(file.type) || file.size > 10 * 1024 * 1024)) {
+      setError(available ? `${copy.imageOnly} Puedes añadir ${available} imagen(es) más.` : "El proyecto ya tiene el máximo de 10 imágenes.");
+      return;
+    }
+    setGalleryBusy(true); setError("");
+    try {
+      const created = [];
+      for (const file of files) {
+        const result = await apiRequest(`/api/projects/${selectedProject.id}/images`, { token, method: "POST", body: { name: file.name, mimeType: file.type, dataBase64: await fileToBase64(file) } });
+        created.push(result.item);
+      }
+      setSelectedProject((project) => ({ ...project, images: [...(project.images || []), ...created] }));
+      projects.reload();
+    } catch (uploadError) { setError(uploadError.message || copy.projectError); }
+    finally { setGalleryBusy(false); }
+  }
+
+  async function deleteProjectImage(image) {
+    if (!selectedProject || !window.confirm(`¿Eliminar «${image.name}» de este proyecto?`)) return;
+    setGalleryBusy(true); setError("");
+    try {
+      await apiRequest(`/api/projects/${selectedProject.id}/images/${image.id}`, { token, method: "DELETE" });
+      setSelectedProject((project) => ({ ...project, images: project.images.filter((item) => item.id !== image.id) }));
+      projects.reload();
+    } catch (deleteError) { setError(deleteError.message || "No se ha podido eliminar la imagen."); }
+    finally { setGalleryBusy(false); }
+  }
+
+  async function createPublicProjectLink() {
+    if (!selectedProject) return;
+    setGalleryBusy(true); setError("");
+    try {
+      const result = await apiRequest(`/api/projects/${selectedProject.id}/public-link`, { token, method: "POST" });
+      const link = `${window.location.origin}${result.item.path}`;
+      setPublicLink(link);
+      await navigator.clipboard?.writeText(link);
+    } catch (linkError) { setError(linkError.message || "No se ha podido generar el enlace público."); }
+    finally { setGalleryBusy(false); }
+  }
+
   return <section className="projects-drive-view">
     <header className="projects-drive-header"><div><button type="button" className="drive-back-button" onClick={onBack}>{copy.back}</button><h3>{copy.projects}</h3><p>{copy.sharedProjects}</p></div><button type="button" className="primary-button" onClick={() => { resetForm(); setFormOpen(true); }}><Plus size={18} />{copy.addProject}</button></header>
     {projects.loading ? <p className="mail-state">{copy.loading}</p> : null}
     {projects.error ? <p className="form-error">{projects.error}</p> : null}
-    <div className="projects-grid">{(projects.data?.items || []).map((project) => <article key={project.id} className="project-card"><div className="project-card-cover">{project.images[0] ? <ProjectImage token={token} image={project.images[0]} alt={project.name} /> : <ImageIcon size={36} />}</div><div><h4>{project.name}</h4><p>{project.location}</p><small>{project.images.length}/10</small></div></article>)}</div>
+    <div className="projects-grid">{(projects.data?.items || []).map((project) => <button type="button" key={project.id} className="project-card" onClick={() => { setSelectedProject(project); setPublicLink(""); setError(""); }}><div className="project-card-cover">{project.images[0] ? <ProjectImage token={token} image={project.images[0]} alt={project.name} /> : <ImageIcon size={36} />}</div><div><h4>{project.name}</h4><p>{project.location}</p><small>{project.images.length}/10</small></div></button>)}</div>
     {!projects.loading && !(projects.data?.items || []).length ? <p className="mail-empty-state">{copy.emptyProjects}</p> : null}
     {formOpen ? <ModalShell title={copy.addProject} eyebrow={copy.projects} onClose={() => { resetForm(); setFormOpen(false); }} size="wide"><form className="project-form" onSubmit={saveProject}><label>{copy.projectName}<input value={name} onChange={(event) => setName(event.target.value)} required maxLength="180" autoFocus /></label><label>{copy.projectLocation}<select value={location} onChange={(event) => setLocation(event.target.value)} required><option value="">—</option>{countries.map((country) => <option key={country.code} value={country.name}>{country.name}</option>)}</select></label><section><h4>{copy.gallery}</h4><div className="project-gallery-upload">{gallery.map((item, index) => <label key={index} className={item ? "has-image" : ""} title={copy.chooseImage}>{item ? <><img src={item.preview} alt="" /><button type="button" onClick={(event) => { event.preventDefault(); URL.revokeObjectURL(item.preview); setGallery((items) => items.map((entry, entryIndex) => entryIndex === index ? null : entry)); }}><X size={15} /></button></> : <><Plus size={25} /><span>{index + 1}</span></>}<input type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" onChange={(event) => selectImage(index, event)} /></label>)}</div></section>{error ? <p className="form-error">{error}</p> : null}<footer><button type="button" className="secondary-button" onClick={() => { resetForm(); setFormOpen(false); }}>Cancelar</button><button type="submit" className="primary-button" disabled={saving}>{saving ? copy.savingProject : copy.saveProject}</button></footer></form></ModalShell> : null}
+    {selectedProject ? <ModalShell title={selectedProject.name} eyebrow={selectedProject.location} onClose={() => { setSelectedProject(null); setPublicLink(""); }} size="wide"><section className="project-detail"><header><div><h4>{copy.gallery}</h4><small>{selectedProject.images.length}/10</small></div><div className="project-detail-actions"><label className="secondary-button">{galleryBusy ? "…" : "Añadir fotos"}<input type="file" hidden multiple accept="image/jpeg,image/png,.jpg,.jpeg,.png" onChange={addProjectImages} disabled={galleryBusy || selectedProject.images.length >= 10} /></label><button type="button" className="primary-button" onClick={createPublicProjectLink} disabled={galleryBusy}>Generar enlace público</button></div></header>{publicLink ? <div className="project-public-link"><input value={publicLink} readOnly onFocus={(event) => event.target.select()} /><button type="button" className="secondary-button" onClick={() => navigator.clipboard?.writeText(publicLink)}>Copiar</button></div> : null}<div className="project-detail-gallery">{selectedProject.images.map((image) => <figure key={image.id}><ProjectImage token={token} image={image} alt={`${selectedProject.name} · ${image.name}`} /><figcaption><span>{image.name}</span><button type="button" onClick={() => deleteProjectImage(image)} disabled={galleryBusy} aria-label={`Eliminar ${image.name}`}><Trash2 size={16}/></button></figcaption></figure>)}</div>{!selectedProject.images.length ? <p className="mail-empty-state">Todavía no hay fotos en este proyecto.</p> : null}{error ? <p className="form-error">{error}</p> : null}</section></ModalShell> : null}
   </section>;
 }
 
