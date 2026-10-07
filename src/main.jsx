@@ -139,6 +139,32 @@ function emailBodyWithLegalFooter(message) {
   return `${message}\n\nAtentamente,\nAdministración Doinglight\nadministracion@doinglight.es\n\n${EMAIL_LEGAL_FOOTER}`;
 }
 
+const LAURA_EMAIL = "administracion@doinglight.es";
+
+function documentEmailLabel(type) {
+  return ({ quote: "presupuesto", proforma: "factura proforma", delivery_note: "albarán", invoice: "factura" })[type] || "documento";
+}
+
+function mailSenderProfile(user, documentType = "quote") {
+  const email = String(user?.email || "").trim().toLowerCase();
+  const name = userDisplayName(user);
+  if (email === LAURA_EMAIL) {
+    const documentLabel = documentEmailLabel(documentType);
+    const article = ["factura", "factura proforma"].includes(documentLabel) ? "nuestra" : "nuestro";
+    return {
+      from: "ADMINISTRACION <administracion@doinglight.es>",
+      body: `Estimado cliente:\n\nAdjunto a este correo encontrará ${article} ${documentLabel}.\nSi tiene cualquier consulta, no dude en contactar con nosotros.\n\nAtentamente,\n\n${EMAIL_LEGAL_FOOTER}`
+    };
+  }
+  if (email) {
+    return {
+      from: `${name} <${email}>`,
+      body: emailBodyWithLegalFooter(`Estimado cliente:\n\nAdjunto a este correo encontrará nuestro ${documentEmailLabel(documentType)}.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.`)
+    };
+  }
+  return { from: "ADMINISTRACION <administracion@doinglight.es>", body: emailBodyWithLegalFooter("Estimado cliente:") };
+}
+
 function quoteEmailBody({ clientName, quoteNumber, includePaymentDetails, paymentUrl }) {
   const greeting = `Estimado ${clientName || "cliente"}, a continuación le adjuntamos nuestro presupuesto ${quoteNumber || ""}.`.replace(/\s+\.$/, ".");
   if (includePaymentDetails) {
@@ -5024,6 +5050,7 @@ function documentLinesForPdf(lines = []) {
 }
 
 function DocumentSendModal({ token, documentRecord, type, onClose }) {
+  const senderProfile = mailSenderProfile(readSession()?.user, type === "delivery-note" ? "delivery_note" : type);
   const company = documentRecord.lead || documentRecord.raw?.item?.lead || documentRecord.raw?.main?.counterpart || {};
   const companyEmails = companyEmailRecipients(company);
   const [language, setLanguage] = useState(quoteLanguageForCountry(documentRecord.raw?.main?.counterpart?.countryCode || documentRecord.raw?.main?.counterpart?.country || "ES"));
@@ -5033,11 +5060,11 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
     const typeLabel = type === "invoice" ? "factura" : "albarán";
     return {
       to: splitEmailRecipients(company.email || counterpart.email || counterpart.emailAddress || ""),
-      from: "ADMINISTRACION <administracion@doinglight.es>",
+      from: senderProfile.from,
       subject: type === "invoice"
         ? `Doinglight Skylights - Factura ${documentRecord.number}`
         : `Envío ${typeLabel} ${documentRecord.number}`,
-      body: emailBodyWithLegalFooter(`Estimado cliente:\n\nAdjunto a este correo encontrará nuestro ${typeLabel}.\n\nSi tiene cualquier consulta, no dude en contactar con nosotros.`),
+      body: senderProfile.body,
       attachPdf: true
     };
   });
@@ -5121,14 +5148,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
         <div className="quote-send-content">
           <section className="quote-send-fields">
             <EmailRecipientsField value={draft.to} onChange={(to) => updateDraft({ to })} suggestions={companyEmails} />
-            <label>
-              <span>Remitente</span>
-              <select value={draft.from} onChange={(event) => updateDraft({ from: event.target.value })}>
-                <option value="ADMINISTRACION <administracion@doinglight.es>">ADMINISTRACION &lt;administracion@doinglight.es&gt;</option>
-                <option value="MARKETING <marketing@doinglight.es>">MARKETING &lt;marketing@doinglight.es&gt;</option>
-                <option value="DOINGLIGHT <info@doinglight.es>">DOINGLIGHT &lt;info@doinglight.es&gt;</option>
-              </select>
-            </label>
+            <label><span>Remitente</span><input value={draft.from} readOnly aria-label="Remitente" /></label>
             <label>
               <span>Asunto</span>
               <input value={draft.subject} onChange={(event) => updateDraft({ subject: event.target.value })} />
@@ -11423,10 +11443,8 @@ function DownloadsView({ token, user, distributor = false, locale = "es", onSend
 
 function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef, documentType = "quote", readOnly = false, lockMessage = "", onOpenTrace, visualTemplate = "doinglight", distributor = false, locale = "es" }) {
   const currentUser = readSession()?.user || null;
-  const isFrenchDistributorMailbox = distributor && String(currentUser?.email || "").trim().toLowerCase() === "info@doinglight.fr";
-  const quoteSender = isFrenchDistributorMailbox
-    ? "Claudine <info@doinglight.fr>"
-    : "ADMINISTRACION <administracion@doinglight.es>";
+  const senderProfile = mailSenderProfile(currentUser, documentType);
+  const quoteSender = senderProfile.from;
   const canUseNetPricing = NET_PRICING_USERS.has(String(currentUser?.email || "").trim().toLowerCase());
   const distributorCopy = distributorPanelCopy(locale);
   const quoteUiCopy = DISTRIBUTOR_QUOTE_UI_COPY[String(locale).toLowerCase()] || {};
@@ -12504,10 +12522,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         ? `Doinglight Skylights - ${quotePdfText.title}${documentNumber !== "borrador" ? ` ${documentNumber}` : ""}`
         : documentNumber !== "borrador" ? `${meta.subject} ${documentNumber}` : meta.subject,
       body: isQuote
-        ? distributor
+        ? String(currentUser?.email || "").trim().toLowerCase() === LAURA_EMAIL
+          ? senderProfile.body
+          : distributor
           ? quoteEmailBodyForLanguage(quoteLanguage, { clientName, quoteNumber: documentNumber, includePaymentDetails, paymentUrl })
           : quoteEmailBody({ clientName, quoteNumber: documentNumber, includePaymentDetails, paymentUrl })
-        : meta.body,
+        : String(currentUser?.email || "").trim().toLowerCase() === LAURA_EMAIL ? senderProfile.body : meta.body,
       attachPdf: true
     };
   }
@@ -13918,15 +13938,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 />
                 <label>
                   <span>{sendCopy.sender || "Remitente"}</span>
-                  {isFrenchDistributorMailbox ? (
-                    <input value="Claudine <info@doinglight.fr>" readOnly aria-label="Remitente" />
-                  ) : (
-                    <select value={sendDraft.from} onChange={(event) => updateSendDraft({ from: event.target.value })}>
-                      <option value="ADMINISTRACION <administracion@doinglight.es>">ADMINISTRACION &lt;administracion@doinglight.es&gt;</option>
-                      <option value="MARKETING <marketing@doinglight.es>">MARKETING &lt;marketing@doinglight.es&gt;</option>
-                      <option value="DOINGLIGHT <info@doinglight.es>">DOINGLIGHT &lt;info@doinglight.es&gt;</option>
-                    </select>
-                  )}
+                  <input value={sendDraft.from} readOnly aria-label="Remitente" />
                 </label>
                 <label>
                   <span>{sendCopy.subject || "Asunto"}</span>
