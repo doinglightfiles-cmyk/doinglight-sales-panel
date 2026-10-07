@@ -2377,7 +2377,9 @@ select:focus {
 }
 
 .invoice-table .invoice-row-partial td {
-  background: #fff2dc;
+  /* A partial payment still has money pending, so it keeps the pending-row
+     background while the status and amount carry the distinct cue. */
+  background: #fff4df;
 }
 
 .invoice-table .invoice-row-paid:hover td {
@@ -2393,7 +2395,7 @@ select:focus {
 }
 
 .invoice-table .invoice-row-partial:hover td {
-  background: #ffe6c2;
+  background: #ffebc9;
 }
 
 .clickable-table-row:focus {
@@ -2434,6 +2436,11 @@ select:focus {
 
 .invoice-kind-badge.template-tubo-solar {
   background: #079bea;
+}
+
+.invoice-kind-badge.partial-payment-badge {
+  background: #f08a00;
+  color: #fff;
 }
 
 .invoice-payment-status {
@@ -2571,6 +2578,10 @@ select:focus {
 .amount-pending {
   color: var(--danger);
   font-weight: 750;
+}
+
+.amount-pending.partial {
+  color: #e56800;
 }
 
 .invoice-detail-cell {

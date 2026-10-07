@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Coins,
   Download,
   FileText,
   Fingerprint,
@@ -3222,7 +3223,7 @@ function invoicePaymentState(main, total, fdState = "") {
   if (explicitStatus.includes("partial") || explicitStatus.includes("parcial") || (pendingBalance > 0 && pendingBalance < total)) {
     return {
       key: "partial",
-      label: "Parcial",
+      label: "Cobrada parcialmente",
       pendingBalance: pendingBalance || Math.max(total - partialPaymentAmount, 0),
       partialPaymentAmount
     };
@@ -3458,7 +3459,7 @@ const INVOICE_STATUS_OPTIONS = [
   { value: "pending", label: "Pendiente" },
   { value: "overdue", label: "Atrasado", disabled: true },
   { value: "paid", label: "Cobrada" },
-  { value: "partial", label: "Parcial" },
+  { value: "partial", label: "Cobrada parcialmente" },
   { value: "rectified", label: "Rectificada" },
   { value: "credited", label: "Abonada" }
 ];
@@ -4184,7 +4185,7 @@ function invoiceRowStatusClass(invoice) {
     return "invoice-row-paid";
   }
 
-  if (statusKey === "partial" || statusLabel === "parcial") {
+  if (statusKey === "partial" || statusLabel.includes("parcial")) {
     return "invoice-row-partial";
   }
 
@@ -4933,7 +4934,15 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                       onKeyDown={(event) => event.stopPropagation()}
                     />
                   </td>
-                  <td className="invoice-kind-column"><span className={`invoice-kind-badge ${templateBadgeClass(invoice)}`}>F</span></td>
+                  <td className="invoice-kind-column">
+                    {invoice.statusKey === "partial" ? (
+                      <span className="invoice-kind-badge partial-payment-badge" title="Factura cobrada parcialmente" aria-label="Factura cobrada parcialmente">
+                        <Coins size={16} strokeWidth={2.25} />
+                      </span>
+                    ) : (
+                      <span className={`invoice-kind-badge ${templateBadgeClass(invoice)}`}>F</span>
+                    )}
+                  </td>
                   <td>{dateOnly(invoice.date)}</td>
                   <td>{invoice.verifactuStatus || ""}</td>
                   <td><span className={`invoice-payment-status ${invoice.statusKey}`}>{invoice.status}</span></td>
@@ -4948,7 +4957,7 @@ function InvoicesMirrorView({ token, onCreateInvoice }) {
                       </span>
                     </div>
                   </td>
-                  <td className={invoice.pendingBalance > 0 ? "amount-pending" : ""}>{invoice.pendingBalance > 0 ? tableMoney(invoice.pendingBalance) : ""}</td>
+                  <td className={invoice.pendingBalance > 0 ? `amount-pending ${invoice.statusKey === "partial" ? "partial" : ""}` : ""}>{invoice.pendingBalance > 0 ? tableMoney(invoice.pendingBalance) : ""}</td>
                   <td>{tableMoney(invoice.subtotal)}</td>
                   <td>{tableMoney(invoice.total)}</td>
                   <td>{invoice.currency}</td>
