@@ -8339,6 +8339,19 @@ th {
 
 .notification-row-actions { display: flex; justify-content: flex-end; gap: 7px; }
 .notification-rows article .notification-secondary-action { color: #4f7408; background: #e8f3cd; }
+.notification-rows article.quote-follow-up-notification { border-left: 5px solid #ff00c8; background: #fff0fc; }
+.notification-rows article.quote-follow-up-notification p { color: #6d0757; font-weight: 700; }
+.notification-rows article.quote-follow-up-notification button { background: #ff00c8; }
+.quote-follow-up-dialog { width: min(650px, 96vw); }
+.quote-follow-up-content { display: grid; gap: 18px; padding: 22px 24px 26px; }
+.quote-follow-up-content > p { margin: 0; color: #5b3555; }
+.quote-follow-up-tabs { display: flex; gap: 8px; border-bottom: 1px solid #ece1e9; }
+.quote-follow-up-tabs button { border: 0; padding: 10px 13px; background: transparent; color: #6d626b; font-weight: 800; }
+.quote-follow-up-tabs button.active { color: #b00087; border-bottom: 3px solid #ff00c8; }
+.quote-follow-up-actions { display: grid; gap: 12px; }
+.quote-follow-up-actions > button { justify-self: start; border: 0; border-radius: 8px; padding: 11px 14px; background: #ff00c8; color: #fff; font-weight: 800; }
+.quote-follow-up-actions label { display: grid; gap: 6px; color: #4f4850; font-size: 13px; font-weight: 700; }
+.quote-follow-up-actions input, .quote-follow-up-actions select { border: 1px solid #decfda; border-radius: 7px; padding: 10px; background: #fff; font: inherit; }
 
 .ultraviolet-alert {
   background: #fff0f0;
