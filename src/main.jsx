@@ -65,6 +65,7 @@ const USER_DISPLAY_NAMES = new Map([
   ["administracion@doinglight.es", "Laura"],
   ["jvtarancon@doinglight.es", "JV"],
   ["a.jimenez@doinglight.es", "Ángel"],
+  ["karen@doinglight.es", "Karen"],
   ["info@doinglight.it", "Roberto"],
   ["info@doinglight.fr", "Claudine"],
   ["info@doinglight.pt", "María"],
@@ -2600,6 +2601,15 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
   const [composeLookupError, setComposeLookupError] = useState("");
   const mailCopy = MAIL_UI_COPY[locale] || MAIL_UI_COPY.es;
   const mailDateLocale = ({ es: "es-ES", fr: "fr-FR", it: "it-IT", pt: "pt-PT" }[locale] || "es-ES");
+  const isLauraMailbox = String(user?.email || "").trim().toLowerCase() === LAURA_EMAIL;
+  const newMailDraft = () => ({
+    to: "",
+    bcc: "",
+    subject: "",
+    text: isLauraMailbox ? `\n\nAtentamente,\n\n${EMAIL_LEGAL_FOOTER}` : "",
+    inReplyTo: "",
+    references: ""
+  });
   const labels = { inbox: mailCopy.inbox, sent: mailCopy.sent, drafts: mailCopy.drafts, trash: mailCopy.trash, contacts: mailCopy.contacts };
   const mailbox = useResource(
     () => apiRequest(`/api/mailbox/messages?folder=${folder === "contacts" ? "inbox" : folder}`, { token }),
@@ -2622,7 +2632,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
     fetchDrivePdf(token, initialDriveFile.url)
       .then((blob) => {
         if (cancelled) return;
-        setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
+        setDraft(newMailDraft());
         setAttachments([{ name: initialDriveFile.name, type: blob.type || "application/pdf", size: blob.size, file: new File([blob], initialDriveFile.name, { type: blob.type || "application/pdf" }) }]);
         setLibraryAttachmentIds([]);
         setComposeOpen(true);
@@ -2743,7 +2753,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
       })));
       await apiRequest("/api/mailbox/messages", { token, method: "POST", body: { ...draft, attachments: encodedAttachments, libraryAttachments: libraryAttachmentIds } });
       setComposeOpen(false);
-      setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
+      setDraft(newMailDraft());
       setAttachments([]);
       setLibraryAttachmentIds([]);
       contacts.reload();
@@ -2798,7 +2808,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
   }
 
   function openNewMessage() {
-    setDraft({ to: "", bcc: "", subject: "", text: "", inReplyTo: "", references: "" });
+    setDraft(newMailDraft());
     setAttachments([]);
     setLibraryAttachmentIds([]);
     setRecipientEntry("");
