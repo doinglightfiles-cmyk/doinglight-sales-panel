@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Cloud,
   Coins,
   Download,
   FileText,
@@ -14052,15 +14053,24 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 <div className="quote-send-attachments">
                   <div className="quote-send-attachments-head">
                     <span>{sendCopy.attachments || "Archivos adjuntos"}</span>
-                    <div className="attachment-menu-wrap">
+                    <div className="attachment-menu-wrap quote-send-attachment-actions">
+                      <button
+                        className="attachment-trigger icon-only-attachment"
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        aria-label={sendCopy.uploadFile || "Subir archivo desde el equipo"}
+                        title={sendCopy.uploadFile || "Subir archivo desde el equipo"}
+                      >
+                        <Paperclip size={18} />
+                      </button>
                       <button
                         className="attachment-trigger icon-only-attachment"
                         type="button"
                         onClick={() => setDriveAttachmentPickerOpen(true)}
-                        aria-label="Adjuntar archivo"
-                        title="Adjuntar archivo"
+                        aria-label={sendCopy.chooseDrive || "Elegir desde el Drive"}
+                        title={sendCopy.chooseDrive || "Elegir desde el Drive"}
                       >
-                        <Paperclip size={18} />
+                        <Cloud size={19} />
                       </button>
                       <input ref={fileInputRef} type="file" multiple onChange={handleFileInput} hidden />
                     </div>

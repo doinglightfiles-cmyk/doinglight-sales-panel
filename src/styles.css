@@ -6098,6 +6098,12 @@ th {
   width: fit-content;
 }
 
+.quote-send-attachment-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .attachment-trigger {
   min-height: 38px;
   border: 1px solid rgba(80, 116, 23, 0.28);
