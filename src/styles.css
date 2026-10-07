@@ -6757,6 +6757,19 @@ th {
   white-space: pre-wrap;
 }
 
+.invoice-paid-date-field {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.invoice-paid-date-field input {
+  width: 100%;
+}
+
 .quote-pdf-payment-details {
   grid-column: 1 / -1;
   display: grid;

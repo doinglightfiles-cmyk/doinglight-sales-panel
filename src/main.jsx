@@ -4141,6 +4141,7 @@ function serializeInternalSalesDocument(item) {
     dueDate: item.dueDate,
     status: status.label,
     statusKey: status.key,
+    paidAt: item.paidAt || item.payload?.paidAt || "",
     verifactuStatus: "",
     pendingBalance: ["pending", "partial"].includes(status.key) ? Number(status.pendingBalance ?? item.total ?? 0) : 0,
     subtotal: Number(item.subtotal || 0),
@@ -11736,6 +11737,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       ? invoicePaymentState({ status: initialQuote?.status, dueDate: initialQuote?.dueDate }, Number(initialQuote?.total || 0), initialQuote?.status).key
       : initialQuote?.status || "draft"
   ));
+  const [paidAt, setPaidAt] = useState(() => inputDate(initialQuote?.paidAt || initialQuote?.payload?.paidAt || new Date()));
   const [partialPaymentAmount, setPartialPaymentAmount] = useState(() => String(initialQuote?.partialPaymentAmount || initialQuote?.payload?.partialPaymentAmount || ""));
   const [partialPaymentPromptOpen, setPartialPaymentPromptOpen] = useState(false);
   const [partialPaymentError, setPartialPaymentError] = useState("");
@@ -12832,6 +12834,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       taxMode: activeTaxOption.value,
       taxCode: activeTaxOption.value,
       reverseCharge,
+      ...(isInvoice ? { paidAt: quoteStatus === "paid" ? paidAt : null } : {}),
       ...(isInvoice ? { partialPaymentAmount: quoteStatus === "partial" ? Number(partialPaymentAmount) : null } : {}),
       pdfTemplate,
       visualTemplate: pdfTemplate,
@@ -12888,6 +12891,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     if (!isInvoice || nextStatus !== "partial") {
       setQuoteStatus(nextStatus);
       if (nextStatus !== "partial") setPartialPaymentAmount("");
+      if (isInvoice && nextStatus === "paid" && !paidAt) setPaidAt(inputDate(new Date()));
       return;
     }
 
@@ -13471,6 +13475,12 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 ))}
               </select>
               <small>{selectedStatusLabel}</small>
+              {isInvoice && quoteStatus === "paid" ? (
+                <span className="invoice-paid-date-field">
+                  <span>Fecha de cobro</span>
+                  <input type="date" value={paidAt} onChange={(event) => setPaidAt(event.target.value)} />
+                </span>
+              ) : null}
             </label>
             <label className="quote-fd-textarea">
               <span>{t("billingData", "Datos de facturación")}</span>
