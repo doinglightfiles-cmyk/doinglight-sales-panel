@@ -55,6 +55,11 @@ const SHOPPING_LIST_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es"
 const CHAT_USERS = new Set([WAREHOUSE_EMAIL, "jvtarancon@doinglight.es", "marketing@doinglight.es", "administracion@doinglight.es"]);
 const MANUFACTURING_USER = "jvtarancon@doinglight.es";
 const NET_PRICING_USERS = new Set(["a.jimenez@doinglight.es", "jvtarancon@doinglight.es"]);
+const PURCHASE_ACCESS_USERS = new Set([
+  "administracion@doinglight.es",
+  "marketing@doinglight.es",
+  "jvtarancon@doinglight.es"
+]);
 const USER_DISPLAY_NAMES = new Map([
   ["marketing@doinglight.es", "Edu"],
   ["administracion@doinglight.es", "Laura"],
@@ -1065,6 +1070,10 @@ function canAccessWebsites(user) {
   return String(user?.email || "").trim().toLowerCase() === "marketing@doinglight.es";
 }
 
+function canAccessPurchases(user) {
+  return PURCHASE_ACCESS_USERS.has(String(user?.email || "").trim().toLowerCase());
+}
+
 function panelLocaleForUser(user) {
   const email = String(user?.email || "").trim().toLowerCase();
   const localeByDistributorEmail = {
@@ -1902,6 +1911,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const canUseShopping=SHOPPING_LIST_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
   const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
+  const canManagePurchases = canAccessPurchases(session.user);
   const canManageWebsites = canAccessWebsites(session.user);
   // The login endpoint exposes the distributor as a nested object; authenticated
   // sessions may additionally include distributorId from the token.
@@ -1931,7 +1941,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   ] : [
     { id: "dashboard", label: "Inicio" },
     { id: "documents", label: "Documento" },
-    { id: "purchases", label: "Compras" },
+    ...(canManagePurchases ? [{ id: "purchases", label: "Compras" }] : []),
     { id: "contacts", label: "Contactos" },
     ...(canManageWebsites ? [{ id: "websites", label: "Webs" }] : [{ id: "downloads", label: "Drive" }]),
     ...(canUseMailbox ? [{ id: "mail", label: "Mail" }] : [])
@@ -1945,13 +1955,13 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
         { id: "delivery-notes", label: "Albaranes" }
       ]
     },
-    {
+    ...(canManagePurchases ? [{
       title: "Compras",
       items: [
         { id: "purchases", label: "Compras/Gastos" },
         { id: "purchase-scan", label: "Escáner Compras" }
       ]
-    },
+    }] : []),
     {
       title: "Gestión",
       items: [
@@ -2008,6 +2018,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   }
 
   function openGlobalPurchase(documentType = "supplier_invoice", purchase = null) {
+    if (!canManagePurchases) return;
     setCreateDrawerOpen(false);
     navigate("purchases");
     setGlobalPurchaseOpen({ documentType, purchase });
@@ -2179,7 +2190,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "settings" ? <SettingsView /> : null}
           {activeView === "invoices" ? <InvoicesMirrorView token={session.token} onCreateInvoice={openGlobalInvoice} /> : null}
           {activeView === "angel-billing" && isAngelSpainDistributor ? <AngelBillingView token={session.token} /> : null}
-          {activeView === "purchases" ? (
+          {activeView === "purchases" && canManagePurchases ? (
             <PurchasesView
               token={session.token}
               onCreate={(documentType) => openGlobalPurchase(documentType)}
@@ -2191,7 +2202,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "delivery-notes" ? <DeliveryNotesView token={session.token} onCreateDeliveryNote={openGlobalDeliveryNote} /> : null}
           {activeView === "all-sales" ? <ModuleWorkspace moduleId="all-sales" /> : null}
           {activeView === "payroll" ? <ModuleWorkspace moduleId="payroll" /> : null}
-          {activeView === "purchase-scan" ? <ModuleWorkspace moduleId="purchase-scan" /> : null}
+          {activeView === "purchase-scan" && canManagePurchases ? <ModuleWorkspace moduleId="purchase-scan" /> : null}
           {activeView === "recurring-tasks" ? <ModuleWorkspace moduleId="recurring-tasks" /> : null}
           {activeView === "activity" ? <ModuleWorkspace moduleId="activity" /> : null}
           {activeView === "bank-remittances" ? <ModuleWorkspace moduleId="bank-remittances" /> : null}
@@ -2229,9 +2240,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           onCreateDeliveryNote={openGlobalDeliveryNote}
           onCreateContact={openGlobalContactPicker}
           onCreatePurchase={openGlobalPurchase}
+          canManagePurchases={canManagePurchases}
         />
       ) : null}
-      {globalPurchaseOpen ? (
+      {globalPurchaseOpen && canManagePurchases ? (
         <ModalShell
           title={globalPurchaseOpen.purchase
             ? `${globalPurchaseOpen.documentType === "expense" ? "Gasto" : "Factura de compra"} ${globalPurchaseOpen.purchase.documentNumber || ""}`.trim()
@@ -2351,14 +2363,16 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   );
 }
 
-function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateDeliveryNote, onCreateContact, onCreatePurchase }) {
+function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuote, onCreateDeliveryNote, onCreateContact, onCreatePurchase, canManagePurchases = false }) {
   const [isClosing, setIsClosing] = useState(false);
   const actions = [
     { label: "Factura de venta", action: onCreateInvoice },
     { label: "Presupuesto", action: onCreateQuote },
     { label: "Albarán", action: onCreateDeliveryNote },
-    { label: "Factura de compra", action: () => onCreatePurchase("supplier_invoice") },
-    { label: "Gasto/Tiquet", action: () => onCreatePurchase("expense") },
+    ...(canManagePurchases ? [
+      { label: "Factura de compra", action: () => onCreatePurchase("supplier_invoice") },
+      { label: "Gasto/Tiquet", action: () => onCreatePurchase("expense") }
+    ] : []),
     { label: "Nómina", action: () => onNavigate("payroll") },
     { label: "Contacto", action: onCreateContact },
     { label: "Producto", action: () => onNavigate("catalog") },
@@ -2412,13 +2426,13 @@ function CreateActionDrawer({ onClose, onNavigate, onCreateInvoice, onCreateQuot
             </button>
           ))}
         </div>
-        <div className="create-scan-block">
+        {canManagePurchases ? <div className="create-scan-block">
           <strong>Escáner de compras</strong>
           <button className="create-action-row" type="button" onClick={() => runAction(() => onNavigate("purchase-scan"))}>
             <span className="create-action-plus">+</span>
             <span>Subir documento</span>
           </button>
-        </div>
+        </div> : null}
       </aside>
     </div>
   );
