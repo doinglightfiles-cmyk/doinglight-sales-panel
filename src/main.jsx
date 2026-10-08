@@ -2205,11 +2205,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           <div className="header-actions">
             {canUseShopping ? <button className="icon-button header-action-button" type="button" aria-label="Listas de la compra" onClick={()=>{setShoppingInitialId("");setShoppingOpen(true);}}><Package size={18}/></button> : null}
             {canUseManufacturing ? <button className="icon-button header-action-button" type="button" aria-label="Órdenes de fabricación" onClick={()=>setManufacturingOpen(true)}><Factory size={18}/></button> : null}
-            {canUseChat && !isKarenSeller ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>{setChatInitialPeer(themeAlert.active?themeAlert.senderId||"":"");setChatOpen(true);}}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
-            {!isKarenSeller ? <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
+            {canUseChat ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>{setChatInitialPeer(themeAlert.active?themeAlert.senderId||"":"");setChatOpen(true);}}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
+            <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
               <Bell size={18} />
               {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
-            </button> : null}
+            </button>
             {!isDistributor && !isRestrictedSpanishSeller ? <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
               <Settings size={18} />
             </button> : null}
