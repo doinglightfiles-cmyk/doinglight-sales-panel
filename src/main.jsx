@@ -1930,6 +1930,10 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [manufacturingOpen,setManufacturingOpen]=useState(false);
   const userEmail=String(session.user?.email||"").trim().toLowerCase();
   const isAngelSpainDistributor = userEmail === "a.jimenez@doinglight.es";
+  // Karen is a Spanish sales user. Her workspace is deliberately limited to
+  // the sales tools she needs; server-side ownership rules restrict quotes.
+  const isKarenSeller = userEmail === "karen@doinglight.es";
+  const isRestrictedSpanishSeller = isAngelSpainDistributor || isKarenSeller;
   const canUseShopping=SHOPPING_LIST_USERS.has(userEmail) && userEmail!==WAREHOUSE_EMAIL;
   const canUseChat=userEmail!==WAREHOUSE_EMAIL;
   const canUseManufacturing=userEmail===MANUFACTURING_USER;
@@ -1953,7 +1957,12 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   useEffect(()=>{loadNotificationCount();const timer=window.setInterval(loadNotificationCount,30000);return()=>window.clearInterval(timer);},[session.token]);
   async function loadChatCount(){if(!canUseChat)return;try{const result=await apiRequest("/api/operations/chat/unread-count",{token:session.token});setChatCount(result.count||0);}catch{}}
   useEffect(()=>{loadChatCount();if(!canUseChat)return undefined;const timer=window.setInterval(loadChatCount,8000);return()=>window.clearInterval(timer);},[session.token,canUseChat]);
-  const primaryNav = isDistributor ? [
+  const primaryNav = isKarenSeller ? [
+    { id: "quotes", label: "Presupuestos" },
+    { id: "contacts", label: "Contactos" },
+    { id: "downloads", label: "Drive" },
+    ...(canUseMailbox ? [{ id: "mail", label: "Mail" }] : [])
+  ] : isDistributor ? [
     { id: "quotes", label: distributorLabels.quotes },
     ...(isAngelSpainDistributor ? [{ id: "angel-billing", label: "Facturación" }] : []),
     { id: "contacts", label: distributorLabels.clients },
@@ -2009,8 +2018,12 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const visibleNav = activeMoreItem ? [...primaryNav, activeMoreItem] : primaryNav;
 
   useEffect(() => {
+    if (isKarenSeller && !["quotes", "contacts", "downloads", "mail"].includes(activeView)) {
+      onNavigate("quotes");
+      return;
+    }
     if (isAngelSpainDistributor && activeView === "dashboard") onNavigate("quotes");
-  }, [activeView, isAngelSpainDistributor, onNavigate]);
+  }, [activeView, isAngelSpainDistributor, isKarenSeller, onNavigate]);
 
   function navigate(viewId, options = {}) {
     setMoreOpen(false);
@@ -2069,7 +2082,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   return (
     <div className={`app-shell ${themeAlert.active ? "ultraviolet-alert" : ""}`}>
       <header className="app-header">
-        <button className="header-brand" type="button" onClick={() => navigate(isDistributor || isAngelSpainDistributor ? "quotes" : "dashboard")} aria-label={isDistributor || isAngelSpainDistributor ? distributorLabels.quotes : "Ir a Inicio"}>
+        <button className="header-brand" type="button" onClick={() => navigate(isDistributor || isRestrictedSpanishSeller ? "quotes" : "dashboard")} aria-label={isDistributor || isRestrictedSpanishSeller ? distributorLabels.quotes : "Ir a Inicio"}>
           <img src="/logo-backend.png" alt="Doinglight Intranet" />
         </button>
         <nav className="main-nav" aria-label="Navegación principal">
@@ -2180,12 +2193,12 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           <div className="header-actions">
             {canUseShopping ? <button className="icon-button header-action-button" type="button" aria-label="Listas de la compra" onClick={()=>{setShoppingInitialId("");setShoppingOpen(true);}}><Package size={18}/></button> : null}
             {canUseManufacturing ? <button className="icon-button header-action-button" type="button" aria-label="Órdenes de fabricación" onClick={()=>setManufacturingOpen(true)}><Factory size={18}/></button> : null}
-            {canUseChat ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>{setChatInitialPeer(themeAlert.active?themeAlert.senderId||"":"");setChatOpen(true);}}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
-            <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
+            {canUseChat && !isKarenSeller ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>{setChatInitialPeer(themeAlert.active?themeAlert.senderId||"":"");setChatOpen(true);}}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
+            {!isKarenSeller ? <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
               <Bell size={18} />
               {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
-            </button>
-            {!isDistributor && !isAngelSpainDistributor ? <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
+            </button> : null}
+            {!isDistributor && !isRestrictedSpanishSeller ? <button className="icon-button header-action-button" type="button" onClick={() => navigate("settings")} aria-label="Opciones">
               <Settings size={18} />
             </button> : null}
             <button className="icon-button header-action-button" onClick={onLogout} aria-label="Cerrar sesión">
@@ -2202,7 +2215,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
 
       <div className="main-area">
         <section className="content">
-          {activeView === "dashboard" && !isDistributor && !isAngelSpainDistributor ? (
+          {activeView === "dashboard" && !isDistributor && !isRestrictedSpanishSeller ? (
             <Dashboard
               token={session.token}
               locale={session.user.locale}
@@ -2236,12 +2249,12 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "mail" && canUseMailbox ? <MailWorkspace token={session.token} user={session.user} locale={panelLocale} initialDriveFile={mailDriveFile} onDriveFileConsumed={() => setMailDriveFile(null)} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
-          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} restrictedUser={isAngelSpainDistributor} /> : null}
+          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} restrictedUser={isRestrictedSpanishSeller} /> : null}
           {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} onSendToChat={(file) => { setChatDriveFile(file); setChatInitialPeer(""); setChatOpen(true); }} onSendEmail={canUseMailbox ? (file) => { setMailDriveFile(file); navigate("mail"); } : null} /> : null}
         </section>
       </div>
 
-      {!isDistributor && !isAngelSpainDistributor && !createDrawerOpen
+      {!isDistributor && !isRestrictedSpanishSeller && !createDrawerOpen
         && !globalInvoiceOpen
         && !globalQuoteOpen
         && !globalDeliveryNoteOpen
