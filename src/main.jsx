@@ -1326,6 +1326,7 @@ function WarehouseApp({ session, onLogout }) {
   const [carrier, setCarrier] = useState("");
   const [shoppingOpen, setShoppingOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatMinimized, setChatMinimized] = useState(false);
   const [chatInitialPeer, setChatInitialPeer] = useState("");
   const [manufacturingOpen, setManufacturingOpen] = useState(false);
   const [chatCount, setChatCount] = useState(0);
@@ -1404,7 +1405,7 @@ function WarehouseApp({ session, onLogout }) {
         <div className="warehouse-header-tools">
           <button type="button" className="warehouse-refresh" onClick={load} aria-label="Actualizar albaranes"><RefreshCw size={21} /></button>
           <button type="button" className="warehouse-refresh" onClick={() => setShoppingOpen(true)} aria-label="Catálogo y lista de la compra"><Package size={21} /></button>
-          <button type="button" className={`warehouse-refresh operation-badge-button ${chatCount ? "has-count" : ""}`} onClick={() => { setChatInitialPeer(themeAlert.active ? themeAlert.senderId || "" : ""); setChatOpen(true); }} aria-label="Chat interno">
+          <button type="button" className={`warehouse-refresh operation-badge-button ${chatCount ? "has-count" : ""}`} onClick={() => { setChatInitialPeer(themeAlert.active ? themeAlert.senderId || "" : ""); setChatMinimized(false); setChatOpen(true); }} aria-label="Chat interno">
             <MessageCircle size={21} />{chatCount ? <span>{chatCount > 99 ? "99+" : chatCount}</span> : null}
           </button>
           <button type="button" className={`warehouse-refresh operation-badge-button ${manufacturingCount ? "has-count" : ""}`} onClick={() => setManufacturingOpen(true)} aria-label="Órdenes de fabricación">
@@ -1416,7 +1417,7 @@ function WarehouseApp({ session, onLogout }) {
           <LogOut size={21} />
         </button>
       </header>
-      {themeAlert.active ? <button type="button" className="ultraviolet-alert-banner" onClick={() => { setChatInitialPeer(themeAlert.senderId || ""); setChatOpen(true); }}><Zap size={19} /> {themeAlert.senderName} te ha enviado un rayo de luz ultravioleta. Abre el chat.</button> : null}
+      {themeAlert.active ? <button type="button" className="ultraviolet-alert-banner" onClick={() => { setChatInitialPeer(themeAlert.senderId || ""); setChatMinimized(false); setChatOpen(true); }}><Zap size={19} /> {themeAlert.senderName} te ha enviado un rayo de luz ultravioleta. Abre el chat.</button> : null}
       <main className="warehouse-main">
         <div className="warehouse-title">
           <div>
@@ -1490,7 +1491,8 @@ function WarehouseApp({ session, onLogout }) {
         </div>
       ) : null}
       {shoppingOpen ? <ShoppingListsModal token={session.token} user={session.user} onClose={() => setShoppingOpen(false)} /> : null}
-      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} onRead={refreshThemeAlert} onClose={() => { setChatOpen(false); loadOperationCounts(); refreshThemeAlert(); }} /> : null}
+      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} onRead={refreshThemeAlert} onMinimize={() => { setChatOpen(false); setChatMinimized(true); }} onClose={() => { setChatOpen(false); setChatMinimized(false); loadOperationCounts(); refreshThemeAlert(); }} /> : null}
+      {chatMinimized ? <MinimizedChatButton onRestore={() => { setChatMinimized(false); setChatOpen(true); }} /> : null}
       {manufacturingOpen ? <ManufacturingModal token={session.token} user={session.user} onClose={() => { setManufacturingOpen(false); loadOperationCounts(); }} /> : null}
     </div>
   );
@@ -1551,11 +1553,26 @@ function useChatNotificationChime(unreadCount, enabled = true) {
   }, [enabled, unreadCount]);
 }
 
-function useOpenChatChime(messages, currentUserId, enabled = true) {
+function useOpenChatChime(messages, currentUserId, conversationId = "", enabled = true) {
   const knownMessageIdsRef = useRef(null);
+  const conversationRef = useRef("");
+  const ignoreInitialSnapshotRef = useRef(false);
 
   useEffect(() => {
+    if (conversationRef.current !== conversationId) {
+      conversationRef.current = conversationId;
+      knownMessageIdsRef.current = new Set();
+      ignoreInitialSnapshotRef.current = true;
+      return;
+    }
     const currentIds = new Set(messages.map((message) => message.id));
+    if (ignoreInitialSnapshotRef.current) {
+      if (messages.length) {
+        knownMessageIdsRef.current = currentIds;
+        ignoreInitialSnapshotRef.current = false;
+      }
+      return;
+    }
     if (!enabled || knownMessageIdsRef.current === null) {
       knownMessageIdsRef.current = currentIds;
       return;
@@ -1565,7 +1582,11 @@ function useOpenChatChime(messages, currentUserId, enabled = true) {
     );
     knownMessageIdsRef.current = currentIds;
     if (hasNewIncomingMessage) playChatChime();
-  }, [messages, currentUserId, enabled]);
+  }, [messages, currentUserId, conversationId, enabled]);
+}
+
+function MinimizedChatButton({ onRestore }) {
+  return <button type="button" className="minimized-chat-button" onClick={onRestore}><MessageCircle size={18} /><span>Chat interno</span><ChevronDown size={16} /></button>;
 }
 
 function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
@@ -1752,7 +1773,7 @@ function ShoppingListsModal({ token, user, onClose, initialListId = "" }) {
   );
 }
 
-function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", initialDriveFile = null }) {
+function InternalChatModal({ token, user, onClose, onMinimize, onRead, initialPeerId = "", initialDriveFile = null }) {
   const canUseGeneral = CHAT_USERS.has(String(user?.email || "").trim().toLowerCase());
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState("");
@@ -1771,7 +1792,7 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
   const attachmentInputRef = useRef(null);
   const composerInputRef = useRef(null);
   const initialDriveFileId = useRef("");
-  useOpenChatChime(messages, user?.id, true);
+  useOpenChatChime(messages, user?.id, selectedPeerId, true);
 
   useEffect(() => {
     if (!initialDriveFile?.id || initialDriveFileId.current === initialDriveFile.id) return;
@@ -1933,7 +1954,7 @@ function InternalChatModal({ token, user, onClose, onRead, initialPeerId = "", i
   return (
     <div className="operation-modal-backdrop" onMouseDown={onClose}>
       <section className="operation-modal chat-modal" onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><small>Mensajería del equipo</small><h2>Chat interno</h2></div><div className="chat-header-actions"><button type="button" className={powersOpen ? "superpowers-button active" : "superpowers-button"} onClick={() => setPowersOpen((open) => !open)}><Sparkles size={17} /> Superpoderes</button><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></div></header>
+        <header><div><small>Mensajería del equipo</small><h2>Chat interno</h2></div><div className="chat-header-actions"><button type="button" className={powersOpen ? "superpowers-button active" : "superpowers-button"} onClick={() => setPowersOpen((open) => !open)}><Sparkles size={17} /> Superpoderes</button><button type="button" className="icon-button" onClick={onMinimize} aria-label="Minimizar chat" title="Minimizar"><ChevronDown size={21} /></button><button type="button" className="icon-button" onClick={onClose}><X size={21} /></button></div></header>
         {powersOpen ? <div className="superpowers-panel"><label>Usuario de destino<select value={targetEmail} onChange={(event) => setTargetEmail(event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.email}>{participant.fullName} · {participant.email}</option>)}</select></label><button type="button" disabled={!targetEmail || sending} onClick={sendSuperpower}><Zap size={18} /><span><strong>Enviar rayo de luz ultravioleta</strong><small>Convierte temporalmente en rojo el panel del destinatario.</small></span></button></div> : null}
         {error ? <p className="operation-error">{error}</p> : null}{powerStatus ? <p className="superpower-status">{powerStatus}</p> : null}
         <div className="chat-workspace"><aside className="chat-users"><strong>Conversaciones</strong>{canUseGeneral ? <button type="button" className={selectedPeerId === "general" ? "active" : ""} onClick={() => setSelectedPeerId("general")}><span className="chat-avatar group">DL</span><span><b>Chat general</b><small>Almacén y oficinas</small></span></button> : null}{participants.map((participant) => <button type="button" key={participant.id} className={selectedPeerId === participant.id ? "active" : ""} onClick={() => { setSelectedPeerId(participant.id); setTargetEmail(participant.email); }}><span className="chat-avatar">{participant.fullName.slice(0, 2).toUpperCase()}</span><span><b>{participant.fullName}</b><small>{participant.email}</small></span>{participant.unreadCount ? <em>{participant.unreadCount > 99 ? "99+" : participant.unreadCount}</em> : null}</button>)}</aside>
@@ -2002,6 +2023,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
   const [shoppingOpen,setShoppingOpen]=useState(false);
   const [shoppingInitialId,setShoppingInitialId]=useState("");
   const [chatOpen,setChatOpen]=useState(false);
+  const [chatMinimized,setChatMinimized]=useState(false);
   const [chatInitialPeer,setChatInitialPeer]=useState("");
   const [chatDriveFile,setChatDriveFile]=useState(null);
   const [mailDriveFile,setMailDriveFile]=useState(null);
@@ -2272,7 +2294,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           <div className="header-actions">
             {canUseShopping ? <button className="icon-button header-action-button" type="button" aria-label="Listas de la compra" onClick={()=>{setShoppingInitialId("");setShoppingOpen(true);}}><Package size={18}/></button> : null}
             {canUseManufacturing ? <button className="icon-button header-action-button" type="button" aria-label="Órdenes de fabricación" onClick={()=>setManufacturingOpen(true)}><Factory size={18}/></button> : null}
-            {canUseChat ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>{setChatInitialPeer(themeAlert.active?themeAlert.senderId||"":"");setChatOpen(true);}}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
+            {canUseChat ? <button className={`icon-button header-action-button operation-badge-button ${chatCount?"has-count":""}`} type="button" aria-label="Chat interno" onClick={()=>{setChatInitialPeer(themeAlert.active?themeAlert.senderId||"":"");setChatMinimized(false);setChatOpen(true);}}><MessageCircle size={18}/><OperationCount count={chatCount}/></button> : null}
             <button className={`icon-button header-action-button notification-bell ${notificationCount ? "has-new" : ""}`} type="button" aria-label="Notificaciones" onClick={()=>setNotificationsOpen(true)}>
               <Bell size={18} />
               {notificationCount ? <span className="notification-count">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
@@ -2286,10 +2308,11 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           </div>
         </div>
       </header>
-      {themeAlert.active ? <button type="button" className="ultraviolet-alert-banner" onClick={()=>{setChatInitialPeer(themeAlert.senderId||"");setChatOpen(true);}}><Zap size={19}/> {themeAlert.senderName} te ha enviado un rayo de luz ultravioleta. Abre el chat.</button> : null}
+      {themeAlert.active ? <button type="button" className="ultraviolet-alert-banner" onClick={()=>{setChatInitialPeer(themeAlert.senderId||"");setChatMinimized(false);setChatOpen(true);}}><Zap size={19}/> {themeAlert.senderName} te ha enviado un rayo de luz ultravioleta. Abre el chat.</button> : null}
       {notificationsOpen ? <NotificationsInbox token={session.token} onClose={()=>{setNotificationsOpen(false);loadNotificationCount();}} onChanged={loadNotificationCount} onOpenShoppingList={(listId)=>{setShoppingInitialId(listId||"");setShoppingOpen(true);}}/> : null}
       {shoppingOpen ? <ShoppingListsModal token={session.token} user={session.user} initialListId={shoppingInitialId} onClose={()=>setShoppingOpen(false)}/> : null}
-      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} initialDriveFile={chatDriveFile} onRead={refreshThemeAlert} onClose={()=>{setChatOpen(false);setChatDriveFile(null);loadChatCount();refreshThemeAlert();}}/> : null}
+      {chatOpen ? <InternalChatModal token={session.token} user={session.user} initialPeerId={chatInitialPeer} initialDriveFile={chatDriveFile} onRead={refreshThemeAlert} onMinimize={()=>{setChatOpen(false);setChatMinimized(true);}} onClose={()=>{setChatOpen(false);setChatMinimized(false);setChatDriveFile(null);loadChatCount();refreshThemeAlert();}}/> : null}
+      {chatMinimized ? <MinimizedChatButton onRestore={()=>{setChatMinimized(false);setChatOpen(true);}}/> : null}
       {manufacturingOpen ? <ManufacturingModal token={session.token} user={session.user} onClose={()=>setManufacturingOpen(false)}/> : null}
 
       <div className="main-area">
