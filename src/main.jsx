@@ -152,6 +152,25 @@ function emailBodyWithLegalFooter(message) {
 
 const LAURA_EMAIL = "administracion@doinglight.es";
 const LAURA_SIGNATURE_IMAGE = "/firma-laura.svg";
+const CLAUDINE_EMAIL = "info@doinglight.fr";
+const CLAUDINE_SIGNATURE_IMAGE = "/firma-claudine-fr.png";
+const CLAUDINE_SIGNATURE_LINES = [
+  "Claudine Massicot",
+  "Entreprise Doinglight",
+  "",
+  "Pol. Industrial Campollano, Calle E-24",
+  "02007 Albacete - Espagne",
+  "https://www.doinglight.fr",
+  "",
+  "Tel/WhatsApp France: 06 28 40 39 45",
+  "Tel/WhatsApp Espagne: +34 685 04 32 03",
+  "Tel. bureaux: +34 967 704 919",
+  "info@doinglight.es / infodoinglightfrance@gmail.com"
+];
+
+function ClaudineEmailSignature() {
+  return <div className="claudine-email-signature"><img src={CLAUDINE_SIGNATURE_IMAGE} alt="Doinglight Skylights" /><div>{CLAUDINE_SIGNATURE_LINES.map((line, index) => <Fragment key={`${line}-${index}`}>{line || " "}{index < CLAUDINE_SIGNATURE_LINES.length - 1 ? <br /> : null}</Fragment>)}</div></div>;
+}
 
 function lauraEmailMessage(value) {
   const body = String(value || "");
@@ -177,6 +196,14 @@ function mailSenderProfile(user, documentType = "quote") {
     return {
       from: "ADMINISTRACION <administracion@doinglight.es>",
       body: `Estimado cliente:\n\nAdjunto a este correo encontrará ${article} ${documentLabel}.\nSi tiene cualquier consulta, no dude en contactar con nosotros.\n\nAtentamente,\n\n${EMAIL_LEGAL_FOOTER}`
+    };
+  }
+  if (email === CLAUDINE_EMAIL) {
+    const labels = { quote: "devis", proforma: "facture pro forma", delivery_note: "bon de livraison", invoice: "facture" };
+    const documentLabel = labels[documentType] || "document";
+    return {
+      from: "Claudine Massicot <info@doinglight.fr>",
+      body: `Bonjour,\n\nVeuillez trouver ci-joint notre ${documentLabel}.\nPour toute question, n'hésitez pas à nous contacter.\n\nCordialement,`
     };
   }
   if (email) {
@@ -2647,11 +2674,12 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
   const mailCopy = MAIL_UI_COPY[locale] || MAIL_UI_COPY.es;
   const mailDateLocale = ({ es: "es-ES", fr: "fr-FR", it: "it-IT", pt: "pt-PT" }[locale] || "es-ES");
   const isLauraMailbox = String(user?.email || "").trim().toLowerCase() === LAURA_EMAIL;
+  const isClaudineMailbox = String(user?.email || "").trim().toLowerCase() === CLAUDINE_EMAIL;
   const newMailDraft = () => ({
     to: "",
     bcc: "",
     subject: "",
-    text: isLauraMailbox ? `\n\nAtentamente,\n\n${EMAIL_LEGAL_FOOTER}` : "",
+    text: isLauraMailbox ? `\n\nAtentamente,\n\n${EMAIL_LEGAL_FOOTER}` : isClaudineMailbox ? "\n\nCordialement," : "",
     inReplyTo: "",
     references: ""
   });
@@ -3025,6 +3053,7 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
           <label>CCO<input type="text" list="mail-contacts" value={draft.bcc} onChange={(event) => setDraft({ ...draft, bcc: event.target.value })} placeholder={mailCopy.hiddenCopy} /></label>
           <label>{mailCopy.subject}<input required value={draft.subject} onChange={(event) => setDraft({ ...draft, subject: event.target.value })} /></label>
           <label>{mailCopy.message}<textarea rows="10" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
+          {isClaudineMailbox ? <ClaudineEmailSignature /> : null}
           <label className="mail-attachment-picker">{mailCopy.attachFiles}<input type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []).slice(0, 8))} /><span>{mailCopy.chooseFiles}</span></label>
           {attachments.length ? <ul className="mail-attachment-list">{attachments.map((file) => <li key={`${file.name}-${file.size}`}>{file.name} <small>{attachmentSize(file.size)}</small></li>)}</ul> : null}
           {libraryAttachmentIds.length ? <ul className="mail-attachment-list">{libraryAttachmentIds.map((id) => { const item = (library.data?.files || []).find((file) => file.id === id); return <li key={id}>{item?.name || id}<button type="button" onClick={() => setLibraryAttachmentIds((items) => items.filter((itemId) => itemId !== id))}>×</button></li>; })}</ul> : null}
@@ -5159,6 +5188,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
   const currentUser = readSession()?.user;
   const senderProfile = mailSenderProfile(currentUser, type === "delivery-note" ? "delivery_note" : type);
   const isLauraSender = String(currentUser?.email || "").trim().toLowerCase() === LAURA_EMAIL;
+  const isClaudineSender = String(currentUser?.email || "").trim().toLowerCase() === CLAUDINE_EMAIL;
   const company = documentRecord.lead || documentRecord.raw?.item?.lead || documentRecord.raw?.main?.counterpart || {};
   const companyEmails = companyEmailRecipients(company);
   const forceSpanishForRobros = isSpanishRobrosInvoice(type, currentUser, company);
@@ -5270,6 +5300,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
                 </label>
                 {isLauraSender ? <img className="document-email-signature" src={LAURA_SIGNATURE_IMAGE} alt="Firma de Laura Atienzar" /> : null}
                 {isLauraSender ? <div className="document-email-legal-preview">{EMAIL_LEGAL_FOOTER}</div> : null}
+                {isClaudineSender ? <ClaudineEmailSignature /> : null}
             <div className="quote-send-attachments">
               <span>Archivos adjuntos</span>
               <label>
@@ -11757,6 +11788,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const currentUser = readSession()?.user || null;
   const senderProfile = mailSenderProfile(currentUser, documentType);
   const isLauraSender = String(currentUser?.email || "").trim().toLowerCase() === LAURA_EMAIL;
+  const isClaudineSender = String(currentUser?.email || "").trim().toLowerCase() === CLAUDINE_EMAIL;
   const quoteSender = senderProfile.from;
   const canUseNetPricing = NET_PRICING_USERS.has(String(currentUser?.email || "").trim().toLowerCase());
   const distributorCopy = distributorPanelCopy(locale);
@@ -14281,6 +14313,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                 </label>
                 {isLauraSender ? <img className="document-email-signature" src={LAURA_SIGNATURE_IMAGE} alt="Firma de Laura Atienzar" /> : null}
                 {isLauraSender ? <div className="document-email-legal-preview">{EMAIL_LEGAL_FOOTER}</div> : null}
+                {isClaudineSender ? <ClaudineEmailSignature /> : null}
                 <div className="quote-send-attachments">
                   <div className="quote-send-attachments-head">
                     <span>{sendCopy.attachments || "Archivos adjuntos"}</span>
