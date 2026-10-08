@@ -35,11 +35,13 @@ import {
   Globe2,
   GraduationCap,
   History,
+  Hammer,
   Languages,
   UsersRound,
   Zap,
   X,
-  UserRound
+  UserRound,
+  Wrench
 } from "lucide-react";
 import "./styles.css";
 
@@ -1133,6 +1135,16 @@ function ProductThumbnail({ product, size = "small" }) {
     return (
       <div className={`product-thumb ${size} shipping-thumb`} aria-label="Portes">
         <Truck size={size === "large" ? 34 : 21} />
+      </div>
+    );
+  }
+
+  if (product?.type === "installation" || product?.lineType === "installation") {
+    const iconSize = size === "large" ? 29 : 18;
+    return (
+      <div className={`product-thumb ${size} installation-thumb`} aria-label="Instalación">
+        <Wrench className="installation-tool installation-wrench" size={iconSize} strokeWidth={2.4} />
+        <Hammer className="installation-tool installation-hammer" size={iconSize} strokeWidth={2.4} />
       </div>
     );
   }

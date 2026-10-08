@@ -5838,6 +5838,27 @@ th {
   background: #eef7d7;
 }
 
+.installation-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--green);
+  background: #f1f8db;
+}
+
+.installation-tool {
+  position: absolute;
+}
+
+.installation-wrench {
+  transform: rotate(-38deg) translate(-3px, 2px);
+}
+
+.installation-hammer {
+  transform: rotate(42deg) translate(3px, -2px);
+}
+
 .compact-line .product-thumb {
   align-self: center;
 }
