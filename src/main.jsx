@@ -2690,6 +2690,8 @@ const MAIL_UI_COPY = {
 
 function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, onDriveFileConsumed }) {
   const [folder, setFolder] = useState("inbox");
+  const [mailRefreshVersion, setMailRefreshVersion] = useState(0);
+  const forceMailboxFolderRef = useRef("");
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   const [deletingMessages, setDeletingMessages] = useState(false);
@@ -2725,8 +2727,13 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
   });
   const labels = { inbox: mailCopy.inbox, sent: mailCopy.sent, drafts: mailCopy.drafts, trash: mailCopy.trash, contacts: mailCopy.contacts };
   const mailbox = useResource(
-    () => apiRequest(`/api/mailbox/messages?folder=${folder === "contacts" ? "inbox" : folder}`, { token }),
-    [token, folder]
+    () => {
+      const mailboxFolder = folder === "contacts" ? "inbox" : folder;
+      const forceRefresh = forceMailboxFolderRef.current === mailboxFolder;
+      if (forceRefresh) forceMailboxFolderRef.current = "";
+      return apiRequest(`/api/mailbox/messages?folder=${mailboxFolder}${forceRefresh ? "&refresh=true" : ""}`, { token });
+    },
+    [token, folder, mailRefreshVersion]
   );
   const composeMailbox = useResource(
     () => composeLookupFolder && composeLookupFolder !== "contacts"
@@ -2760,6 +2767,22 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
     setSelectedMessageIds([]);
     setMessageError("");
   }, [folder]);
+
+  useEffect(() => {
+    if (composeOpen || folder !== "inbox") return undefined;
+    const timer = window.setInterval(() => {
+      forceMailboxFolderRef.current = "inbox";
+      setMailRefreshVersion((version) => version + 1);
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [composeOpen, folder]);
+
+  function refreshMailboxNow() {
+    setSelectedMessage(null);
+    setSelectedMessageIds([]);
+    forceMailboxFolderRef.current = folder;
+    setMailRefreshVersion((version) => version + 1);
+  }
 
   const mailboxMessages = mailbox.data?.messages || [];
   const allMailboxMessagesSelected = Boolean(mailboxMessages.length) && mailboxMessages.every((message) => selectedMessageIds.includes(message.id));
@@ -3021,9 +3044,9 @@ function MailWorkspace({ token, user, locale = "es", initialDriveFile = null, on
           <p className="section-eyebrow">{user?.email}</p>
           <h3>Mail</h3>
         </div>
-        <button className="primary-button" type="button" onClick={openNewMessage}>
+        <div className="mail-header-actions"><button className="mail-sync-button" type="button" onClick={refreshMailboxNow} disabled={mailbox.loading || folder === "contacts"} title="Sincronizar mensajes ahora" aria-label="Sincronizar mensajes ahora"><Cloud size={18} /></button><button className="primary-button" type="button" onClick={openNewMessage}>
           <Mail size={16} /> {mailCopy.newMessage}
-        </button>
+        </button></div>
       </header>
       {!configuration.loading && configuration.data?.configured === false ? <section className="mail-setup-warning">
         <Mail size={22} />
