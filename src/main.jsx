@@ -5561,6 +5561,7 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
   const [selectedDeliveryNoteIds, setSelectedDeliveryNoteIds] = useState([]);
   const deliveryNoteSort = useDocumentSort();
@@ -5574,12 +5575,14 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
     const matchesQuery = textMatchesQuery([deliveryNote.number, deliveryNote.contact, deliveryNote.status, deliveryNote.total, deliveryNote.detail], query);
     const matchesStatus = statusFilter === "all" || deliveryNote.statusKey === statusFilter;
     const matchesDate = documentMatchesDateFilter(deliveryNote, dateFilter);
-    return matchesQuery && matchesStatus && matchesDate;
+    const selectedCountry = COUNTRY_DOCUMENT_FILTERS.find((filter) => filter.id === countryFilter);
+    const matchesCountry = !selectedCountry || documentCountryCode(deliveryNote) === selectedCountry.country;
+    return matchesQuery && matchesStatus && matchesDate && matchesCountry;
   });
   const sortedDeliveryNotes = sortDocumentRows(filteredDeliveryNotes, deliveryNoteSort.sortConfig);
   const deliveryNoteRows = useIncrementalDocumentRows(
     sortedDeliveryNotes.length,
-    [query, statusFilter, dateFilter, deliveryNoteSort.sortConfig.key, deliveryNoteSort.sortConfig.direction].join("|")
+    [query, statusFilter, dateFilter, countryFilter, deliveryNoteSort.sortConfig.key, deliveryNoteSort.sortConfig.direction].join("|")
   );
   const visibleDeliveryNotes = sortedDeliveryNotes.slice(0, deliveryNoteRows.visibleCount);
   const filteredDeliveryNoteIds = filteredDeliveryNotes.map((deliveryNote) => deliveryNote.id);
@@ -5684,6 +5687,34 @@ function DeliveryNotesView({ token, onCreateDeliveryNote }) {
               ))}
             </select>
           </label>
+          <div className="quote-origin-filters" role="group" aria-label="Filtrar albaranes por país">
+            {COUNTRY_DOCUMENT_FILTERS.map((filter) => {
+              const active = countryFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  className={`quote-origin-filter${active ? " active" : ""}`}
+                  type="button"
+                  title={`Filtrar albaranes de ${filter.label}`}
+                  aria-label={`Filtrar albaranes de ${filter.label}`}
+                  aria-pressed={active}
+                  onClick={() => setCountryFilter(active ? "all" : filter.id)}
+                >
+                  <span aria-hidden="true">{filter.flag}</span>
+                </button>
+              );
+            })}
+            <button
+              className="quote-origin-filter clear"
+              type="button"
+              title="Eliminar filtro de país"
+              aria-label="Eliminar filtro de país"
+              disabled={countryFilter === "all"}
+              onClick={() => setCountryFilter("all")}
+            >
+              <X size={17} strokeWidth={2.4} />
+            </button>
+          </div>
           {selectedDeliveryNoteIds.length ? (
             <div className="bulk-document-actions">
               <button className="bulk-document-action" type="button" onClick={invoiceSelectedDeliveryNotes}>
