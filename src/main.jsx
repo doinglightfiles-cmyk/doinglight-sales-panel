@@ -8197,6 +8197,10 @@ function ContactsView({ token, initialFilter = "all", distributor = false, local
             setSelectedLead(updatedLead);
             leads.reload();
           }}
+          onDeleted={() => {
+            setSelectedLead(null);
+            leads.reload();
+          }}
         />
       ) : null}
       {showContactTypePicker ? (
@@ -9159,6 +9163,10 @@ function LeadsView({ token }) {
             setSelectedLead(updatedLead);
             leads.reload();
           }}
+          onDeleted={() => {
+            setSelectedLead(null);
+            leads.reload();
+          }}
         />
       ) : null}
       {showForm ? (
@@ -9375,7 +9383,7 @@ function DocumentTrace({ trace = [], currentType, currentId, onOpen }) {
   );
 }
 
-function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, locale = "es" }) {
+function LeadDetailModal({ lead, token, onClose, onSaved, onDeleted, distributor = false, locale = "es" }) {
   const [draft, setDraft] = useState(() => leadToDraft(lead));
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState("idle");
@@ -9386,6 +9394,8 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("documents");
   const [postalLookupPending, setPostalLookupPending] = useState(false);
+  const [deleteState, setDeleteState] = useState("idle");
+  const [deleteError, setDeleteError] = useState("");
   const postalLookupTimerRef = useRef(null);
   const isSupplier = (draft.contactKind || lead.contactKind || "client") === "supplier";
   const paymentNotificationsAllowed = !isSupplier && !["level_1", "level_2"].includes(draft.customerLevel);
@@ -9396,6 +9406,8 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
     setDraft(leadToDraft(lead));
     setEditing(false);
     setActiveTab("documents");
+    setDeleteState("idle");
+    setDeleteError("");
   }, [lead]);
 
   useEffect(() => () => window.clearTimeout(postalLookupTimerRef.current), []);
@@ -9501,7 +9513,26 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
     setWhatsappMessage("Comprobación preparada. Falta conectar WhatsApp Business API para validar este móvil automáticamente.");
   }
 
+  async function deleteClient() {
+    if (!token) return;
+    setDeleteState("checking");
+    setDeleteError("");
+    try {
+      await apiRequest(`/api/sales/leads/${lead.id}`, { token, method: "DELETE" });
+      setDeleteState("deleted");
+    } catch (err) {
+      setDeleteError(err.message || "No se ha podido eliminar el cliente.");
+      setDeleteState("blocked");
+    }
+  }
+
+  function completeDeletion() {
+    onDeleted?.(lead.id);
+    onClose();
+  }
+
   return (
+    <>
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <article
         className="product-detail lead-detail lead-record-modal"
@@ -9523,6 +9554,11 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
             {editing ? (
               <button className={`secondary-button ${saveState === "saved" ? "save-confirmed" : ""}`} type="button" onClick={saveProfile} disabled={saving || !token}>
                 {saving ? "Guardando..." : saveState === "saved" ? <><CheckCircle2 size={16} /> Guardado</> : "Guardar cambios"}
+              </button>
+            ) : null}
+            {!isSupplier ? (
+              <button className="danger-text-button" type="button" onClick={() => setDeleteState("confirming")}>
+                Eliminar cliente
               </button>
             ) : null}
             <button className="icon-button" onClick={onClose} aria-label="Cerrar ficha">
@@ -9614,6 +9650,33 @@ function LeadDetailModal({ lead, token, onClose, onSaved, distributor = false, l
         </div>
       </article>
     </div>
+    {deleteState === "confirming" ? (
+      <ModalShell title="Eliminar cliente" eyebrow="Acción irreversible" size="compact-modal" onClose={() => setDeleteState("idle")}>
+        <p>Antes de eliminarlo comprobaremos que no tiene presupuestos, albaranes ni facturas vinculados.</p>
+        <div className="form-actions">
+          <button className="secondary-button" type="button" onClick={() => setDeleteState("idle")}>Cancelar</button>
+          <button className="danger-text-button" type="button" onClick={deleteClient}>Eliminar definitivamente</button>
+        </div>
+      </ModalShell>
+    ) : null}
+    {deleteState === "checking" ? (
+      <ModalShell title="Comprobando cliente" eyebrow="Eliminación segura" size="compact-modal" onClose={() => {}}>
+        <p>Comprobando que este cliente no tiene ningún proceso de venta abierto...</p>
+      </ModalShell>
+    ) : null}
+    {deleteState === "deleted" ? (
+      <ModalShell title="Cliente eliminado" eyebrow="Proceso completado" size="compact-modal" onClose={completeDeletion}>
+        <p className="delete-client-success"><span aria-hidden="true">👍</span> El cliente ha sido fulminado.</p>
+        <div className="form-actions"><button className="primary-button" type="button" onClick={completeDeletion}>Aceptar</button></div>
+      </ModalShell>
+    ) : null}
+    {deleteState === "blocked" ? (
+      <ModalShell title="No se puede eliminar" eyebrow="Cliente con ventas" size="compact-modal" onClose={() => setDeleteState("idle")}>
+        <p className="form-error">{deleteError}</p>
+        <div className="form-actions"><button className="secondary-button" type="button" onClick={() => setDeleteState("idle")}>Cerrar</button></div>
+      </ModalShell>
+    ) : null}
+    </>
   );
 }
 
