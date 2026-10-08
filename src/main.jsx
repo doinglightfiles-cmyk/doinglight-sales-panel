@@ -3655,6 +3655,20 @@ function quoteLanguageForCountry(country) {
   return matchedLanguage?.value || "es";
 }
 
+function isRobrosItalianDistributor(customer = {}) {
+  const taxId = String(customer.taxId || customer.tax_id || customer.vatNumber || customer.vat_number || "")
+    .replace(/[\s.-]/g, "")
+    .toUpperCase();
+  const name = String(customer.companyName || customer.company_name || customer.fullName || customer.full_name || customer.name || "").toUpperCase();
+  return taxId === "IT04457180240" || name.includes("ROBROS IMPORT EXPORT");
+}
+
+function isSpanishRobrosInvoice(documentType, user, customer) {
+  return documentType === "invoice"
+    && String(user?.locale || "es").toLowerCase() === "es"
+    && isRobrosItalianDistributor(customer);
+}
+
 const QUOTE_PDF_TEXT = {
   es: {
     title: "Presupuesto",
@@ -5130,11 +5144,15 @@ function documentLinesForPdf(lines = []) {
 }
 
 function DocumentSendModal({ token, documentRecord, type, onClose }) {
-  const senderProfile = mailSenderProfile(readSession()?.user, type === "delivery-note" ? "delivery_note" : type);
-  const isLauraSender = String(readSession()?.user?.email || "").trim().toLowerCase() === LAURA_EMAIL;
+  const currentUser = readSession()?.user;
+  const senderProfile = mailSenderProfile(currentUser, type === "delivery-note" ? "delivery_note" : type);
+  const isLauraSender = String(currentUser?.email || "").trim().toLowerCase() === LAURA_EMAIL;
   const company = documentRecord.lead || documentRecord.raw?.item?.lead || documentRecord.raw?.main?.counterpart || {};
   const companyEmails = companyEmailRecipients(company);
-  const [language, setLanguage] = useState(quoteLanguageForCountry(documentRecord.raw?.main?.counterpart?.countryCode || documentRecord.raw?.main?.counterpart?.country || "ES"));
+  const forceSpanishForRobros = isSpanishRobrosInvoice(type, currentUser, company);
+  const [language, setLanguage] = useState(() => forceSpanishForRobros
+    ? "es"
+    : quoteLanguageForCountry(documentRecord.raw?.main?.counterpart?.countryCode || documentRecord.raw?.main?.counterpart?.country || "ES"));
   const [status, setStatus] = useState("");
   const [draft, setDraft] = useState(() => {
     const counterpart = documentRecord.raw?.main?.counterpart || {};
@@ -5252,7 +5270,7 @@ function DocumentSendModal({ token, documentRecord, type, onClose }) {
           <section className="quote-send-preview" aria-label="Vista previa del PDF adjunto">
             <label className="quote-pdf-language-row">
               <span>Idioma del documento</span>
-              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+              <select value={language} disabled={forceSpanishForRobros} onChange={(event) => setLanguage(event.target.value)}>
                 {QUOTE_LANGUAGE_OPTIONS.map((item) => (
                   <option key={item.value} value={item.value}>{item.label}</option>
                 ))}
@@ -11989,6 +12007,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   const forceDoinglightIssuer = isInvoice && Boolean(
     currentDocument?.payload?.italianDistributorInvoice || initialQuote?.payload?.italianDistributorInvoice
   );
+  const forceSpanishForRobrosInvoice = isSpanishRobrosInvoice(
+    documentType,
+    currentUser,
+    selectedLead || leadDraft || currentDocument?.lead || initialQuote?.lead
+  );
 
   useEffect(() => {
     if (!selectedLead || lastDiscountLeadId.current === selectedLead.id) return;
@@ -12057,14 +12080,18 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
   }, [selectedLead?.id]);
 
   useEffect(() => {
-    if (!selectedLead || quoteLanguageTouched) return;
+    if (!selectedLead || quoteLanguageTouched || forceSpanishForRobrosInvoice) return;
     setQuoteLanguage(quoteLanguageForCountry(selectedLead.country));
-  }, [selectedLead?.country, quoteLanguageTouched]);
+  }, [selectedLead?.country, quoteLanguageTouched, forceSpanishForRobrosInvoice]);
 
   useEffect(() => {
-    if (!leadDraft?.country || quoteLanguageTouched) return;
+    if (!leadDraft?.country || quoteLanguageTouched || forceSpanishForRobrosInvoice) return;
     setQuoteLanguage(quoteLanguageForCountry(leadDraft.country));
-  }, [leadDraft?.country, quoteLanguageTouched]);
+  }, [leadDraft?.country, quoteLanguageTouched, forceSpanishForRobrosInvoice]);
+
+  useEffect(() => {
+    if (forceSpanishForRobrosInvoice && quoteLanguage !== "es") setQuoteLanguage("es");
+  }, [forceSpanishForRobrosInvoice, quoteLanguage]);
 
   function chooseLead(lead) {
     setSelectedLeadId(lead.id);
@@ -14233,6 +14260,7 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   <span>{sendCopy.language || "Idioma del documento"}</span>
                   <select
                     value={quoteLanguage}
+                    disabled={forceSpanishForRobrosInvoice}
                     onChange={(event) => {
                       setQuoteLanguage(event.target.value);
                       setQuoteLanguageTouched(true);
