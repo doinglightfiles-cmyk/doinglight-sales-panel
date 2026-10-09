@@ -1809,6 +1809,37 @@ select:focus {
   backdrop-filter: blur(8px);
 }
 
+.purchase-paid-button {
+  border-color: rgba(156, 195, 27, 0.52);
+  color: var(--green-dark);
+  background: #f6faeb;
+}
+
+.purchase-paid-date-modal {
+  display: grid;
+  gap: 22px;
+  padding: 28px 30px 30px;
+}
+
+.purchase-paid-date-modal > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.purchase-paid-date-modal > label {
+  display: grid;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.purchase-paid-date-modal .form-actions {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
 .purchase-work-modal .purchase-form {
   min-height: 0;
   overflow-y: auto;

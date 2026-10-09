@@ -9180,12 +9180,6 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
               </span>
             ) : null}
           </label>
-          <div className="purchase-paid-action">
-            <span>Pago de la factura</span>
-            <button className="primary-button" type="button" onClick={openPaidDateModal}>
-              {form.status === "paid" ? "Cambiar fecha de pago" : "Pagada"}
-            </button>
-          </div>
           <label>
             Método de pago
             <select value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })}>
@@ -9315,6 +9309,9 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
         {purchase?.id && canDelete ? <button className="danger-text-button" type="button" onClick={removePurchase}>Eliminar</button> : null}
         <span className="form-actions-spacer" />
         <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button>
+        <button className="secondary-button purchase-paid-button" type="button" onClick={openPaidDateModal}>
+          {form.status === "paid" ? "Cambiar fecha de pago" : "Pagada"}
+        </button>
         <button className="primary-button" type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar compra"}</button>
       </div>
 
