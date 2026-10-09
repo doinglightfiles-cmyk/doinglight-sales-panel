@@ -8325,6 +8325,8 @@ th {
 .chat-messages time { color: #7a8377; font-size: 10px; }
 .chat-empty { margin: auto; color: #7a8477; text-align: center; }
 .chat-composer { display: grid; gap: 9px; padding: 14px; }.chat-composer-main { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; }.chat-composer textarea { min-height: 76px; max-height: 160px; resize: vertical; border: 1px solid #d9dfd4; border-radius: 10px; padding: 11px; }.chat-composer-tools { display: flex; gap: 8px; }
+.chat-composer.is-dragging-files { outline: 2px dashed var(--green); outline-offset: -5px; background: #f3f9ea; }
+.chat-drop-message { display: grid; min-height: 40px; place-items: center; border-radius: 8px; color: #3f6e09; font-weight: 800; font-size: 13px; }
 .chat-composer .chat-attachment-button { display: grid; place-items: center; border: 1px solid var(--green); border-radius: 10px; padding: 0; color: var(--green); background: #fff; }
 .chat-composer .chat-attachment-button:hover:not(:disabled) { color: #fff; background: var(--green); }
 .chat-composer .chat-send-button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 8px; padding: 0 16px; color: #fff; background: var(--green); font-weight: 800; }

@@ -1781,6 +1781,7 @@ function InternalChatModal({ token, user, onClose, onMinimize, onRead, initialPe
   const [driveLinks, setDriveLinks] = useState([]);
   const [driveAttachmentPickerOpen, setDriveAttachmentPickerOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [draggingAttachments, setDraggingAttachments] = useState(false);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [powersOpen, setPowersOpen] = useState(false);
@@ -1843,17 +1844,33 @@ function InternalChatModal({ token, user, onClose, onMinimize, onRead, initialPe
   }, [selectedPeerId]);
   useEffect(() => { messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight }); }, [messages.length]);
 
-  function addAttachments(event) {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
+  function addAttachmentFiles(candidateFiles) {
+    const files = Array.from(candidateFiles || []);
+    if (!files.length) return;
     const acceptedExtensions = new Set(["pdf", "jpg", "jpeg", "png", "docx", "xlsx", "csv", "txt"]);
     const rejected = files.find((file) => !acceptedExtensions.has(file.name.split(".").pop()?.toLowerCase()) || file.size > 10 * 1024 * 1024);
     if (rejected) {
       setError("Solo se permiten PDF, JPG, PNG, DOCX, XLSX, CSV o TXT de hasta 10 MB.");
       return;
     }
-    setAttachments((current) => [...current, ...files].slice(0, 5));
-    if (attachments.length + files.length > 5) setError("Solo se pueden adjuntar 5 archivos por mensaje.");
+    setAttachments((current) => {
+      const remaining = Math.max(0, 5 - current.length);
+      if (files.length > remaining) setError("Solo se pueden adjuntar 5 archivos por mensaje.");
+      else setError("");
+      return [...current, ...files.slice(0, remaining)];
+    });
+  }
+
+  function addAttachments(event) {
+    addAttachmentFiles(event.target.files);
+    event.target.value = "";
+  }
+
+  function handleAttachmentDrop(event) {
+    event.preventDefault();
+    setDraggingAttachments(false);
+    if (!selectedPeerId || sending) return;
+    addAttachmentFiles(event.dataTransfer?.files);
   }
 
   function addDriveLink(file) {
@@ -1959,7 +1976,7 @@ function InternalChatModal({ token, user, onClose, onMinimize, onRead, initialPe
         {error ? <p className="operation-error">{error}</p> : null}{powerStatus ? <p className="superpower-status">{powerStatus}</p> : null}
         <div className="chat-workspace"><aside className="chat-users"><strong>Conversaciones</strong>{canUseGeneral ? <button type="button" className={selectedPeerId === "general" ? "active" : ""} onClick={() => setSelectedPeerId("general")}><span className="chat-avatar group">DL</span><span><b>Chat general</b><small>Almacén y oficinas</small></span></button> : null}{participants.map((participant) => <button type="button" key={participant.id} className={selectedPeerId === participant.id ? "active" : ""} onClick={() => { setSelectedPeerId(participant.id); setTargetEmail(participant.email); }}><span className="chat-avatar">{participant.fullName.slice(0, 2).toUpperCase()}</span><span><b>{participant.fullName}</b><small>{participant.email}</small></span>{participant.unreadCount ? <em>{participant.unreadCount > 99 ? "99+" : participant.unreadCount}</em> : null}</button>)}</aside>
           <section className="chat-conversation"><div className="chat-conversation-title"><strong>{selectedPeerId === "general" ? "Chat general" : activePeer?.fullName || "Selecciona un usuario"}</strong>{activePeer ? <small>Conversación privada · {activePeer.email}</small> : null}</div><div className="chat-messages" ref={messagesRef}>{messages.map((message) => { const mine = message.senderEmail?.toLowerCase() === user?.email?.toLowerCase(); return <article key={message.id} className={mine ? "mine" : ""}><strong>{mine ? "Tú" : userDisplayName(message)}</strong>{message.body ? <p>{message.body}</p> : null}{message.attachments?.length ? <div className="chat-message-attachments">{message.attachments.map((attachment) => isChatImage(attachment) ? <ChatImageAttachment key={attachment.id} attachment={attachment} token={token} /> : <button type="button" key={attachment.id} onClick={() => downloadAttachment(attachment)} title={`Descargar ${attachment.fileName}`}><Paperclip size={14} /><span>{attachment.fileName}</span><small>{attachmentSize(attachment.fileSize)}</small></button>)}</div> : null}{message.driveLinks?.length ? <div className="chat-message-attachments chat-drive-links">{message.driveLinks.map((file) => <button type="button" key={file.id} onClick={() => openDriveLink(file)} title={`Abrir ${file.fileName} en el Drive`}><FileText size={14} /><span>{file.fileName}</span><small>Drive</small></button>)}</div> : null}<time>{new Date(message.createdAt).toLocaleString("es-ES")}</time></article>; })}{!messages.length ? <p className="chat-empty">Todavía no hay mensajes en esta conversación.</p> : null}</div>
-            <form className="chat-composer" onSubmit={sendMessage}><input ref={attachmentInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv,.txt,application/pdf,image/jpeg,image/png,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={addAttachments} /><div className="chat-composer-main"><textarea ref={composerInputRef} value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={handleComposerKeyDown} placeholder={selectedPeerId === "general" ? "Escribe en el chat general…" : `Mensaje privado para ${activePeer?.fullName || "este usuario"}…`} disabled={!selectedPeerId} /><button type="submit" className="chat-send-button" disabled={sending || (!body.trim() && !attachments.length && !driveLinks.length) || !selectedPeerId} title="Enviar mensaje" aria-label="Enviar mensaje"><Send size={18} /><span>Enviar</span></button></div><div className="chat-composer-tools"><button type="button" className="chat-attachment-button" onClick={() => attachmentInputRef.current?.click()} disabled={sending || !selectedPeerId} title="Adjuntar archivos" aria-label="Adjuntar archivos"><Paperclip size={18} /></button><button type="button" className="chat-attachment-button" onClick={() => setDriveAttachmentPickerOpen(true)} disabled={sending || !selectedPeerId} title="Abrir el Drive" aria-label="Abrir el Drive"><FileText size={18} /></button><button type="button" className="chat-attachment-button" onClick={() => setEmojiPickerOpen((open) => !open)} disabled={sending || !selectedPeerId} title="Emojis" aria-label="Emojis"><Smile size={18} /></button></div>{emojiPickerOpen ? <div className="chat-emoji-picker" role="group" aria-label="Emojis frecuentes">{["😀", "😂", "😍", "👍", "👏", "🙏", "❤️", "🔥", "🎉", "✅", "👀", "🤝", "💡", "💪", "😉", "🚀"].map((emoji) => <button type="button" key={emoji} onClick={() => addChatEmoji(emoji)}>{emoji}</button>)}</div> : null}{attachments.length || driveLinks.length ? <div className="chat-composer-attachments">{attachments.map((file, index) => <span key={`${file.name}-${index}`}><Paperclip size={13} />{file.name}<button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}{driveLinks.map((file) => <span key={file.id}><FileText size={13} />{file.name}<button type="button" onClick={() => setDriveLinks((current) => current.filter((item) => item.id !== file.id))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}</div> : null}</form>
+            <form className={`chat-composer ${draggingAttachments ? "is-dragging-files" : ""}`} onSubmit={sendMessage} onDragEnter={(event) => { event.preventDefault(); if (selectedPeerId && !sending) setDraggingAttachments(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setDraggingAttachments(false); }} onDrop={handleAttachmentDrop}><input ref={attachmentInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv,.txt,application/pdf,image/jpeg,image/png,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={addAttachments} />{draggingAttachments ? <div className="chat-drop-message" aria-live="polite">Suelta los archivos para adjuntarlos</div> : null}<div className="chat-composer-main"><textarea ref={composerInputRef} value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={handleComposerKeyDown} placeholder={selectedPeerId === "general" ? "Escribe en el chat general…" : `Mensaje privado para ${activePeer?.fullName || "este usuario"}…`} disabled={!selectedPeerId} /><button type="submit" className="chat-send-button" disabled={sending || (!body.trim() && !attachments.length && !driveLinks.length) || !selectedPeerId} title="Enviar mensaje" aria-label="Enviar mensaje"><Send size={18} /><span>Enviar</span></button></div><div className="chat-composer-tools"><button type="button" className="chat-attachment-button" onClick={() => attachmentInputRef.current?.click()} disabled={sending || !selectedPeerId} title="Adjuntar archivos" aria-label="Adjuntar archivos"><Paperclip size={18} /></button><button type="button" className="chat-attachment-button" onClick={() => setDriveAttachmentPickerOpen(true)} disabled={sending || !selectedPeerId} title="Abrir el Drive" aria-label="Abrir el Drive"><FileText size={18} /></button><button type="button" className="chat-attachment-button" onClick={() => setEmojiPickerOpen((open) => !open)} disabled={sending || !selectedPeerId} title="Emojis" aria-label="Emojis"><Smile size={18} /></button></div>{emojiPickerOpen ? <div className="chat-emoji-picker" role="group" aria-label="Emojis frecuentes">{["😀", "😂", "😍", "👍", "👏", "🙏", "❤️", "🔥", "🎉", "✅", "👀", "🤝", "💡", "💪", "😉", "🚀"].map((emoji) => <button type="button" key={emoji} onClick={() => addChatEmoji(emoji)}>{emoji}</button>)}</div> : null}{attachments.length || driveLinks.length ? <div className="chat-composer-attachments">{attachments.map((file, index) => <span key={`${file.name}-${index}`}><Paperclip size={13} />{file.name}<button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}{driveLinks.map((file) => <span key={file.id}><FileText size={13} />{file.name}<button type="button" onClick={() => setDriveLinks((current) => current.filter((item) => item.id !== file.id))} aria-label={`Quitar ${file.name}`}><X size={12} /></button></span>)}</div> : null}</form>
           </section>
         </div>
         {driveAttachmentPickerOpen ? <DriveAttachmentPicker token={token} country={driveCountry} locale={panelLocaleForUser(user)} onClose={() => setDriveAttachmentPickerOpen(false)} onSelect={addDriveLink} /> : null}
