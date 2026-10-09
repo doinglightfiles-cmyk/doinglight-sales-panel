@@ -8828,6 +8828,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
     supplierLeadId: purchase?.supplierLeadId || purchase?.supplier?.id || "",
     issueDate: inputDate(purchase?.issueDate || new Date()),
     dueDate: inputDate(purchase?.dueDate || ""),
+    paidAt: inputDate(purchase?.paidAt || ""),
     status: purchase?.status || "pending",
     currency: purchase?.currency || "EUR",
     deductible: purchase?.deductible ?? true,
@@ -8844,6 +8845,8 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
   const [attachmentBusy, setAttachmentBusy] = useState(false);
   const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [attachmentPreviewBusy, setAttachmentPreviewBusy] = useState(false);
+  const [paidDateModalOpen, setPaidDateModalOpen] = useState(false);
+  const [paidDateDraft, setPaidDateDraft] = useState("");
   const suppliers = useResource(
     () => apiRequest("/api/sales/leads?contactKind=supplier&limit=500", { token }),
     [token]
@@ -8862,6 +8865,7 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
           supplierLeadId: item.supplierLeadId || item.supplier?.id || "",
           issueDate: inputDate(item.issueDate),
           dueDate: inputDate(item.dueDate || ""),
+          paidAt: inputDate(item.paidAt || ""),
           status: item.status || "pending",
           currency: item.currency || "EUR",
           deductible: item.deductible ?? true,
@@ -8915,6 +8919,29 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
       ...current,
       lines: current.lines.length === 1 ? [emptyPurchaseLine()] : current.lines.filter((_, lineIndex) => lineIndex !== index)
     }));
+  }
+
+  function openPaidDateModal() {
+    setPaidDateDraft(form.paidAt || inputDate(new Date()));
+    setPaidDateModalOpen(true);
+  }
+
+  function changePurchaseStatus(nextStatus) {
+    if (nextStatus === "paid") {
+      openPaidDateModal();
+      return;
+    }
+    setForm((current) => ({ ...current, status: nextStatus, paidAt: "" }));
+  }
+
+  function confirmPaidDate() {
+    if (!paidDateDraft) {
+      setError("Indica la fecha en la que se ha realizado el pago.");
+      return;
+    }
+    setError("");
+    setForm((current) => ({ ...current, status: "paid", paidAt: paidDateDraft }));
+    setPaidDateModalOpen(false);
   }
 
   async function previewAttachment(attachment, pending = false) {
@@ -9108,10 +9135,22 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
           </label>
           <label>
             Estado
-            <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
+            <select value={form.status} onChange={(event) => changePurchaseStatus(event.target.value)}>
               {PURCHASE_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
+            {form.status === "paid" ? (
+              <span className="purchase-paid-date-field">
+                Fecha de pago
+                <input type="date" value={form.paidAt} onChange={(event) => setForm({ ...form, paidAt: event.target.value })} />
+              </span>
+            ) : null}
           </label>
+          <div className="purchase-paid-action">
+            <span>Pago de la factura</span>
+            <button className="primary-button" type="button" onClick={openPaidDateModal}>
+              {form.status === "paid" ? "Cambiar fecha de pago" : "Pagada"}
+            </button>
+          </div>
           <label>
             Método de pago
             <select value={form.paymentMethod} onChange={(event) => setForm({ ...form, paymentMethod: event.target.value })}>
@@ -9243,6 +9282,22 @@ function PurchaseForm({ token, documentType, purchase, onCancel, onDone }) {
         <button className="secondary-button" type="button" onClick={onCancel}>Cancelar</button>
         <button className="primary-button" type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar compra"}</button>
       </div>
+
+      {paidDateModalOpen ? (
+        <ModalShell title="Registrar pago" eyebrow="Factura de compra" onClose={() => setPaidDateModalOpen(false)}>
+          <section className="purchase-paid-date-modal">
+            <p>Indica la fecha en la que se ha pagado esta factura de compra.</p>
+            <label>
+              Fecha de pago
+              <input type="date" value={paidDateDraft} onChange={(event) => setPaidDateDraft(event.target.value)} autoFocus />
+            </label>
+            <div className="form-actions">
+              <button className="secondary-button" type="button" onClick={() => setPaidDateModalOpen(false)}>Cancelar</button>
+              <button className="primary-button" type="button" onClick={confirmPaidDate}>Marcar como pagada</button>
+            </div>
+          </section>
+        </ModalShell>
+      ) : null}
     </form>
   );
 }
