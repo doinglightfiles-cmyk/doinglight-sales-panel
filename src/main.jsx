@@ -10220,11 +10220,35 @@ function LeadMainFields({
             </button>
           </div>
         </label>
-        <input placeholder={distributor ? copy.firstName : "Nombre"} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
-        <input placeholder={distributor ? copy.lastName : "Apellidos"} value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
         {form.customerType !== "particular" || isSupplier ? (
-          <input placeholder={distributor ? copy.company : "Empresa / razón social"} value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
-        ) : <span className="hidden-grid-cell" aria-hidden="true" />}
+          <label className="field-with-label customer-name-field">
+            <span>{isSupplier ? "Nombre del proveedor / razón social" : "Nombre del cliente / razón social"}</span>
+            <input
+              placeholder={distributor ? copy.company : "Nombre del cliente"}
+              value={form.companyName || form.fullName || form.firstName}
+              onChange={(event) => {
+                const value = event.target.value;
+                // Un cliente empresa tiene un único nombre comercial visible.
+                // Conservamos sincronizados los campos históricos para que el
+                // cambio aparezca igual en ficha, listados y documentos.
+                setForm({ ...form, companyName: value, fullName: value, firstName: value, lastName: "" });
+              }}
+            />
+          </label>
+        ) : (
+          <>
+            <input
+              placeholder={distributor ? copy.firstName : "Nombre"}
+              value={form.firstName}
+              onChange={(event) => setForm({ ...form, firstName: event.target.value, fullName: [event.target.value, form.lastName].filter(Boolean).join(" ") })}
+            />
+            <input
+              placeholder={distributor ? copy.lastName : "Apellidos"}
+              value={form.lastName}
+              onChange={(event) => setForm({ ...form, lastName: event.target.value, fullName: [form.firstName, event.target.value].filter(Boolean).join(" ") })}
+            />
+          </>
+        )}
         <input placeholder={distributor ? copy.address : "Dirección"} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
         <label className="postal-code-field">
           <input placeholder={distributor ? copy.postalCode : "C.P."} value={form.postalCode} onChange={(event) => onPostalLookup ? onPostalLookup(event.target.value, form.country) : setForm({ ...form, postalCode: event.target.value })} />
