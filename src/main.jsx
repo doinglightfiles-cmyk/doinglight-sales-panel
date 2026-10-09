@@ -8316,8 +8316,8 @@ function ContactsView({ token, initialFilter = "all", distributor = false, local
                     <span className="contact-kind-badge">{contact.contactClass === "client" ? "C" : "P"}</span>
                   </td>
                   <td>
-                    <strong>{contact.fullName || contact.companyName || "-"}</strong>
-                    {contact.companyName && contact.companyName !== contact.fullName ? <span>{contact.companyName}</span> : null}
+                    <strong>{contact.companyName || contact.fullName || "-"}</strong>
+                    {contact.companyName && contact.fullName && contact.companyName !== contact.fullName ? <span>{contact.fullName}</span> : null}
                   </td>
                   {showCustomerColumns ? <td>{contact.contactClass === "client" ? customerLevelLabel(contact.customerLevel) : "-"}</td> : null}
                   {showCustomerColumns ? (
@@ -9615,7 +9615,12 @@ function LeadDetailModal({ lead, token, onClose, onSaved, onDeleted, distributor
           body: {
             ...draft,
             contactKind: isSupplier ? "supplier" : "client",
-            fullName: isSupplier ? draft.companyName || fullNameFromDraft(draft) : fullNameFromDraft(draft),
+            // En clientes empresa, la razón social es el nombre visible del cliente.
+            // Antes se guardaba solo el campo Nombre, por lo que editar Empresa no
+            // actualizaba el nombre mostrado en los listados.
+            fullName: isSupplier || draft.customerType !== "particular"
+              ? draft.companyName || fullNameFromDraft(draft)
+              : fullNameFromDraft(draft),
             defaultTaxRate: draft.taxIdentifierType === "sujeto_pasivo" || draft.viesValid ? 0 : draft.defaultTaxRate,
             paymentNotificationsEnabled: paymentNotificationsAllowed && draft.paymentNotificationsEnabled
         }
@@ -10146,7 +10151,7 @@ function LeadMainFields({
         <input placeholder={distributor ? copy.firstName : "Nombre"} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} />
         <input placeholder={distributor ? copy.lastName : "Apellidos"} value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} />
         {form.customerType !== "particular" || isSupplier ? (
-          <input placeholder={distributor ? copy.company : "Empresa"} value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
+          <input placeholder={distributor ? copy.company : "Empresa / razón social"} value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
         ) : <span className="hidden-grid-cell" aria-hidden="true" />}
         <input placeholder={distributor ? copy.address : "Dirección"} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
         <label className="postal-code-field">
@@ -10437,7 +10442,9 @@ function LeadFormFields({
       const result = await onSubmit({
         ...form,
         contactKind: "client",
-        fullName: fullNameFromDraft(form),
+        fullName: form.customerType !== "particular"
+          ? form.companyName || fullNameFromDraft(form)
+          : fullNameFromDraft(form),
         defaultTaxRate: form.taxIdentifierType === "sujeto_pasivo" || form.viesValid ? 0 : form.defaultTaxRate
       });
       setSaveState("saved");
