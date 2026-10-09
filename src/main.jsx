@@ -12453,6 +12453,13 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
     }
   }
 
+  function updateDocumentLeadName(value) {
+    const isBusinessClient = selectedLead?.customerType !== "particular";
+    updateLeadDraft(isBusinessClient
+      ? { fullName: value, companyName: value }
+      : { fullName: value });
+  }
+
   async function validateQuoteLeadVies() {
     if (!selectedLead || !leadDraft?.taxId || !leadDraft?.country) return;
 
@@ -12471,7 +12478,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
         ...selectedLead,
         ...leadDraft,
         contactKind: "client",
-        fullName: leadDraft.fullName || selectedLead.fullName || selectedLead.companyName || "Cliente",
+        fullName: selectedLead.customerType !== "particular"
+          ? leadDraft.companyName || leadDraft.fullName || selectedLead.companyName || selectedLead.fullName || "Cliente"
+          : leadDraft.fullName || selectedLead.fullName || selectedLead.companyName || "Cliente",
         customerType: selectedLead.customerType || "particular",
         customerLevel: selectedLead.customerLevel || "level_1",
         defaultDiscountPercent: selectedLead.defaultDiscountPercent || 0,
@@ -12519,7 +12528,9 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
       const payload = {
         ...selectedLead,
         ...leadDraft,
-        fullName: leadDraft.fullName || selectedLead.fullName || selectedLead.companyName || "Cliente",
+        fullName: selectedLead.customerType !== "particular"
+          ? leadDraft.companyName || leadDraft.fullName || selectedLead.companyName || selectedLead.fullName || "Cliente"
+          : leadDraft.fullName || selectedLead.fullName || selectedLead.companyName || "Cliente",
         contactKind: "client",
         customerType: selectedLead.customerType || "particular",
         customerLevel: selectedLead.customerLevel || "level_1",
@@ -13821,6 +13832,11 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                   </button>
                 </div>
                 <div className="quote-client-quick-edit-grid">
+                  <input
+                    value={selectedLead.customerType !== "particular" ? (leadDraft.companyName || leadDraft.fullName || "") : (leadDraft.fullName || "")}
+                    onChange={(event) => updateDocumentLeadName(event.target.value)}
+                    placeholder={selectedLead.customerType !== "particular" ? "Nombre del cliente / razón social" : "Nombre del cliente"}
+                  />
                   <input value={leadDraft.email} onChange={(event) => updateLeadDraft({ email: event.target.value })} placeholder="Correo electrónico" />
                   <input value={leadDraft.phone} onChange={(event) => updateLeadDraft({ phone: event.target.value })} placeholder="Teléfono" />
                   <input value={leadDraft.mobilePhone} onChange={(event) => updateLeadDraft({ mobilePhone: event.target.value })} placeholder="Teléfono móvil" />
@@ -13845,7 +13861,6 @@ function QuoteForm({ token, onDone, onCancel, template, initialQuote, actionsRef
                       {quoteViesChecking ? "Validando..." : leadDraft.viesValid ? "VIES validado" : quoteViesMessage && !leadDraft.viesValid ? "VIES no válido" : "Validar VIES"}
                     </button>
                   </div>
-                  <input value={leadDraft.companyName} onChange={(event) => updateLeadDraft({ companyName: event.target.value })} placeholder="Empresa" />
                   <input value={leadDraft.address} onChange={(event) => updateLeadDraft({ address: event.target.value })} placeholder="Dirección" />
                   <input value={leadDraft.postalCode} onChange={(event) => updateLeadDraft({ postalCode: event.target.value })} placeholder="C.P." />
                   <input value={leadDraft.population} onChange={(event) => updateLeadDraft({ population: event.target.value })} placeholder="Población" />
