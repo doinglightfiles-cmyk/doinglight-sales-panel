@@ -8348,6 +8348,7 @@ th {
 .brands-list > button:hover,.brands-list > button.active { color: var(--green-dark); background: #eaf3d8; }
 .brands-list span { min-width: 0; display: grid; gap: 3px; }.brands-list small { color: #72806b; }
 .brand-products-panel { min-width: 0; padding: 20px; }.brand-products-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }.brand-products-panel h3 { margin: 3px 0 0; }.brand-products-panel header small { color: #70806a; font-weight: 700; }.brand-form { display: grid; gap: 16px; padding: 6px 2px; }.brand-form label { display: grid; gap: 7px; color: #44523f; font-weight: 750; }.brand-form label small { font-weight: 500; }.brand-form textarea { min-height: 92px; resize: vertical; }.brand-form footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
+.brand-product-row { cursor: pointer; }.brand-product-row:hover td, .brand-product-row:focus-visible td { background: #f1f7e7; }.brand-product-row:focus-visible { outline: 2px solid var(--green-doinglight, #a8cf32); outline-offset: -2px; }
 @media (max-width: 760px) { .brands-workspace { grid-template-columns: 1fr; }.brands-list { max-height: 190px; border-right: 0; border-bottom: 1px solid var(--line); }.brand-products-panel { padding: 15px; } }
 
 .manufacturing-modal { width: min(760px,96vw); }
