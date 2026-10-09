@@ -2351,7 +2351,7 @@ function PanelShell({ session, activeView, onNavigate, onLogout }) {
           {activeView === "mail" && canUseMailbox ? <MailWorkspace token={session.token} user={session.user} locale={panelLocale} initialDriveFile={mailDriveFile} onDriveFileConsumed={() => setMailDriveFile(null)} /> : null}
           {activeView === "websites" && canManageWebsites ? <WebsitesView token={session?.token} /> : null}
           {activeView === "leads" ? <LeadsView token={session.token} /> : null}
-          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} restrictedUser={isRestrictedSpanishSeller} /> : null}
+          {activeView === "quotes" ? <QuotesView token={session.token} distributor={isDistributor} locale={panelLocale} restrictedUser={isRestrictedSpanishSeller} karenSeller={isKarenSeller} /> : null}
           {activeView === "downloads" ? <DownloadsView token={session.token} user={session.user} distributor={isDistributor} locale={panelLocale} onSendToChat={(file) => { setChatDriveFile(file); setChatInitialPeer(""); setChatOpen(true); }} onSendEmail={canUseMailbox ? (file) => { setMailDriveFile(file); navigate("mail"); } : null} /> : null}
         </section>
       </div>
@@ -10573,9 +10573,10 @@ const QUOTE_ORIGIN_FILTERS = [
   { id: "angel", label: "Ángel", email: "a.jimenez@doinglight.es", icon: "cap" }
 ];
 
-function QuotesView({ token, distributor = false, locale = "es", restrictedUser = false }) {
+function QuotesView({ token, distributor = false, locale = "es", restrictedUser = false, karenSeller = false }) {
   const copy = distributorPanelCopy(locale);
   const listCopy = distributorQuoteListCopy(distributor ? locale : "es");
+  const canAcceptQuote = distributor || karenSeller;
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedPdfTemplate, setSelectedPdfTemplate] = useState("doinglight");
@@ -10863,18 +10864,18 @@ function QuotesView({ token, distributor = false, locale = "es", restrictedUser 
                 <SortableDocumentHeader sortKey="subtotal" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.subtotal}</SortableDocumentHeader>
                 <SortableDocumentHeader sortKey="total" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.total}</SortableDocumentHeader>
                 <SortableDocumentHeader sortKey="currency" sortConfig={quoteSort.sortConfig} onSort={quoteSort.requestSort}>{listCopy.currency}</SortableDocumentHeader>
-                {distributor ? <th className="quote-accepted-column"></th> : null}
+                {canAcceptQuote ? <th className="quote-accepted-column"></th> : null}
               </tr>
             </thead>
             <tbody>
               {quotes.loading || leads.loading ? (
                 <tr className="empty-table-row">
-                  <td colSpan={distributor ? 10 : 9}>{listCopy.loading}</td>
+                  <td colSpan={canAcceptQuote ? 10 : 9}>{listCopy.loading}</td>
                 </tr>
               ) : null}
               {!quotes.loading && !leads.loading && !filteredQuotes.length ? (
                 <tr className="empty-table-row">
-                  <td colSpan={distributor ? 10 : 9}>{listCopy.empty}</td>
+                  <td colSpan={canAcceptQuote ? 10 : 9}>{listCopy.empty}</td>
                 </tr>
               ) : null}
               {visibleQuotes.map((quote) => (
@@ -10934,25 +10935,25 @@ function QuotesView({ token, distributor = false, locale = "es", restrictedUser 
                   <td>{tableMoney(quote.subtotal)}</td>
                   <td>{tableMoney(quote.total)}</td>
                   <td>{quote.currency}</td>
-                  {distributor ? <td className="quote-accepted-column">
+                  {canAcceptQuote ? <td className="quote-accepted-column">
                     {quote.statusKey !== "accepted" ? <button
                       className="invoice-row-accept-button"
                       type="button"
                       onClick={(event) => { event.stopPropagation(); markQuoteAccepted(quote.id); }}
                     >
-                      {copy.markAccepted}
-                    </button> : <button
+                      {karenSeller ? "Presupuesto aceptado" : copy.markAccepted}
+                    </button> : distributor ? <button
                       className="invoice-row-accept-button"
                       type="button"
                       onClick={(event) => { event.stopPropagation(); undoQuoteAcceptance(quote.id); }}
                     >
                       {copy.undoAccepted}
-                    </button>}
+                    </button> : <span className="invoice-payment-status accepted">Aceptado</span>}
                   </td> : null}
                 </tr>
               ))}
               <DocumentLoadMoreRow
-                colSpan={distributor ? 10 : 9}
+                colSpan={canAcceptQuote ? 10 : 9}
                 visibleCount={quoteRowsList.visibleCount}
                 totalRows={sortedQuotes.length}
                 onLoadMore={quoteRowsList.loadMoreRows}
